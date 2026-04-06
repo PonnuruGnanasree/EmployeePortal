@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document Viewer – Gantec Document Finder</title>
+  <meta name="description" content="View and browse all your PDF documents organized by folder with Gantec Document Finder." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-brand">
+      <a href="index.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+        <span class="nav-logo">📂</span>
+        <span class="nav-title">Gantec</span>
+      </a>
+    </div>
+    <div class="nav-links">
+      <a href="index.html" class="nav-link" id="nav-home">Home</a>
+      <a href="viewer.html" class="nav-link active" id="nav-viewer">Viewer</a>
+      <a href="uploader.html" class="nav-link" id="nav-uploader">Upload</a>
+    </div>
+  </nav>
+
+  <!-- Toast container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- PDF Modal -->
+  <div class="modal-overlay hidden" id="pdf-modal">
+    <div class="pdf-modal">
+      <div class="modal-header">
+        <div class="modal-file-info">
+          <span class="modal-icon">📄</span>
+          <span class="modal-filename" id="modal-filename">document.pdf</span>
+        </div>
+        <div class="modal-actions">
+          <a id="modal-download" class="btn btn-secondary btn-sm" download title="Download">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+              <polyline points="8 17 12 21 16 17"/>
+              <line x1="12" y1="12" x2="12" y2="21"/>
+              <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.13"/>
+            </svg>
+            Download
+          </a>
+          <button class="modal-close-btn" id="modal-close" title="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <iframe id="pdf-iframe" src="" title="PDF Viewer"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- Viewer Layout -->
+  <div class="viewer-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar glass-card" id="sidebar">
+      <div class="sidebar-header">
+        <h2 class="sidebar-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          Folders
+        </h2>
+        <a href="uploader.html" class="btn btn-primary btn-sm" title="Upload new document">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          New
+        </a>
+      </div>
+
+      <!-- All Documents toggle -->
+      <div class="sidebar-item active" data-folder="__all__" id="folder-all">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+          <line x1="8" y1="21" x2="16" y2="21"/>
+          <line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+        <span>All Documents</span>
+        <span class="folder-count" id="count-all">0</span>
+      </div>
+
+      <div class="sidebar-folders" id="sidebar-folders">
+        <!-- Dynamically populated -->
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="viewer-main">
+      <!-- Toolbar -->
+      <div class="viewer-toolbar">
+        <div class="toolbar-left">
+          <h1 class="viewer-heading" id="viewer-heading">All Documents</h1>
+          <span class="doc-count-badge" id="doc-count-badge">0 files</span>
+        </div>
+        <div class="toolbar-right">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              type="search"
+              id="search-input"
+              class="search-input"
+              placeholder="Search documents…"
+              autocomplete="off"
+            />
+          </div>
+          <div class="view-toggle">
+            <button class="view-btn active" id="grid-btn" title="Grid view">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+              </svg>
+            </button>
+            <button class="view-btn" id="list-btn" title="List view">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="8" y1="6" x2="21" y2="6"/>
+                <line x1="8" y1="12" x2="21" y2="12"/>
+                <line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/>
+                <line x1="3" y1="12" x2="3.01" y2="12"/>
+                <line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Document Grid/List -->
+      <div class="docs-container" id="docs-container">
+        <div class="docs-grid" id="docs-grid">
+          <!-- Document cards rendered by JS -->
+        </div>
+        <!-- Empty state -->
+        <div class="empty-state hidden" id="empty-state">
+          <div class="empty-icon">📁</div>
+          <h3>No documents found</h3>
+          <p>Upload some PDFs to get started.</p>
+          <a href="uploader.html" class="btn btn-primary">Upload Document</a>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script src="js/viewer.js"></script>
+</body>
+</html>

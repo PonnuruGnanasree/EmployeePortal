@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document Uploader – Gantec Document Finder</title>
+  <meta name="description" content="Upload your PDF documents into organized folders with Gantec Document Finder." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-orb orb-3"></div>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-brand">
+      <a href="index.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+        <span class="nav-logo">📂</span>
+        <span class="nav-title">Gantec</span>
+      </a>
+    </div>
+    <div class="nav-links">
+      <a href="index.html" class="nav-link" id="nav-home">Home</a>
+      <a href="viewer.html" class="nav-link" id="nav-viewer">Viewer</a>
+      <a href="uploader.html" class="nav-link active" id="nav-uploader">Upload</a>
+    </div>
+  </nav>
+
+  <!-- Toast container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <main class="upload-main">
+    <div class="page-header">
+      <div class="page-icon uploader-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <polyline points="16 16 12 12 8 16"/>
+          <line x1="12" y1="12" x2="12" y2="21"/>
+          <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="page-title">Document Uploader</h1>
+        <p class="page-subtitle">Upload PDF files into organized folders</p>
+      </div>
+    </div>
+
+    <div class="upload-layout">
+      <!-- Folder Selection Panel -->
+      <div class="upload-sidebar glass-card">
+        <h2 class="section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          Select Folder
+        </h2>
+
+        <div class="folder-list" id="folder-list">
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line short"></div>
+          <div class="skeleton-line"></div>
+        </div>
+
+        <div class="new-folder-form">
+          <p class="form-label">Create New Folder</p>
+          <div class="input-row">
+            <input
+              type="text"
+              id="new-folder-input"
+              class="text-input"
+              placeholder="Folder name…"
+              maxlength="60"
+              autocomplete="off"
+            />
+            <button id="create-folder-btn" class="btn btn-secondary icon-btn" title="Create folder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload Panel -->
+      <div class="upload-panel glass-card">
+        <h2 class="section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+            <polyline points="16 16 12 12 8 16"/>
+            <line x1="12" y1="12" x2="12" y2="21"/>
+          </svg>
+          Upload File
+        </h2>
+
+        <!-- Selected folder indicator -->
+        <div class="selected-folder-badge" id="selected-folder-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span id="selected-folder-name">No folder selected</span>
+        </div>
+
+        <!-- Drop Zone -->
+        <div class="drop-zone" id="drop-zone">
+          <input type="file" id="file-input" accept=".pdf" hidden />
+          <div class="drop-zone-content" id="drop-content">
+            <div class="drop-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <polyline points="16 16 12 12 8 16"/>
+                <line x1="12" y1="12" x2="12" y2="21"/>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+              </svg>
+            </div>
+            <p class="drop-title">Drag & drop your PDF here</p>
+            <p class="drop-sub">or click to browse</p>
+            <p class="drop-hint">PDF files only · Max 500MB</p>
+          </div>
+
+          <!-- File selected preview -->
+          <div class="file-preview hidden" id="file-preview">
+            <div class="pdf-icon-large">📄</div>
+            <div class="file-info">
+              <p class="file-name" id="preview-name">document.pdf</p>
+              <p class="file-size" id="preview-size">0 KB</p>
+            </div>
+            <button class="remove-file-btn" id="remove-file-btn" title="Remove file">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Upload Progress -->
+        <div class="progress-wrap hidden" id="progress-wrap">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <p class="progress-text" id="progress-text">Uploading…</p>
+        </div>
+
+        <!-- Upload Button -->
+        <button class="btn btn-primary upload-btn" id="upload-btn" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+            <polyline points="16 16 12 12 8 16"/>
+            <line x1="12" y1="12" x2="12" y2="21"/>
+          </svg>
+          Upload Document
+        </button>
+      </div>
+    </div>
+
+    <!-- Recent Uploads -->
+    <div class="recent-uploads glass-card" id="recent-section">
+      <h2 class="section-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Recent Uploads
+      </h2>
+      <div class="recent-list" id="recent-list">
+        <p class="empty-text">No recent uploads yet.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- ─── Upload Confirm Modal ─────────────────────────────────────────────── -->
+  <div class="confirm-overlay hidden" id="confirm-overlay">
+    <div class="confirm-dialog">
+      <!-- Header -->
+      <div class="confirm-header">
+        <div class="confirm-file-badge">
+          <span class="confirm-pdf-icon">📄</span>
+          <div>
+            <div class="confirm-orig-name" id="confirm-orig-name">document.pdf</div>
+            <div class="confirm-file-meta" id="confirm-file-meta">0 KB</div>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="confirm-close-btn" title="Cancel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="confirm-body">
+        <!-- Step 1: Rename -->
+        <div class="confirm-section">
+          <p class="confirm-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Rename File <span class="confirm-optional">(optional)</span>
+          </p>
+          <div class="confirm-rename-wrap">
+            <input type="text" id="rename-input" class="text-input confirm-rename-input" placeholder="Enter file name…" autocomplete="off" />
+            <span class="confirm-ext">.pdf</span>
+          </div>
+        </div>
+
+        <!-- Step 2: Choose Folder -->
+        <div class="confirm-section">
+          <p class="confirm-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            Destination Folder
+          </p>
+          <div class="confirm-folder-list" id="confirm-folder-list">
+            <p class="empty-text">Loading folders…</p>
+          </div>
+          <!-- Quick-create folder inside modal -->
+          <div class="confirm-new-folder">
+            <input type="text" id="confirm-new-folder-input" class="text-input" placeholder="Or create new folder…" autocomplete="off" />
+            <button class="btn btn-secondary btn-sm" id="confirm-create-folder-btn">+ Create</button>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-wrap hidden" id="confirm-progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" id="confirm-progress-fill"></div></div>
+          <p class="progress-text" id="confirm-progress-text">Uploading…</p>
+        </div>
+
+        <!-- Actions -->
+        <div class="confirm-actions">
+          <button class="btn btn-secondary" id="confirm-cancel-btn">Cancel</button>
+          <button class="btn btn-primary" id="confirm-upload-btn" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+              <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+            </svg>
+            Upload to Folder
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script src="js/uploader.js"></script>
+</body>
+</html>
