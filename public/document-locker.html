@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document Locker – Gantec Employee Portal</title>
+  <meta name="description" content="View and manage your personal documents securely in Gantec Employee Portal." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=3" />
+  <link rel="stylesheet" href="css/branding.css" />
+  <!-- Rendering Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+  <style>
+    /* ── Delete Confirm Modal ──────────────────────────── */
+    .confirm-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(6px);
+      z-index: 9100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    .confirm-modal-overlay.active {
+      pointer-events: all;
+      opacity: 1;
+    }
+
+    .confirm-modal-overlay .confirm-dialog {
+      max-width: 380px;
+    }
+
+    .confirm-icon-wrap {
+      text-align: center;
+      padding: 24px 24px 8px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .confirm-modal-overlay .confirm-body {
+      text-align: center;
+      padding: 0 24px 20px;
+    }
+
+    .confirm-modal-overlay .confirm-body h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .confirm-modal-overlay .confirm-body p {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .confirm-footer {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      padding: 0 24px 24px;
+    }
+
+    .btn-confirm {
+      padding: 9px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .btn-confirm-delete {
+      background: #1d3461;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(29, 52, 97, 0.2);
+    }
+
+    .btn-confirm-delete:hover {
+      background: #152749;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 15px rgba(29, 52, 97, 0.3);
+    }
+
+    .btn-confirm-cancel {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      color: #64748b;
+      padding: 12px 24px;
+      border-radius: 12px;
+    }
+
+    .btn-confirm-cancel:hover {
+      background: #f8fafc;
+      color: #1e293b;
+    }
+
+    /* ── Confirm Upload Overlay ───────────────────────── */
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(8px);
+      z-index: 9000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .confirm-overlay.hidden {
+      display: none !important;
+    }
+
+    .confirm-dialog {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      max-width: 520px;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .confirm-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-2);
+    }
+
+    .confirm-file-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .confirm-pdf-icon {
+      font-size: 1.6rem;
+    }
+
+    .confirm-orig-name {
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .confirm-file-meta {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .confirm-body {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .confirm-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 8px;
+    }
+
+    .confirm-optional {
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .confirm-rename-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .confirm-rename-input {
+      flex: 1;
+    }
+
+    .confirm-ext {
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .confirm-folder-list {
+      max-height: 160px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px;
+    }
+
+    .confirm-folder-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .confirm-folder-list::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .confirm-new-folder {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .progress-wrap {
+      margin-top: 4px;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: var(--bg-2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      border-radius: 3px;
+      transition: width .15s linear;
+    }
+
+    .progress-text {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      padding-top: 4px;
+    }
+
+    /* ── Modal folder picker ─────────────────────────── */
+    .modal-folder-pick {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      transition: background var(--transition);
+    }
+
+    .modal-folder-pick:hover {
+      background: var(--bg-2);
+    }
+
+    .modal-folder-pick.selected {
+      background: rgba(29, 52, 97, .1);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .modal-folder-count {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    /* ── Sidebar folder delete btn ───────────────────── */
+    .folder-delete-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .2s;
+    }
+
+    .folder-delete-btn:hover {
+      background: rgba(245, 101, 101, 0.1);
+      color: var(--danger);
+    }
+
+    .folder-delete-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .folder-sidebar {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden !important;
+      /* Move scroll to internal folder list */
+    }
+
+    .sidebar-folders {
+      flex: 1;
+      overflow-y: auto;
+      margin: 8px 0;
+      padding-right: 4px;
+    }
+
+    /* Custom scrollbar for folders */
+    .sidebar-folders::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .sidebar-folders::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    .sidebar-folders::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    /* ── Sidebar "New" button area ───────────────────── */
+    .sidebar-upload-strip {
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-upload-strip .drop-zone-mini {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 14px 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition);
+      background: rgba(29, 52, 97, 0.02);
+    }
+
+    .sidebar-upload-strip .drop-zone-mini:hover,
+    .sidebar-upload-strip .drop-zone-mini.dragover {
+      border-color: var(--primary);
+      background: rgba(29, 52, 97, 0.06);
+    }
+
+    .drop-zone-mini .drop-icon svg {
+      width: 26px;
+      height: 26px;
+      color: var(--primary);
+      margin: 0 auto 6px;
+    }
+
+    .drop-zone-mini .drop-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .drop-zone-mini .drop-sub {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .file-preview-mini {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: rgba(29, 52, 97, 0.05);
+      border-radius: var(--radius-sm);
+    }
+
+    .file-preview-mini .file-name {
+      font-size: 0.78rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .file-preview-mini .file-size {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    /* ── Folder Creation in sidebar ──────────────────── */
+    .sidebar-folder-create {
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-folder-create .form-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      display: block;
+    }
+
+    .sidebar-folder-create .input-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .sidebar-folder-create .input-row input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .sidebar-folder-create .input-row .btn {
+      padding: 0 8px;
+      font-size: 0.72rem;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+
+  <div class="app-layout">
+    <aside class="app-sidebar">
+
+
+      <nav class="sidebar-nav">
+        <a href="home.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <span class="link-text">Home</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="viewer.html" class="sidebar-link sidebar-dropdown-trigger" id="nav-training">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span class="link-text">Training Resources</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="viewer.html" class="submenu-link">View and Upload Resources</a>
+            <a href="content-leader.html" class="submenu-link">Content Leaders</a>
+          </div>
+        </div>
+
+        <a href="document-locker.html" class="sidebar-link active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="2" />
+            <line x1="9" y1="7" x2="15" y2="7" />
+            <line x1="9" y1="11" x2="15" y2="11" />
+            <line x1="9" y1="15" x2="12" y2="15" />
+          </svg>
+          <span class="link-text">Document Locker</span>
+        </a>
+
+        <a href="certifications.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="8" r="7"></circle>
+            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+          </svg>
+          <span class="link-text">Certifications</span>
+        </a>
+
+        <a href="company-culture.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span class="link-text">Company Culture</span>
+        </a>
+
+        <a href="faq.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <circle cx="12" cy="17" r="0.5" fill="currentColor"></circle>
+          </svg>
+          <span class="link-text">FAQ</span>
+        </a>
+
+        <a href="contact-hr.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+            </path>
+          </svg>
+          <span class="link-text">Contact HR</span>
+        </a>
+      </nav>
+    </aside>
+
+    <div class="main-wrapper" style="flex:1;">
+      <header class="app-header">
+        <a href="home.html" class="header-brand">
+          <span class="gantec-logo-text" style="font-size: 1.25rem;">GANTEC <span class="gantec-logo-gradient">Employee
+              Portal</span></span>
+        </a>
+        <div id="user-profile-section"></div>
+      </header>
+      <main class="app-main">
+        <div class="vault-dashboard">
+
+          <!-- Toast container -->
+          <div id="toast-container" class="toast-container"></div>
+
+          <!-- ── Top Action Section ── -->
+          <div class="top-action-section">
+            <div id="main-upload-card" class="upload-card-div">
+              <div class="upload-card-inner">
+                <div class="upload-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                </div>
+                <div class="upload-card-text">
+                  <h3>Upload New Files</h3>
+                  <p>Click here to add private documents to your Folders</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="folder-management-card">
+              <div class="folder-card-header">
+                <h4>Document Management</h4>
+                <p>Organize your documents into private folders</p>
+              </div>
+              <div class="folder-form" style="display: flex; gap: 8px;">
+                <input type="text" id="new-folder-input" class="text-input" style="flex:1;"
+                  placeholder="Create new folder...">
+                <button id="create-folder-btn" class="btn btn-primary" style="padding: 8px 16px;">Main Folder</button>
+                <button id="create-subfolder-btn" class="btn btn-secondary" disabled
+                  title="Select a folder below first to create a subfolder" style="padding: 8px 16px;">Sub
+                  Folder</button>
+              </div>
+              <div class="vault-search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input type="search" id="search-input" class="search-input" placeholder="Search your private files...">
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Main Workspace Area ── -->
+          <div class="vault-main-area">
+
+            <!-- Left Pane: Folder Tree Structure -->
+            <aside class="vault-tree-sidebar">
+              <div class="vault-tree-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  style="width:16px; height:16px;">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+                My Folders & Files
+              </div>
+              <ul id="vault-folder-tree" class="vault-folder-tree">
+                <!-- Rendered dynamically -->
+              </ul>
+            </aside>
+
+            <!-- Right Pane: File Display Grid -->
+            <div class="vault-grid-content">
+              <div class="vault-toolbar">
+                <div class="toolbar-left">
+                  <h2 id="viewer-heading">Private Documents</h2>
+                  <p class="vault-motto"
+                    style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; max-width: 400px; line-height: 1.4;">
+                    <!-- A secure space to upload, manage, and access important documents with absolute privacy.</p> -->
+                    <span id="doc-count-badge" class="badge">0 Items</span>
+                </div>
+                <div class="toolbar-right">
+                  <div class="view-toggles">
+                    <button class="view-toggle-btn active" id="grid-btn"><svg viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7" />
+                        <rect x="14" y="3" width="7" height="7" />
+                        <rect x="14" y="14" width="7" height="7" />
+                        <rect x="3" y="14" width="7" height="7" />
+                      </svg></button>
+                    <button class="view-toggle-btn" id="list-btn"><svg viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <line x1="8" y1="6" x2="21" y2="6" />
+                        <line x1="8" y1="12" x2="21" y2="12" />
+                        <line x1="8" y1="18" x2="21" y2="18" />
+                        <line x1="3" y1="6" x2="3.01" y2="6" />
+                        <line x1="3" y1="12" x2="3.01" y2="12" />
+                        <line x1="3" y1="18" x2="3.01" y2="18" />
+                      </svg></button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="docs-grid" class="docs-grid"></div>
+
+              <div id="empty-state" class="empty-state hidden">
+                <div class="empty-icon-wrap">
+                  <div class="empty-blob"></div><span class="empty-icon">📁</span>
+                </div>
+                <p>No documents found in this folder. Use the uploader above to get started.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <input type="file" id="file-input" hidden />
+    </div>
+  </div>
+
+  <!-- ── Upload Confirm Modal ──────────────────────────── -->
+  <div class="confirm-overlay hidden" id="confirm-overlay">
+    <div class="confirm-dialog">
+      <div class="confirm-header">
+        <div class="confirm-file-badge">
+          <span class="confirm-pdf-icon">📄</span>
+          <div>
+            <div class="confirm-orig-name" id="confirm-orig-name">file.txt</div>
+            <div class="confirm-file-meta" id="confirm-file-meta">0 KB</div>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="confirm-close-btn" title="Cancel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="confirm-body">
+        <!-- Rename -->
+        <div class="confirm-section">
+          <p class="confirm-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            Rename <span class="confirm-optional">(optional)</span>
+          </p>
+          <div class="confirm-rename-wrap">
+            <input type="text" id="rename-input" class="text-input confirm-rename-input" placeholder="Enter file name…"
+              autocomplete="off" />
+            <span class="confirm-ext" id="confirm-ext">.ext</span>
+          </div>
+        </div>
+
+        <!-- Folder -->
+        <div class="confirm-section">
+          <p class="confirm-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+            Destination Folder
+          </p>
+          <div class="confirm-folder-list" id="confirm-folder-list">
+            <p class="empty-text">Loading folders…</p>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-wrap hidden" id="confirm-progress-wrap">
+          <div class="progress-bar">
+            <div class="progress-fill" id="confirm-progress-fill"></div>
+          </div>
+          <p class="progress-text" id="confirm-progress-text">Uploading…</p>
+        </div>
+
+        <!-- Actions -->
+        <div class="confirm-actions">
+          <button class="btn btn-secondary" id="confirm-cancel-btn">Cancel</button>
+          <button class="btn btn-primary" id="confirm-upload-btn"
+            style="width: 100%; justify-content: center; gap: 10px; padding: 12px; font-weight: 700;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="icon-sm">
+              <polyline points="16 16 12 12 8 16" />
+              <line x1="12" y1="12" x2="12" y2="21" />
+            </svg>
+            Complete Upload
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Delete Confirm Modal ──────────────────────────── -->
+  <div class="confirm-modal-overlay" id="delete-confirm-modal">
+    <div class="confirm-dialog">
+            <div class="confirm-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px;">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+          <path d="M10 11v6"></path>
+          <path d="M14 11v6"></path>
+          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+        </svg>
+      </div>
+      <div class="confirm-body">
+        <h3>Confirm Delete ?</h3>
+        <p id="delete-confirm-msg">Are you sure?</p>
+      </div>
+      <div class="confirm-footer">
+        <button id="delete-confirm-ok-btn" class="btn-confirm btn-confirm-delete">Yes, Delete</button>
+        <button id="delete-confirm-cancel-btn" class="btn-confirm btn-confirm-cancel">No, Keep It</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF Modal -->
+  <div class="modal-overlay hidden" id="pdf-modal"
+    style="backdrop-filter: blur(16px); background: rgba(0,0,0,0.45); z-index: 9000;">
+    <div class="pdf-modal">
+      <div class="modal-header">
+        <div class="modal-file-info">
+          <span class="modal-icon" id="modal-icon">📄</span>
+          <span class="modal-filename" id="modal-filename">document.ext</span>
+        </div>
+        <div class="modal-actions">
+          <a id="modal-download" class="btn-modal-download" download title="Download File">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+              style="width: 18px; height: 18px;">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download
+          </a>
+          <button class="modal-close-btn" id="modal-close" title="Close Viewer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+              style="width: 18px; height: 18px;">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="preview-fallback" class="preview-fallback hidden"></div>
+        <iframe id="pdf-iframe" src="" title="File Viewer"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script src="js/my-docs.js?v=2.3"></script>
+</body>
+
+</html>

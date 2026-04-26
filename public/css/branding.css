@@ -1,0 +1,28 @@
+/* --- Gantec Logo Branding System --- */
+.gantec-logo-text {
+  font-weight: 850;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  font-family: 'Inter', sans-serif;
+  text-transform: uppercase;
+  gap: 6px;
+}
+
+.gantec-logo-gradient {
+  background: linear-gradient(135deg, var(--primary) 20%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 850;
+}
+
+/* Sidebar Nav Branding specifically */
+.header-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}

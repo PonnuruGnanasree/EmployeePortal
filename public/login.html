@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login – Gantec Employee Portal</title>
+  <meta name="description" content="Login to access the Gantec Employee Portal." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <link rel="stylesheet" href="css/branding.css" />
+  <style>
+    .portal-marquee {
+      position: absolute;
+      top: 40px;
+      width: 100%;
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      opacity: 0.8;
+      z-index: 10;
+    }
+
+    .login-main {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      padding: 48px 40px;
+      text-align: center;
+      animation: slideUp 0.6s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .login-title {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      letter-spacing: -1px;
+      color: var(--text-primary);
+    }
+
+    .login-subtitle {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      margin-bottom: 40px;
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      text-align: left;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .login-btn {
+      margin-top: 12px;
+      justify-content: center;
+      font-size: 1rem;
+      height: 48px;
+    }
+
+    .login-footer {
+      margin-top: 32px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .login-footer a {
+      color: var(--primary);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .login-footer a:hover {
+      text-decoration: underline;
+    }
+
+    .password-wrapper {
+      position: relative;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: var(--primary);
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Background orbs -->
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-orb orb-3"></div>
+
+  <div class="portal-marquee">
+    <span class="gantec-logo-text">GANTEC <span class="gantec-logo-gradient">Employee Portal</span></span>
+  </div>
+
+  <main class="login-main">
+    <div class="login-card glass-card">
+      <div id="auth-header">
+        <h2 class="login-title">Sign In</h2>
+        <p class="login-subtitle">Enter your credentials to access the portal</p>
+      </div>
+
+      <form class="login-form" id="login-form">
+        <div class="form-group" id="name-group" style="display: none;">
+          <label class="form-label" for="fullname">Full Name</label>
+          <input type="text" id="fullname" class="text-input" placeholder="Enter your name" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <input type="email" id="email" class="text-input" placeholder="name@gantecusa.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="password" class="text-input" placeholder="••••••••" required autocomplete="current-password" />
+            <button type="button" class="password-toggle" id="password-toggle">Show</button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary login-btn" id="submit-btn">
+          Sign In
+        </button>
+      </form>
+
+      <div class="login-footer" id="auth-footer">
+        Don't have an account? <a href="#" id="toggle-auth">Sign Up</a>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="js/app.js"></script>
+  <script>
+    let isSignUp = false;
+    const form = document.getElementById('login-form');
+    const toggleLink = document.getElementById('toggle-auth');
+    const nameGroup = document.getElementById('name-group');
+    const submitBtn = document.getElementById('submit-btn');
+    const authHeader = document.getElementById('auth-header');
+    const authFooter = document.getElementById('auth-footer');
+
+    function handleToggleAuth(e) {
+      if (e) e.preventDefault();
+      isSignUp = !isSignUp;
+      
+      if (isSignUp) {
+        authHeader.innerHTML = `
+          <h2 class="login-title">Create Account</h2>
+          <p class="login-subtitle">Join the Gantec Employee Portal today</p>
+        `;
+        nameGroup.style.display = 'block';
+        document.getElementById('fullname').required = true;
+        submitBtn.textContent = 'Create Account';
+        authFooter.innerHTML = `Already have an account? <a href="#" id="toggle-auth">Sign In</a>`;
+      } else {
+        authHeader.innerHTML = `
+          <h2 class="login-title">Sign In</h2>
+          <p class="login-subtitle">Enter your credentials to access the portal</p>
+        `;
+        nameGroup.style.display = 'none';
+        document.getElementById('fullname').required = false;
+        submitBtn.textContent = 'Sign In';
+        authFooter.innerHTML = `Don't have an account? <a href="#" id="toggle-auth">Sign Up</a>`;
+      }
+      
+      // Re-bind using the named function
+      document.getElementById('toggle-auth').addEventListener('click', handleToggleAuth);
+    }
+
+    toggleLink.addEventListener('click', handleToggleAuth);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const fullname = document.getElementById('fullname').value;
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      // Custom Email Validation
+      if (!email) {
+        showToast('Please enter your email address.', 'error');
+        return;
+      }
+      
+      if (!email.endsWith('@gantecusa.com')) {
+        showToast('Email must be an official @gantecusa.com address.', 'error');
+        return;
+      }
+
+      // Password Complexity Validation
+      if (isSignUp) {
+        if (password.length < 8) {
+          showToast('Password must be at least 8 characters long.', 'error');
+          return;
+        }
+        if (!/[A-Z]/.test(password)) {
+          showToast('Password must contain at least one uppercase letter (A-Z).', 'error');
+          return;
+        }
+        if (!/[a-z]/.test(password)) {
+          showToast('Password must contain at least one lowercase letter (a-z).', 'error');
+          return;
+        }
+        if (!/[0-9]/.test(password)) {
+          showToast('Password must contain at least one number (0-9).', 'error');
+          return;
+        }
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+          showToast('Password must contain at least one special character (e.g., @#$%).', 'error');
+          return;
+        }
+      }
+
+      const endpoint = isSignUp ? '/api/auth/signup' : '/api/auth/login';
+      const body = isSignUp ? { fullname, email, password } : { email, password };
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          console.log('Login successful, redirecting to welcome.html');
+          showToast(isSignUp ? 'Account created! Welcome.' : 'Sign in successful!', 'success');
+          localStorage.setItem('gantec_auth', 'true');
+          localStorage.setItem('gantec_user_name', data.user.fullname);
+          localStorage.setItem('gantec_user_email', data.user.email);
+          console.log('localStorage set:', {
+            auth: localStorage.getItem('gantec_auth'),
+            name: localStorage.getItem('gantec_user_name'),
+            email: localStorage.getItem('gantec_user_email')
+          });
+          setTimeout(() => {
+            console.log('Executing redirect to welcome.html');
+            window.location.href = 'welcome.html';
+          }, 1200);
+        } else {
+          showToast(data.error || 'Authentication failed', 'error');
+        }
+      } catch (err) {
+        showToast('Server connection error. Please try again.', 'error');
+      }
+    });
+
+    const passwordToggle = document.getElementById('password-toggle');
+    if (passwordToggle) {
+      passwordToggle.addEventListener('click', () => {
+        const passwordInput = document.getElementById('password');
+        const isHidden = passwordInput.type === 'password';
+        passwordInput.type = isHidden ? 'text' : 'password';
+        passwordToggle.textContent = isHidden ? 'Hide' : 'Show';
+      });
+    }
+
+    // Clear any previous session on load
+    localStorage.removeItem('gantec_auth');
+  </script>
+</body>
+
+</html>

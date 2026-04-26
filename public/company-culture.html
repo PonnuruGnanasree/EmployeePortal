@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Company Culture – Gantec Employee Portal</title>
+  <meta name="description" content="Discover the values and environment that drive Gantec." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <link rel="stylesheet" href="css/branding.css" />
+  <style>
+    .culture-container {
+      padding: 60px 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .culture-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .culture-title {
+      font-size: 3rem;
+      font-weight: 850;
+      letter-spacing: -1.5px;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .culture-intro {
+      font-size: 1.25rem;
+      color: var(--text-secondary);
+      max-width: 800px;
+      margin: 0 auto 40px;
+      line-height: 1.6;
+    }
+
+    /* Core Values Grid */
+    .values-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 24px;
+      margin-bottom: 80px;
+    }
+
+    .value-card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 24px;
+      padding: 40px;
+      transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .value-card:hover {
+      transform: translateY(-8px);
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 20px 40px rgba(29, 52, 97, 0.1);
+      border-color: var(--primary);
+    }
+
+    .value-icon {
+      font-size: 2rem;
+      width: 64px;
+      height: 64px;
+      background: rgba(var(--primary-rgb, 29, 52, 97), 0.05);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .value-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .value-desc {
+      color: var(--text-secondary);
+      line-height: 1.6;
+      font-size: 1rem;
+    }
+
+    .value-bullets {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .value-bullets li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .value-bullets li::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      background: var(--primary);
+      border-radius: 50%;
+      opacity: 0.6;
+    }
+
+    /* Quote Section */
+    .quote-section {
+      text-align: center;
+      padding: 80px 40px;
+      background: linear-gradient(rgba(29, 52, 97, 0.03), rgba(29, 52, 97, 0.01));
+      border-radius: 40px;
+      margin-bottom: 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .quote-symbol {
+      font-size: 5rem;
+      color: var(--primary);
+      opacity: 0.1;
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: Georgia, serif;
+    }
+
+    .quote-text {
+      font-size: 2rem;
+      font-weight: 700;
+      font-style: italic;
+      color: var(--primary);
+      margin-bottom: 20px;
+      letter-spacing: -0.5px;
+    }
+
+    /* Unique & Environment */
+    .extra-sections {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+
+
+
+    .extra-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 32px;
+      padding: 48px;
+    }
+
+    .extra-card h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .extra-list {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .extra-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      padding: 10px 16px;
+      border-radius: 12px;
+      transition: all 0.2s ease;
+      margin-left: -16px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .extra-item:hover {
+      background: #f0f4f8;
+      transform: translateX(6px);
+      box-shadow: 0 4px 12px rgba(29, 52, 97, 0.05);
+      border-color: rgba(29, 52, 97, 0.25);
+    }
+
+    .item-dot {
+      width: 40px;
+      height: 40px;
+      background: rgba(29, 52, 97, 0.05);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .hero-image-wrap {
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto 60px;
+      border-radius: 32px;
+      overflow: hidden;
+      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.1);
+    }
+
+    .hero-image-wrap img {
+      width: 100%;
+      display: block;
+    }
+
+    @media (max-width: 900px) {
+      .extra-sections {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Background orbs -->
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-orb orb-3"></div>
+
+  <div class="app-layout">
+    <aside class="app-sidebar">
+
+      <nav class="sidebar-nav">
+        <a href="home.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <span class="link-text">Home</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="viewer.html" class="sidebar-link sidebar-dropdown-trigger" id="nav-training">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span class="link-text">Training Resources</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="viewer.html" class="submenu-link">View and Upload Resources</a>
+            <a href="content-leader.html" class="submenu-link">Content Leaders</a>
+          </div>
+        </div>
+
+        <a href="document-locker.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="2" />
+            <line x1="9" y1="7" x2="15" y2="7" />
+            <line x1="9" y1="11" x2="15" y2="11" />
+            <line x1="9" y1="15" x2="12" y2="15" />
+          </svg>
+          <span class="link-text">Document Locker</span>
+        </a>
+
+        <a href="certifications.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="8" r="7"></circle>
+            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+          </svg>
+          <span class="link-text">Certifications</span>
+        </a>
+
+        <a href="company-culture.html" class="sidebar-link active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span class="link-text">Company Culture</span>
+        </a>
+
+        <a href="faq.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <circle cx="12" cy="17" r="0.5" fill="currentColor"></circle>
+          </svg>
+          <span class="link-text">FAQ</span>
+        </a>
+
+        <a href="contact-hr.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+            </path>
+          </svg>
+          <span class="link-text">Contact HR</span>
+        </a>
+      </nav>
+    </aside>
+
+    <div class="main-wrapper" style="flex:1;">
+      <header class="app-header">
+        <a href="home.html" class="header-brand">
+          <span class="gantec-logo-text" style="font-size: 1.25rem;">GANTEC <span class="gantec-logo-gradient">Employee Portal</span></span>
+        </a>
+        <div id="user-profile-section"></div>
+      </header>
+
+      <main class="app-main">
+        <div class="culture-container">
+          <div class="culture-header">
+            <h1 class="culture-title">Our Company Culture</h1>
+            <p class="culture-intro">At Gantec, we believe that a strong culture builds strong people. We focus on
+              creating an environment where employees feel <strong>valued, motivated, and empowered to grow</strong>.
+            </p>
+          </div>
+
+          <!-- <div class="hero-image-wrap">
+            <img src="company_culture_illustration_1775933887061.png" alt="Collaborative Culture Illustration">
+          </div> -->
+
+          <section>
+            <h2 style="font-size: 2.2rem; font-weight: 850; text-align: center; margin-bottom: 48px;">Our Core Values
+            </h2>
+
+            <div class="values-grid">
+              <!-- Collaboration -->
+              <div class="value-card">
+                <div class="value-icon">🤝</div>
+                <h3 class="value-title">Collaboration</h3>
+                <p class="value-desc">We believe in working together as one team. Success is a shared journey.</p>
+                <ul class="value-bullets">
+                  <li>Open communication across teams</li>
+                  <li>Supporting each other for shared goals</li>
+                  <li>Encouraging idea sharing</li>
+                </ul>
+              </div>
+
+              <!-- Continuous Learning -->
+              <div class="value-card">
+                <div class="value-icon">📚</div>
+                <h3 class="value-title">Continuous Learning</h3>
+                <p class="value-desc">Growth never stops here. We invest in your potential every day.</p>
+                <ul class="value-bullets">
+                  <li>Access to certifications</li>
+                  <li>Regular upskilling opportunities</li>
+                  <li>Learning from real-time feedback</li>
+                </ul>
+              </div>
+
+              <!-- Respect -->
+              <div class="value-card">
+                <div class="value-icon">🌟</div>
+                <h3 class="value-title">Respect</h3>
+                <p class="value-desc">Respect is at the heart of everything we do, ensuring an inclusive workplace.</p>
+                <ul class="value-bullets">
+                  <li>Valuing every individual's opinion</li>
+                  <li>Positive and inclusive environment</li>
+                  <li>Professionalism and kindness</li>
+                </ul>
+              </div>
+
+              <!-- Innovation -->
+              <div class="value-card">
+                <div class="value-icon">🚀</div>
+                <h3 class="value-title">Innovation</h3>
+                <p class="value-desc">We encourage new ideas and creative thinking to stay ahead of the curve.</p>
+                <ul class="value-bullets">
+                  <li>Freedom to experiment</li>
+                  <li>Embracing new technologies</li>
+                  <li>Constant improvement mindset</li>
+                </ul>
+              </div>
+
+              <!-- Accountability -->
+              <div class="value-card">
+                <div class="value-icon">🎯</div>
+                <h3 class="value-title">Accountability</h3>
+                <p class="value-desc">We take ownership of our work and deliver with commitment.</p>
+                <ul class="value-bullets">
+                  <li>Responsibility for outcomes</li>
+                  <li>Integrity in every action</li>
+                  <li>Ownership of delivery</li>
+                </ul>
+              </div>
+
+              <!-- Communication -->
+              <div class="value-card">
+                <div class="value-icon">💬</div>
+                <h3 class="value-title">Open Communication</h3>
+                <p class="value-desc">Transparency builds trust. We keep our conversations clear and honest.</p>
+                <ul class="value-bullets">
+                  <li>Clear and honest dialogue</li>
+                  <li>Regular feedback cycles</li>
+                  <li>Trust-based discussions</li>
+                </ul>
+              </div>
+
+              <!-- Work-Life Balance -->
+              <div class="value-card">
+                <div class="value-icon">⚖️</div>
+                <h3 class="value-title">Work-Life Balance</h3>
+                <p class="value-desc">We care about your well-being. A happy employee is a productive one.</p>
+                <ul class="value-bullets">
+                  <li>Healthy work habits</li>
+                  <li>Personal-professional balance</li>
+                  <li>Well-being support</li>
+                </ul>
+              </div>
+
+              <!-- Adaptability -->
+              <div class="value-card">
+                <div class="value-icon">🌱</div>
+                <h3 class="value-title">Adaptability</h3>
+                <p class="value-desc">We embrace change and stay flexible in a fast-moving environment.</p>
+                <ul class="value-bullets">
+                  <li>Quickly adjusting to new challenges</li>
+                  <li>Open to feedback and improvements</li>
+                  <li>Staying resilient during changes</li>
+                </ul>
+              </div>
+
+              <!-- Excellence -->
+              <div class="value-card">
+                <div class="value-icon">🏆</div>
+                <h3 class="value-title">Excellence</h3>
+                <p class="value-desc">We always strive to give our best in everything we deliver.</p>
+                <ul class="value-bullets">
+                  <li>High-quality standards in work</li>
+                  <li>Meticulous attention to detail</li>
+                  <li>Continuously improving performance</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section class="quote-section">
+            <div class="quote-symbol">“</div>
+            <p class="quote-text">Data First, People Always</p>
+            <p style="color:var(--text-muted); font-weight: 600;">- Gantec </p>
+          </section>
+
+          <div class="extra-sections">
+            <section class="extra-card">
+              <h2>Work Environment</h2>
+              <ul class="extra-list">
+                <li class="extra-item">
+                  <div class="item-dot">🌈</div> Friendly and inclusive workplace
+                </li>
+                <li class="extra-item">
+                  <div class="item-dot">💡</div> Idea-driven and innovation-focused
+                </li>
+                <li class="extra-item">
+                  <div class="item-dot">🤝</div> Supportive teams and leadership
+                </li>
+                <li class="extra-item">
+                  <div class="item-dot">🎉</div> Fun activities like Weekly Connect
+                </li>
+              </ul>
+            </section>
+
+            <section class="extra-card">
+              <h2>What Makes Us Unique</h2>
+              <ul class="extra-list">
+                <li class="extra-item">
+                  <div class="item-dot">📈</div> Focus on employee growth
+                </li>
+                <li class="extra-item">
+                  <div class="item-dot">📊</div> Regular Monthly Feedback
+                </li>
+                <li class="extra-item">
+                  <div class="item-dot">💖</div> Weekly Connect sessions
+                </li>
+                <li class="extra-item">
+                  <div class="item-dot">🚀</div> Opportunities to learn and lead
+                </li>
+              </ul>
+            </section>
+          </div>
+
+          <div style="text-align: center; margin-top: 80px; padding-bottom: 40px;">
+            <p style="font-size: 1.4rem; font-weight: 700; color: var(--primary);">More than just a workplace — we are a
+              community.</p>
+            <p style="color: var(--text-muted); margin-top: 8px;">Growing together, supporting each other, and
+              celebrating success.</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+
+</html>

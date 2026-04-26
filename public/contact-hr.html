@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact HR – Gantec Employee Portal</title>
+  <meta name="description" content="Get in touch with Gantec Human Resources." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <link rel="stylesheet" href="css/branding.css" />
+  <style>
+    .hr-container {
+      padding: 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 32px;
+    }
+
+    @media (max-width: 900px) {
+      .hr-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* HR Profile Card */
+    .hr-card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 24px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .hr-card:hover {
+      border-color: rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .hr-avatar-wrap {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 20px;
+      position: relative;
+    }
+
+    .hr-avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid var(--surface);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .status-badge {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      background: #27ae60;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 3px solid var(--surface);
+    }
+
+    .hr-name {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .hr-title {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 24px;
+    }
+
+    .hr-details-list {
+      text-align: left;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .detail-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .detail-icon {
+      width: 32px;
+      height: 32px;
+      background: rgba(29, 52, 97, 0.05);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+    }
+
+    .hr-actions {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Contact Form Card */
+    .form-card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s ease;
+    }
+
+    .form-card:hover {
+      border-color: rgba(0, 0, 0, 0.15);
+    }
+
+    .form-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .form-subtitle {
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      font-size: 0.95rem;
+    }
+
+    .hr-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-group.full {
+      grid-column: span 2;
+    }
+
+    @media (max-width: 600px) {
+      .hr-form {
+        grid-template-columns: 1fr;
+      }
+
+      .form-group.full {
+        grid-column: span 1;
+      }
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .form-footer {
+      grid-column: span 2;
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .extra-actions {
+      margin-top: auto;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+    }
+
+    /* Modal Styling */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(8px);
+      z-index: 10000;
+      display: none;
+      /* Changed from flex to none */
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    .modal-content {
+      background: var(--surface);
+      width: 100%;
+      max-width: 400px;
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: var(--shadow-lg);
+      transform: translateY(20px);
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: translateY(0);
+    }
+
+    .success-message {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .success-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Background orbs -->
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-orb orb-3"></div>
+
+  <div class="app-layout">
+    <aside class="app-sidebar">
+
+      <nav class="sidebar-nav">
+        <a href="home.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <span class="link-text">Home</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="viewer.html" class="sidebar-link sidebar-dropdown-trigger" id="nav-training">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span class="link-text">Training Resources</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="viewer.html" class="submenu-link">View and Upload Resources</a>
+            <a href="content-leader.html" class="submenu-link">Content Leaders</a>
+          </div>
+        </div>
+
+        <a href="document-locker.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="2" />
+            <line x1="9" y1="7" x2="15" y2="7" />
+            <line x1="9" y1="11" x2="15" y2="11" />
+            <line x1="9" y1="15" x2="12" y2="15" />
+          </svg>
+          <span class="link-text">Document Locker</span>
+        </a>
+
+        <a href="certifications.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="8" r="7"></circle>
+            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+          </svg>
+          <span class="link-text">Certifications</span>
+        </a>
+
+        <a href="company-culture.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span class="link-text">Company Culture</span>
+        </a>
+
+        <a href="faq.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <circle cx="12" cy="17" r="0.5" fill="currentColor"></circle>
+          </svg>
+          <span class="link-text">FAQ</span>
+        </a>
+
+        <a href="contact-hr.html" class="sidebar-link active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+            </path>
+          </svg>
+          <span class="link-text">Contact HR</span>
+        </a>
+      </nav>
+    </aside>
+
+    <div class="main-wrapper" style="flex:1;">
+      <header class="app-header">
+        <a href="home.html" class="header-brand">
+          <span class="gantec-logo-text" style="font-size: 1.25rem;">GANTEC <span class="gantec-logo-gradient">Employee Portal</span></span>
+        </a>
+        <div id="user-profile-section"></div>
+      </header>
+
+      <main class="app-main" style="display: flex; align-items: center; justify-content: center; overflow: hidden;">
+        <div class="hr-container" style="width: 100%; margin: 0 auto;">
+          <!-- Left side: HR Info -->
+          <div class="hr-card">
+            <div class="hr-avatar-wrap">
+              <img src="images/default-avatar.png" alt="Hemalatha Malem" class="hr-avatar">
+              <div class="status-badge" title="Online"></div>
+            </div>
+            <h2 class="hr-name">Hemalatha Malem</h2>
+            <p class="hr-title">Human Resources Manager</p>
+
+            <div class="hr-details-list">
+              <div class="detail-item">
+                <div class="detail-icon">📅</div>
+                <span>Status: <strong>Free on 04/13</strong></span>
+              </div>
+              <div class="detail-item">
+                <div class="detail-icon">⏰</div>
+                <span>Hours: <strong>8:00 AM – 5:00 PM</strong></span>
+              </div>
+              <div class="detail-item">
+                <div class="detail-icon">🌍</div>
+                <span id="hr-timezone">Timezone: <strong>Same as you</strong></span>
+              </div>
+            </div>
+
+            <div class="hr-actions">
+              <a href="mailto:hemalatha.malem@gantecusa.com" class="btn btn-primary"
+                style="width: 100%; justify-content: center;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                Send Email
+              </a>
+              <button class="btn btn-secondary" style="width: 100%; justify-content: center;"
+                onclick="showToast('Starting chat with HR...', 'info')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-13.5 8.38 8.38 0 0 1 3.8.9L21 3z" />
+                </svg>
+                Start Chat
+              </button>
+            </div>
+          </div>
+
+          <!-- Right side: Form -->
+          <div class="form-card">
+            <h2 class="form-title">Send a Query</h2>
+            <p class="form-subtitle">Fill out the form below to reach the HR team directly.</p>
+
+            <form class="hr-form" id="hr-contact-form">
+              <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" class="text-input" placeholder="Enter your name" required>
+              </div>
+              <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" class="text-input" placeholder="Enter your email" required>
+              </div>
+              <div class="form-group full">
+                <label for="subject">Subject</label>
+                <input type="text" id="subject" class="text-input" placeholder="What is this regarding?" required>
+              </div>
+              <div class="form-group full">
+                <label for="message">Message</label>
+                <textarea id="message" class="text-input" style="height: 100px; resize: none;"
+                  placeholder="Type your query here..." required></textarea>
+              </div>
+              <div class="form-footer">
+                <button type="submit" class="btn btn-primary">Submit Query</button>
+                <button type="reset" class="btn btn-secondary">Reset</button>
+              </div>
+            </form>
+
+            <div class="extra-actions">
+              <button class="btn btn-secondary btn-sm" id="request-call-btn">Request a Call</button>
+              <button class="btn btn-secondary btn-sm" onclick="showToast('Opening HR Chat...', 'info')">Chat with
+                HR</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Call Request Modal -->
+  <div class="modal-overlay" id="call-modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 20px;">Request a Call</h3>
+      <form id="call-form" style="display: flex; flex-direction: column; gap: 16px;">
+        <div class="form-group">
+          <label>Preferred Date</label>
+          <input type="date" class="text-input" required>
+        </div>
+        <div class="form-group">
+          <label>Preferred Time Slot</label>
+          <select class="text-input" required style="appearance: auto;">
+            <option value="">Select a time...</option>
+            <option>09:00 AM - 10:00 AM</option>
+            <option>10:00 AM - 11:00 AM</option>
+            <option>11:00 AM - 12:00 PM</option>
+            <option>02:00 PM - 03:00 PM</option>
+            <option>03:00 PM - 04:00 PM</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button type="submit" class="btn btn-primary" style="flex:1; justify-content: center;">Submit Request</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="js/app.js"></script>
+  <script>
+    const form = document.getElementById('hr-contact-form');
+    const callBtn = document.getElementById('request-call-btn');
+    const callModal = document.getElementById('call-modal');
+    const callForm = document.getElementById('call-form');
+
+    // Populate user info from localStorage
+    document.addEventListener('DOMContentLoaded', () => {
+      const name = localStorage.getItem('gantec_user_name');
+      const email = localStorage.getItem('gantec_user_email');
+      if (name) document.getElementById('name').value = name;
+      if (email) document.getElementById('email').value = email;
+
+      const timeSpan = document.querySelector('#hr-timezone strong');
+      const statusSpan = document.querySelector('.detail-item strong');
+      const statusBadge = document.querySelector('.status-badge');
+
+      const updateHRStatus = () => {
+        const now = new Date();
+        const hour = now.getHours();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        // Timezone display
+        timeSpan.textContent = `Same as you (${timeStr})`;
+
+        // Dynamic Status (8 AM - 5 PM)
+        if (hour >= 8 && hour < 17) {
+          statusSpan.textContent = "Online Now";
+          statusSpan.style.color = "#27ae60";
+          statusBadge.style.background = "#27ae60";
+          statusBadge.title = "Online";
+        } else {
+          statusSpan.textContent = "Offline (Away)";
+          statusSpan.style.color = "var(--text-muted)";
+          statusBadge.style.background = "#bdc3c7";
+          statusBadge.title = "Offline";
+        }
+      };
+
+      updateHRStatus();
+      setInterval(updateHRStatus, 60000);
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const nameVal = document.getElementById('name').value;
+      const emailVal = document.getElementById('email').value;
+      const subjectVal = document.getElementById('subject').value;
+      const messageVal = document.getElementById('message').value;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+
+      submitBtn.textContent = 'Sending...';
+      submitBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/contact-hr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: nameVal,
+            email: emailVal,
+            subject: subjectVal,
+            message: messageVal
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to send message');
+        }
+
+        form.innerHTML = `
+          <div class="success-message">
+            <span class="success-icon">✅</span>
+            <h3 style="margin-bottom:12px;">Request Sent!</h3>
+            <p style="color:var(--text-secondary); line-height:1.6;">Your request has been sent to HR (Hemalatha Malem).<br>She will contact you via email or chat soon.</p>
+            <button type="button" class="btn btn-secondary" style="margin-top:24px;" onclick="window.location.reload()">Send Another</button>
+          </div>
+        `;
+      } catch (err) {
+        showToast(err.message, 'error');
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+      }
+    });
+
+    callBtn.addEventListener('click', () => callModal.classList.add('active'));
+
+    function closeModal() {
+      callModal.classList.remove('active');
+    }
+
+    callForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      closeModal();
+      showToast('Call request submitted successfully!', 'success');
+    });
+
+    window.onclick = (e) => { if (e.target === callModal) closeModal(); };
+  </script>
+</body>
+
+</html>

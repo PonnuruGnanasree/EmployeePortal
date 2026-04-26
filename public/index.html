@@ -1,136 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gantec Document Finder</title>
-  <meta name="description" content="Gantec Document Finder – Upload, organize and view your PDF documents securely." />
+  <title>Welcome to Gantec – Employee Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css" />
-</head>
-<body>
-  <!-- Background orbs -->
-  <div class="bg-orb orb-1"></div>
-  <div class="bg-orb orb-2"></div>
-  <div class="bg-orb orb-3"></div>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <link rel="stylesheet" href="css/branding.css" />
+  <style>
+    .splash-main {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: #1d3461; /* Dark blue background as per image */
+      overflow: hidden;
+      position: relative;
+    }
 
-  <!-- Navigation -->
-  <nav class="navbar">
-    <div class="nav-brand">
-      <span class="nav-logo">📂</span>
-      <span class="nav-title">Gantec</span>
-    </div>
-    <div class="nav-links">
-      <a href="index.html" class="nav-link active" id="nav-home">Home</a>
-      <a href="viewer.html" class="nav-link" id="nav-viewer">Viewer</a>
-      <a href="uploader.html" class="nav-link" id="nav-uploader">Upload</a>
-    </div>
-  </nav>
+    .splash-content {
+      z-index: 10;
+      animation: reveal 1s cubic-bezier(0.19, 1, 0.22, 1);
+    }
 
-  <!-- Hero Section -->
-  <main class="home-main">
-    <div class="hero-section">
-      <div class="hero-badge">
-        <span class="badge-dot"></span>
-        Document Management System
-      </div>
-      <h1 class="hero-title">
-        Gantec<br />
-        <span class="gradient-text">Document Finder</span>
-      </h1>
-      <p class="hero-subtitle">
-        Upload, organize, and view your PDF documents<br />
-        in a beautifully structured workspace.
-      </p>
-
-      <!-- Feature Cards -->
-      <div class="cards-grid">
-        <!-- Document Viewer Card -->
-        <a href="viewer.html" class="feature-card" id="card-viewer">
-          <div class="card-icon-wrap viewer-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-              <polyline points="10 9 9 9 8 9"/>
-            </svg>
-          </div>
-          <h2 class="card-title">Document Viewer</h2>
-          <p class="card-desc">Browse and read all your uploaded PDFs. Organize by folders and search instantly.</p>
-          <div class="card-stats" id="viewer-stats">
-            <span class="stat-item">Loading...</span>
-          </div>
-          <div class="card-arrow">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="5" y1="12" x2="19" y2="12"/>
-              <polyline points="12 5 19 12 12 19"/>
-            </svg>
-          </div>
-        </a>
-
-        <!-- Document Uploader Card -->
-        <a href="uploader.html" class="feature-card" id="card-uploader">
-          <div class="card-icon-wrap uploader-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <polyline points="16 16 12 12 8 16"/>
-              <line x1="12" y1="12" x2="12" y2="21"/>
-              <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
-            </svg>
-          </div>
-          <h2 class="card-title">Document Uploader</h2>
-          <p class="card-desc">Upload PDF files into organized folders. Drag & drop or click to select files.</p>
-          <div class="card-stats">
-            <span class="stat-item">PDF files only &nbsp;·&nbsp; Up to 500MB</span>
-          </div>
-          <div class="card-arrow">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="5" y1="12" x2="19" y2="12"/>
-              <polyline points="12 5 19 12 12 19"/>
-            </svg>
-          </div>
-        </a>
-      </div>
-
-      <!-- Quick Stats Banner -->
-      <div class="stats-banner" id="stats-banner">
-        <div class="stat-pill" id="stat-folders">
-          <span class="stat-num">–</span>
-          <span class="stat-label">Folders</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-pill" id="stat-docs">
-          <span class="stat-num">–</span>
-          <span class="stat-label">Documents</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-pill" id="stat-status">
-          <span class="stat-num online-dot">●</span>
-          <span class="stat-label">System Online</span>
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <script src="js/app.js"></script>
-  <script>
-    // Load stats on home page
-    async function loadHomeStats() {
-      try {
-        const data = await fetchFolders();
-        const totalDocs = data.folders.reduce((sum, f) => sum + f.files.length, 0);
-        document.getElementById('stat-folders').querySelector('.stat-num').textContent = data.folders.length;
-        document.getElementById('stat-docs').querySelector('.stat-num').textContent = totalDocs;
-
-        // Update viewer card stat
-        const viewerStats = document.getElementById('viewer-stats');
-        viewerStats.innerHTML = `<span class="stat-item">${data.folders.length} folders &nbsp;·&nbsp; ${totalDocs} documents</span>`;
-      } catch (e) {
-        console.warn('Could not load stats:', e);
+    @keyframes reveal {
+      from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
       }
     }
-    loadHomeStats();
+
+    .logo-text-big {
+      font-size: 5rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #000000; /* Black GANTEC as per image */
+      margin: 0;
+      line-height: 1;
+    }
+
+    .portal-text-big {
+      font-size: 3.5rem;
+      font-weight: 800;
+      color: #7c3aed; /* Purple/Blue gradient feel */
+      background: linear-gradient(to right, #4f46e5, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-top: -5px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+
+    .splash-subtitle {
+      font-size: 1.1rem;
+      color: #ffffff;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-top: 20px;
+      opacity: 0.8;
+    }
+
+    .underline-accent {
+      width: 80px;
+      height: 4px;
+      background: linear-gradient(to right, #4f46e5, #7c3aed);
+      margin-top: 40px;
+      border-radius: 2px;
+    }
+
+    .loading-line {
+      width: 600px;
+      max-width: 80%;
+      height: 4px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      margin: 0 auto;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .loading-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background: linear-gradient(to right, #1d3461, #4f46e5, #7c3aed);
+      width: 0;
+      animation: loadProgress 8s linear forwards;
+    }
+
+    @keyframes loadProgress {
+      from { width: 0; }
+      to { width: 100%; }
+    }
+
+    .redirect-msg {
+      margin-bottom: 20px;
+      font-size: 1.1rem;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 500;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="splash-main">
+    <div class="splash-content">
+      <h1 class="logo-text-big">GANTEC</h1>
+      <h2 class="portal-text-big">Employee Portal</h2>
+      <p class="splash-subtitle">Empowering Innovation & People</p>
+      <p class="redirect-msg">Please wait while we load your documents and settings</p>
+      <div class="loading-line">
+        <div class="loading-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // After 8 seconds, redirect to the login page
+    setTimeout(() => {
+      window.location.href = 'login.html';
+    }, 8000);
   </script>
 </body>
+
 </html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome – Gantec Employee Portal</title>
+  <meta name="description" content="Welcome to Gantec Employee Portal." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <style>
+    .welcome-main {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .welcome-card {
+      width: 100%;
+      max-width: 500px;
+      padding: 60px 40px;
+      text-align: center;
+      animation: fadeIn 0.8s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .welcome-logo {
+      font-size: 4rem;
+      margin-bottom: 32px;
+      display: inline-block;
+      animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-10px); }
+      60% { transform: translateY(-5px); }
+    }
+
+    .welcome-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+      color: var(--text-primary);
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .welcome-subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      margin-bottom: 40px;
+      font-weight: 500;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--bg-secondary);
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 24px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .welcome-message {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 20px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: var(--bg-secondary);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      border-radius: 2px;
+      width: 0%;
+      animation: progressAnimation 3s ease-in-out 0.5s forwards;
+    }
+
+    @keyframes progressAnimation {
+      0% { width: 0%; }
+      100% { width: 100%; }
+    }
+
+    .user-info {
+      background: var(--bg-secondary);
+      padding: 16px;
+      border-radius: 8px;
+      margin-top: 24px;
+    }
+
+    .user-info p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .user-name {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    #continue-btn {
+      display: none;
+      margin: 24px auto 0;
+      padding: 14px 28px;
+      min-width: 240px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Background orbs -->
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-orb orb-3"></div>
+
+  <main class="welcome-main">
+    <div class="welcome-card glass-card">
+      <div class="welcome-logo gantec-logo-text" style="font-size: 3rem;"><span class="gantec-logo-g">G</span>ANTEC</div>
+      <h1 class="welcome-title">Welcome to Employee Portal</h1>
+      <p class="welcome-subtitle">Preparing your personalized dashboard...</p>
+
+      <div class="loading-spinner"></div>
+
+      <div class="welcome-message">
+        Please wait while we load your documents and settings
+      </div>
+
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+
+      <div class="user-info">
+        <p>Welcome <span class="user-name" id="user-name">Loading...</span>!!</p>
+        <p id="user-email"></p>
+      </div>
+
+      <button id="continue-btn" class="btn btn-primary">Continue to Dashboard</button>
+    </div>
+  </main>
+
+  <script>
+    // Debug logging
+    console.log('Welcome page loaded');
+    console.log('localStorage auth:', localStorage.getItem('gantec_auth'));
+    console.log('localStorage name:', localStorage.getItem('gantec_user_name'));
+    console.log('localStorage email:', localStorage.getItem('gantec_user_email'));
+
+    // Get user data from localStorage
+    const userName = localStorage.getItem('gantec_user_name') || 'User';
+    const userEmail = localStorage.getItem('gantec_user_email') || '';
+
+    console.log('User data:', { userName, userEmail });
+
+    // Display user info
+    document.getElementById('user-name').textContent = userName;
+    document.getElementById('user-email').textContent = userEmail;
+
+    // Progress bar animation is handled by CSS
+
+    console.log('Starting 3-second timer...');
+
+    // Show continue button after 3 seconds
+    setTimeout(() => {
+      console.log('Showing continue button');
+      document.getElementById('continue-btn').style.display = 'block';
+    }, 3000);
+
+    // Redirect to home page after 5 seconds (giving extra time)
+    setTimeout(() => {
+      console.log('Auto-redirecting to home.html...');
+      window.location.href = 'home.html';
+    }, 5000);
+
+    // Manual redirect button
+    document.getElementById('continue-btn').addEventListener('click', () => {
+      console.log('Manual redirect to home.html');
+      window.location.href = 'home.html';
+    });
+  </script>
+</body>
+
+</html></content>
+<parameter name="filePath">c:\Users\HP\Downloads\Antigravtiy_updated_v2 (1)\ant_fix\public\welcome.html
