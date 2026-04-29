@@ -830,10 +830,17 @@ function serveDecryptedFile(filePath, res, filename) {
   });
 
   readStream.on('end', () => {
-    if (decipher) {
-      res.write(decipher.final());
+    try {
+      if (decipher) {
+        res.write(decipher.final());
+      }
+    } catch (err) {
+      console.error('Decryption finalization failed:', err.message);
+      // The file was likely not encrypted, but we've already sent headers/data.
+      // We log the error but prevent the server from crashing.
+    } finally {
+      res.end();
     }
-    res.end();
   });
 
   readStream.on('error', (err) => {
