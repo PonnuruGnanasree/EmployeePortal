@@ -804,8 +804,37 @@ function encryptFile(buffer) {
 
 function serveDecryptedFile(filePath, res, filename) {
   const stats = fs.statSync(filePath);
-  const readStream = fs.createReadStream(filePath);
+  const fileSize = stats.size;
   
+  // AES-256-CBC with 16-byte IV and PKCS7 padding always results in a file size 
+  // that is a multiple of 16 (IV + encrypted blocks).
+  // If it's not a multiple of 16, it's definitely not encrypted by our system.
+  const potentiallyEncrypted = (fileSize > IV_LENGTH) && (fileSize % 16 === 0);
+
+  if (!potentiallyEncrypted) {
+    // Serve raw file
+    res.setHeader('Content-Type', getContentType(filename));
+    res.setHeader('Content-Disposition', 'inline');
+    return fs.createReadStream(filePath).pipe(res);
+  }
+
+  // If it is a multiple of 16, it MIGHT be encrypted, or it might just be a lucky unencrypted file.
+  // We check the first few bytes for common unencrypted headers as a fallback.
+  const fd = fs.openSync(filePath, 'r');
+  const buffer = Buffer.alloc(4);
+  fs.readSync(fd, buffer, 0, 4, 0);
+  fs.closeSync(fd);
+
+  const magic = buffer.toString('utf8');
+  if (magic.startsWith('%PDF') || magic.startsWith('{') || magic.startsWith('PK\x03\x04')) {
+    // Definitely unencrypted PDF, JSON (ytlink), or Office/Zip file
+    res.setHeader('Content-Type', getContentType(filename));
+    res.setHeader('Content-Disposition', 'inline');
+    return fs.createReadStream(filePath).pipe(res);
+  }
+
+  // Proceed with decryption
+  const readStream = fs.createReadStream(filePath);
   let iv = Buffer.alloc(0);
   let decipher = null;
 
@@ -815,17 +844,29 @@ function serveDecryptedFile(filePath, res, filename) {
       iv = Buffer.concat([iv, chunk.slice(0, needed)]);
       
       if (iv.length === IV_LENGTH) {
-        decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_SECRET, iv);
-        res.setHeader('Content-Type', getContentType(filename));
-        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(filename)}"`);
-        
-        const remaining = chunk.slice(needed);
-        if (remaining.length > 0) {
-          res.write(decipher.update(remaining));
+        try {
+          decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_SECRET, iv);
+          res.setHeader('Content-Type', getContentType(filename));
+          res.setHeader('Content-Disposition', 'inline');
+          
+          const remaining = chunk.slice(needed);
+          if (remaining.length > 0) {
+            res.write(decipher.update(remaining));
+          }
+        } catch (e) {
+          // If decipher creation fails, fallback to raw (shouldn't happen with valid IV_LENGTH)
+          console.error('Decipher creation failed, falling back to raw:', e.message);
+          res.setHeader('Content-Type', getContentType(filename));
+          res.setHeader('Content-Disposition', 'inline');
+          res.write(chunk);
         }
       }
     } else {
-      res.write(decipher.update(chunk));
+      if (decipher) {
+        res.write(decipher.update(chunk));
+      } else {
+        res.write(chunk);
+      }
     }
   });
 
@@ -836,8 +877,6 @@ function serveDecryptedFile(filePath, res, filename) {
       }
     } catch (err) {
       console.error('Decryption finalization failed:', err.message);
-      // The file was likely not encrypted, but we've already sent headers/data.
-      // We log the error but prevent the server from crashing.
     } finally {
       res.end();
     }
@@ -1063,7 +1102,10 @@ function getContentType(filename) {
     '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     '.xls': 'application/vnd.ms-excel',
     '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    '.ppt': 'application/vnd.ms-powerpoint'
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.ytlink': 'application/json',
+    '.mp4': 'video/mp4',
+    '.mp3': 'audio/mpeg'
   };
   return types[ext] || 'application/octet-stream';
 }
