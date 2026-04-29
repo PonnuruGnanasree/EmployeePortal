@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet" />
-  <link rel="stylesheet" href="css/resources.css?v=4" />
+  <link rel="stylesheet" href="css/resources.css?v=5" />
   <link rel="stylesheet" href="css/branding.css" />
   <style>
     /* Prevent scrolling on the uploader page */
@@ -36,7 +36,8 @@
       display: flex;
       gap: 20px;
       align-items: stretch;
-      height: 420px; /* Fixed height — both panels locked */
+      height: 420px;
+      /* Fixed height — both panels locked */
     }
 
     /* Select Folder panel — fills fixed layout height */
@@ -156,7 +157,8 @@
           <svg viewBox="0 0 24 24" fill="#FACC15" stroke="none" style="width: 28px; height: 28px;">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
           </svg>
-          <span class="gantec-logo-text" style="font-size: 1.25rem;">GANTEC <span class="gantec-logo-gradient">Learning Hub</span></span>
+          <span class="gantec-logo-text" style="font-size: 1.25rem;">GANTEC <span class="gantec-logo-gradient">Learning
+              Hub</span></span>
         </a>
         <div id="user-profile-section"></div>
       </header>
@@ -174,7 +176,7 @@
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
               </svg>
-              Back to library
+              Back to uploading the files
             </a>
           </div>
 
@@ -197,11 +199,13 @@
               <!-- CREATE NEW FOLDER section -->
               <div class="uploader-section">
                 <label class="section-label-tiny">CREATE NEW FOLDER</label>
-                <div class="create-folder-group-modern" style="flex-direction: column; align-items: stretch; gap: 10px;">
-                  <input type="text" id="new-folder-input" placeholder="Folder name..." maxlength="60" autocomplete="off" />
+                <div class="create-folder-group-modern"
+                  style="flex-direction: column; align-items: stretch; gap: 10px;">
+                  <input type="text" id="new-folder-input" placeholder="Folder name..." maxlength="60"
+                    autocomplete="off" />
                   <div class="folder-btns" style="justify-content: space-between;">
-                    <button id="create-folder-btn" class="btn-main" style="flex:1;">Main</button>
-                    <button id="create-subfolder-btn" class="btn-sub" style="flex:1;" disabled>Sub</button>
+                    <button id="create-folder-btn" class="btn-main" style="flex:1;">Main Folder</button>
+                    <button id="create-subfolder-btn" class="btn-sub" style="flex:1;" disabled>Sub Folder</button>
                   </div>
                 </div>
               </div>
@@ -228,7 +232,9 @@
                   </button>
                   <button class="toggle-btn" id="toggle-link">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
-                      <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.42a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.42 8.6.42 8.6.42s6.88 0 8.6-.42a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
+                      <path
+                        d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.42a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.42 8.6.42 8.6.42s6.88 0 8.6-.42a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z">
+                      </path>
                       <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
                     </svg>
                     YouTube Link
@@ -238,115 +244,116 @@
 
               <!-- Upload File section -->
               <div id="section-file" class="uploader-section" style="margin-top: 8px;">
-              <h2 class="section-title-modern">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="icon-sm">
-                  <path d="M12 19V5M5 12l7-7 7 7" />
-                </svg>
-                Upload File
-              </h2>
+                <h2 class="section-title-modern" style="margin-bottom: 8px; font-size: 1rem;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="icon-sm" style="width:16px; height:16px;">
+                    <path d="M12 19V5M5 12l7-7 7 7" />
+                  </svg>
+                  Upload File
+                </h2>
 
-              <!-- Selected folder indicator -->
-              <div class="selected-folder-badge-modern" id="selected-folder-badge">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                </svg>
-                <span id="selected-folder-name">No folder selected</span>
-              </div>
+                <!-- Selected folder indicator -->
+                <div class="selected-folder-badge-modern" id="selected-folder-badge" style="margin-bottom: 8px; padding: 4px 10px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs" style="width:12px; height:12px;">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span id="selected-folder-name" style="font-size: 0.8rem;">⚠️ Please select a folder from the sidebar</span>
+                </div>
 
-              <!-- Modern Upload Area -->
-              <div class="drop-zone-modern" id="drop-zone">
-                <input type="file" id="file-input" hidden />
-                
-                <div class="drop-zone-content" id="drop-content">
-                  <div class="cloud-icon-wrap">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                      <polyline points="17 8 12 3 7 8"></polyline>
-                      <line x1="12" y1="3" x2="12" y2="15"></line>
-                    </svg>
+                <!-- Modern Upload Area -->
+                <div class="drop-zone-modern" id="drop-zone">
+                  <input type="file" id="file-input" hidden />
+
+                  <div class="drop-zone-content" id="drop-content" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; height: 100%; padding: 15px 10px;">
+                    <div class="icon-box-vibrant" style="margin-bottom: 10px; width: 40px; height: 40px;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:20px; height:20px;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                      </svg>
+                    </div>
+                    <h3 class="drop-text-main" style="color:#0f172a; font-weight:800; font-size:0.95rem; margin-bottom: 2px;">Drag & drop your file here</h3>
+                    <p class="drop-text-sub" style="color:#64748b; font-weight:500; font-size: 0.8rem; margin-bottom: 8px;">or click to browse from computer</p>
+                    <div class="allowed-badge" style="background: rgba(59, 130, 246, 0.05); color: #3b82f6; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;">Any format/size allowed</div>
                   </div>
-                  <h3 class="drop-text-main">Drag & drop your file here</h3>
-                  <p class="drop-text-sub">or click to browse</p>
-                  <div class="allowed-badge">Any file format and size allowed</div>
-                </div>
 
-                <!-- File selected preview -->
-                <div class="file-preview hidden" id="file-preview">
-                  <div class="pdf-icon-large">📄</div>
-                  <div class="file-info">
-                    <p class="file-name" id="preview-name">document.txt</p>
-                    <p class="file-size" id="preview-size">0 KB</p>
+                  <!-- File selected preview -->
+                  <div class="file-preview hidden" id="file-preview">
+                    <div class="pdf-icon-large">📄</div>
+                    <div class="file-info">
+                      <p class="file-name" id="preview-name">document.txt</p>
+                      <p class="file-size" id="preview-size">0 KB</p>
+                    </div>
+                    <button class="remove-file-btn" id="remove-file-btn" title="Remove file">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
                   </div>
-                  <button class="remove-file-btn" id="remove-file-btn" title="Remove file">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <line x1="18" y1="6" x2="6" y2="18"></line>
-                      <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                  </button>
+                </div>
+
+                <!-- Upload Button -->
+                <button class="btn-upload-modern" id="upload-btn" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="icon-sm">
+                    <path d="M12 19V5M5 12l7-7 7 7" />
+                  </svg>
+                  Upload Document
+                </button>
+
+                <!-- Progress -->
+                <div class="progress-wrap hidden" id="progress-wrap">
+                  <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                  </div>
+                  <p class="progress-text" id="progress-text">Uploading…</p>
                 </div>
               </div>
 
-              <!-- Upload Button -->
-              <button class="btn-upload-modern" id="upload-btn" disabled>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="icon-sm">
-                  <path d="M12 19V5M5 12l7-7 7 7" />
-                </svg>
-                Upload Document
-              </button>
+              <!-- YouTube Link section -->
+              <div id="section-link" class="uploader-section hidden" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9;">
+                <h2 class="section-title-modern" style="margin-bottom: 8px; font-size: 1rem;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm" style="width:18px; height:18px;">
+                    <path
+                      d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.42a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.42 8.6.42 8.6.42s6.88 0 8.6-.42a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z">
+                    </path>
+                    <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
+                  </svg>
+                  Add YouTube Link
+                </h2>
 
-              <!-- Progress -->
-              <div class="progress-wrap hidden" id="progress-wrap">
-                <div class="progress-bar">
-                  <div class="progress-fill" id="progress-fill"></div>
+                <div class="selected-folder-badge-modern" style="margin-bottom: 8px; padding: 6px 12px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs" style="width:14px; height:14px;">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span class="selected-folder-name-display" style="font-size: 0.8rem;">⚠️ Please select a folder from the sidebar</span>
                 </div>
-                <p class="progress-text" id="progress-text">Uploading…</p>
+
+                <div style="margin-bottom: 12px;">
+                  <label class="section-label-tiny" style="font-size: 0.75rem; margin-bottom: 4px;">YOUTUBE URL</label>
+                  <input type="text" id="youtube-url" placeholder="https://www.youtube.com/watch?v=..."
+                    style="width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; font-weight: 500; color: #1e293b;" />
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                  <label class="section-label-tiny" style="font-size: 0.75rem; margin-bottom: 4px;">VIDEO TITLE</label>
+                  <input type="text" id="youtube-title" placeholder="Enter a title for this video..."
+                    style="width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; font-weight: 500; color: #1e293b;" />
+                </div>
+
+                <button class="btn-upload-modern" id="add-link-btn" disabled style="width:100%; padding: 12px; font-size: 0.95rem;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="icon-sm" style="width:16px; height:16px;">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Add Video Link
+                </button>
               </div>
-            </div>
-
-            <!-- YouTube Link section -->
-            <div id="section-link" class="uploader-section hidden">
-              <h2 class="section-title-modern">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
-                  <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.42a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.42 8.6.42 8.6.42s6.88 0 8.6-.42a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
-                  <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
-                </svg>
-                Add YouTube Link
-              </h2>
-
-              <!-- Selected folder indicator for link -->
-              <div class="selected-folder-badge-modern">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                </svg>
-                <span class="selected-folder-name-display">No folder selected</span>
-              </div>
-
-              <div style="margin-bottom: 20px;">
-                <label class="section-label-tiny">YOUTUBE URL</label>
-                <input type="text" id="youtube-url" placeholder="https://www.youtube.com/watch?v=..." 
-                  style="width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; font-size: 0.9rem; font-weight: 500; color: #1e293b;" />
-              </div>
-
-              <div style="margin-bottom: 20px;">
-                <label class="section-label-tiny">VIDEO TITLE</label>
-                <input type="text" id="youtube-title" placeholder="Enter a title for this video..." 
-                  style="width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; font-size: 0.9rem; font-weight: 500; color: #1e293b;" />
-              </div>
-
-              <button class="btn-upload-modern" id="add-link-btn" disabled>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="icon-sm">
-                  <path d="M12 5v14M5 12h14"/>
-                </svg>
-                Add Link to Folder
-              </button>
-            </div>
             </div>
           </div>
         </main>
-      </div>
+    </div>
 
-          <!-- Recent Uploads -->
-          <!-- <div class="recent-uploads glass-card" id="recent-section">
+    <!-- Recent Uploads -->
+    <!-- <div class="recent-uploads glass-card" id="recent-section">
             <h2 class="section-title">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
                 <circle cx="12" cy="12" r="10" />
@@ -358,8 +365,8 @@
               <p class="empty-text">No recent uploads yet.</p>
             </div>
           </div> -->
-        </main>
-    </div>
+    </main>
+  </div>
   </div>
 
   <!-- ─── Upload Confirm Modal ─────────────────────────────────────────────── -->
@@ -451,8 +458,9 @@
   <!-- Custom Delete Confirm Modal -->
   <div class="confirm-modal-overlay" id="delete-confirm-modal">
     <div class="confirm-dialog">
-            <div class="confirm-icon-wrap">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px;">
+      <div class="confirm-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round"
+          stroke-linejoin="round" style="width:44px;height:44px;">
           <polyline points="3 6 5 6 21 6"></polyline>
           <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
           <path d="M10 11v6"></path>

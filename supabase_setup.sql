@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL PRIMARY KEY,
   fullname TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
-  password TEXT NOT NULL
+  password TEXT NOT NULL,
+  role TEXT DEFAULT 'employee',
+  points REAL DEFAULT 0
 );
 
 -- 2. User folders table

@@ -32,14 +32,7 @@ const previewSize       = document.getElementById('preview-size');
 const removeFileBtn     = document.getElementById('remove-file-btn');
 const uploadBtn         = document.getElementById('upload-btn');
 
-// --- Link Section DOM ---
-const sectionFile       = document.getElementById('section-file');
-const sectionLink       = document.getElementById('section-link');
-const youtubeUrlInput   = document.getElementById('youtube-url');
-const youtubeTitleInput = document.getElementById('youtube-title');
-const addLinkBtn        = document.getElementById('add-link-btn');
-const toggleFile        = document.getElementById('toggle-file');
-const toggleLink        = document.getElementById('toggle-link');
+// Links will be initialized in DOMContentLoaded
 
 // ─── Modal DOM ──────────────────────────────────────────────────────────────
 const confirmOverlay       = document.getElementById('confirm-overlay');
@@ -236,7 +229,7 @@ function selectFolder(name, btn) {
 }
 
 function updateSelectedFolderDisplays(name) {
-  const displayValue = name || 'No folder selected';
+  const displayValue = name || '⚠️ Please select a folder from the sidebar';
   
   // Update both the main uploader name and the link section name
   if (selectedFolderName) selectedFolderName.textContent = displayValue;
@@ -364,10 +357,25 @@ removeFileBtn.addEventListener('click', e => {
   clearFile();
 });
 
+function getFileIcon(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) return '🖼️';
+  if (ext === 'pdf') return '📕';
+  if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) return '🎬';
+  if (['doc', 'docx'].includes(ext)) return '📘';
+  if (['xls', 'xlsx'].includes(ext)) return '📗';
+  if (['ppt', 'pptx'].includes(ext)) return '📙';
+  return '📄';
+}
+
 function handleFileSelect(file) {
   selectedFile = file;
   previewName.textContent = file.name;
   previewSize.textContent = formatSize(file.size);
+  
+  const thumb = document.querySelector('.file-thumb');
+  if (thumb) thumb.textContent = getFileIcon(file.name);
+  
   dropContent.classList.add('hidden');
   filePreview.classList.remove('hidden');
   openConfirmModal(file);
@@ -592,6 +600,10 @@ confirmUploadBtn.addEventListener('click', async () => {
   const formData = new FormData();
   formData.append('folder', modalFolder);
   formData.append('file', renamedFile);
+  const userEmail = localStorage.getItem('gantec_user_email');
+  if (userEmail) {
+    formData.append('email', userEmail);
+  }
 
   try {
     const res  = await fetch('/api/upload', { method: 'POST', body: formData });
@@ -602,7 +614,7 @@ confirmUploadBtn.addEventListener('click', async () => {
 
     confirmProgressFill.style.width = '100%';
     confirmProgressText.textContent = 'Upload complete! ✓';
-    showToast(`"${data.filename}" uploaded to "${data.folder}"`, 'success');
+    showToast('File is uploaded', 'success');
 
     addRecentUpload(data.filename, data.folder, selectedFile.size);
 
@@ -822,6 +834,14 @@ async function makeEditable(el, type, oldName, folder = '') {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  const sectionFile = document.getElementById('section-file');
+  const sectionLink = document.getElementById('section-link');
+  const youtubeUrlInput = document.getElementById('youtube-url');
+  const youtubeTitleInput = document.getElementById('youtube-title');
+  const addLinkBtn = document.getElementById('add-link-btn');
+  const toggleFile = document.getElementById('toggle-file');
+  const toggleLink = document.getElementById('toggle-link');
+
   // --- Toggle Logic ---
   toggleFile?.addEventListener('click', () => {
     toggleFile.classList.add('active');
@@ -847,19 +867,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const title = youtubeTitleInput.value.trim();
     const folder = selectedFolder;
 
-    if (!url || !title || !folder) return;
+    console.log('Attempting to add link:', { url, title, folder });
 
     addLinkBtn.disabled = true;
+
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      showToast('Invalid URL: Please include http:// or https://', 'error');
+      addLinkBtn.disabled = false;
+      return;
+    }
+
     try {
       const res = await fetch('/api/resources/links', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, title, folder })
+        body: JSON.stringify({ 
+          url, 
+          title, 
+          folder,
+          email: localStorage.getItem('gantec_user_email') || ''
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to add link');
 
-      showToast('YouTube link added successfully!', 'success');
+      showToast('Video is uploaded', 'success');
       youtubeUrlInput.value = '';
       youtubeTitleInput.value = '';
       updateAddLinkBtnState();
@@ -869,13 +901,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  function updateAddLinkBtnState() {
-    if (!addLinkBtn) return;
-    const url = youtubeUrlInput?.value.trim();
-    const title = youtubeTitleInput?.value.trim();
-    addLinkBtn.disabled = !(url && title && selectedFolder);
-  }
+});
 
+function updateAddLinkBtnState() {
+  const addLinkBtn = document.getElementById('add-link-btn');
+  const youtubeUrlInput = document.getElementById('youtube-url');
+  const youtubeTitleInput = document.getElementById('youtube-title');
+  if (!addLinkBtn) return;
+  const url = youtubeUrlInput?.value.trim();
+  const title = youtubeTitleInput?.value.trim();
+  addLinkBtn.disabled = !(url && title && selectedFolder);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
   loadFolders();
   initSidebarToggle();
 });

@@ -52,10 +52,31 @@ const modalIcon       = document.getElementById('modal-icon');
 const modalDownload   = document.getElementById('modal-download');
 const previewFallback = document.getElementById('preview-fallback');
 const modalClose      = document.getElementById('modal-close');
+
 const deleteConfirmModal = document.getElementById('delete-confirm-modal');
 const deleteConfirmOkBtn = document.getElementById('delete-confirm-ok-btn');
 const deleteConfirmCancelBtn = document.getElementById('delete-confirm-cancel-btn');
 const deleteConfirmMsg = document.getElementById('delete-confirm-msg');
+const summarizeBtn = document.getElementById('modal-summarize');
+const summaryOverlay = document.getElementById('summary-overlay');
+const summaryContent = document.getElementById('summary-content');
+const closeSummaryBtn = document.getElementById('close-summary');
+let currentOpenFolder = '';
+let currentOpenFile = '';
+
+modalClose?.addEventListener('click', () => {
+  pdfModal.classList.add('hidden');
+  if (summaryOverlay) summaryOverlay.classList.add('hidden');
+  document.body.style.overflow = '';
+});
+
+closeSummaryBtn?.addEventListener('click', () => {
+  summaryOverlay.classList.add('hidden');
+});
+
+summarizeBtn?.addEventListener('click', () => {
+  summarizeDocument(currentOpenFolder, currentOpenFile);
+});
 
 // Upload UI
 const fileInput = document.getElementById('file-input');
@@ -129,11 +150,7 @@ function renderSidebar() {
   renderDropdown();
 }
 
-function confirmDelete(folder, filename) {
-  deleteConfirmMsg.textContent = `Are you sure you want to delete "${filename}"?`;
-  deleteCallback = () => performDelete(folder, filename);
-  deleteConfirmModal.classList.add('active');
-}
+
 
 function renderDropdown() {
   if (!dropdownList) return;
@@ -220,7 +237,7 @@ function renderDropdown() {
 
         fileItem.querySelector('.delete-file-btn').addEventListener('click', (e) => {
           e.stopPropagation();
-          confirmDelete(folder.name, file.name);
+          confirmDelete(folder.name, file.name, file.uploader_email);
         });
 
         // Removed click listener that opened PDF or filtered view
@@ -300,17 +317,37 @@ function renderDocs() {
 function buildGridCard(doc) {
   const card = document.createElement('div');
   card.className = 'doc-card';
+  const ext = doc.name.toLowerCase().split('.').pop();
+  const isYt = ext === 'ytlink';
+  
+  // Vibrant Icons
+  let iconHtml = '';
+  if (isYt) {
+    iconHtml = `
+      <svg viewBox="0 0 24 24" fill="#ff0000" style="width: 48px; height: 48px;">
+        <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+      </svg>`;
+  } else if (ext === 'pdf') {
+    iconHtml = `<svg viewBox="0 0 24 24" fill="#ef4444" style="width:40px; height:40px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
+  } else if (['doc', 'docx', 'txt'].includes(ext)) {
+    iconHtml = `<svg viewBox="0 0 24 24" fill="#3b82f6" style="width:40px; height:40px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
+  } else if (['xls', 'xlsx', 'csv'].includes(ext)) {
+    iconHtml = `<svg viewBox="0 0 24 24" fill="#10b981" style="width:40px; height:40px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
+  } else {
+    iconHtml = `<svg viewBox="0 0 24 24" fill="#64748b" style="width:40px; height:40px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
+  }
+
   card.innerHTML = `
-    <div class="doc-thumb">📄</div>
+    <div class="doc-thumb">${iconHtml}</div>
     <div class="doc-info">
-      <div class="doc-name" title="${escapeHTML(doc.name)}">${escapeHTML(doc.name)}</div>
+      <div class="doc-name" title="${escapeHTML(doc.name)}">${escapeHTML(doc.name.replace('.ytlink', ''))}</div>
       <div class="doc-meta">
-        <span class="doc-size">${formatSize(doc.size)}</span>
+        <span class="doc-size">${isYt ? 'Video Link' : formatSize(doc.size)}</span>
         <span class="doc-folder-tag">${escapeHTML(doc.folder)}</span>
       </div>
     </div>
     <div class="doc-actions">
-      <button class="doc-action-btn view-doc" title="View">
+      <button class="doc-action-btn view-doc" title="${isYt ? 'Open in YouTube' : 'View'}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px; height:16px;">
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
           <circle cx="12" cy="12" r="3"/>
@@ -327,8 +364,36 @@ function buildGridCard(doc) {
     </div>
   `;
 
-  card.querySelector('.view-doc').addEventListener('click', () => openPdf(doc.folder, doc.name));
-  card.querySelector('.delete').addEventListener('click', () => confirmDelete(doc.folder, doc.name));
+  card.querySelector('.view-doc').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (isYt) {
+      try {
+        const url = getFileUrl(doc.folder, doc.name);
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.url) window.open(data.url, '_blank');
+      } catch (err) { console.error('Redirect failed', err); }
+    } else {
+      openPdf(doc.folder, doc.name);
+    }
+  });
+  
+  card.querySelector('.delete').addEventListener('click', (e) => {
+    e.stopPropagation();
+    confirmDelete(doc.folder, doc.name, doc.uploader_email);
+  });
+
+  if (isYt) {
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', async () => {
+      try {
+        const url = getFileUrl(doc.folder, doc.name);
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.url) window.open(data.url, '_blank');
+      } catch (err) { console.error('Redirect failed', err); }
+    });
+  }
 
   return card;
 }
@@ -375,17 +440,20 @@ function openPdf(folder, filename) {
     }
   }
   
+  const ext = filename.split('.').pop().toLowerCase();
+  const isOffice = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'csv'].includes(ext);
+  const isYt = ext === 'ytlink';
+
   // Reset state
   pdfIframe.src = '';
   pdfIframe.classList.remove('hidden');
   previewFallback.classList.add('hidden');
   previewFallback.innerHTML = '';
   
-  modalFilename.textContent = filename;
+  modalFilename.textContent = filename.replace('.ytlink', '');
   modalDownload.href = url;
   modalDownload.download = filename;
 
-  const ext = filename.split('.').pop().toLowerCase();
   let isNative = false;
   let icon = '📄';
 
@@ -400,16 +468,43 @@ function openPdf(folder, filename) {
     icon = '🎵'; isNative = true;
   } else if (['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)) {
     icon = '📝'; // Office
+  } else if (ext === 'ytlink') {
+    icon = '📺';
   }
 
   modalIcon.textContent = icon;
 
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const isOffice = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext);
-
+  
   const imgExts = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'];
   
   previewFallback.style.background = '';
+
+  if (ext === 'ytlink') {
+    pdfIframe.classList.add('hidden');
+    previewFallback.classList.remove('hidden');
+    previewFallback.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted);">Loading video...</div>';
+    
+    fetch(url)
+      .then(r => r.json())
+      .then(data => {
+        let embedUrl = data.url;
+        if (embedUrl.includes('youtube.com/watch?v=')) {
+          embedUrl = embedUrl.replace('watch?v=', 'embed/');
+        } else if (embedUrl.includes('youtu.be/')) {
+          embedUrl = embedUrl.replace('youtu.be/', 'youtube.com/embed/');
+        }
+        previewFallback.innerHTML = `
+          <iframe width="100%" height="100%" src="${embedUrl}" 
+            frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen></iframe>
+        `;
+      })
+      .catch(err => {
+        previewFallback.innerHTML = `<div style="color:var(--danger); padding:20px;">Failed to load video link: ${err.message}</div>`;
+      });
+    return;
+  }
 
   if (imgExts.includes(ext)) {
     pdfIframe.classList.add('hidden');
@@ -521,10 +616,40 @@ async function renderLocalDoc(url, filename, ext, icon) {
           </div>
         </div>
       `;
+    } else if (ext === 'csv' || ext === 'txt') {
+      const decoder = new TextDecoder('utf-8');
+      const text = decoder.decode(arrayBuffer);
+      
+      if (ext === 'csv') {
+        const rows = text.split('\n').map(row => row.split(','));
+        let tableHtml = '<table style="width:100%; border-collapse: collapse; background:white; font-family: sans-serif; font-size: 0.9rem;">';
+        rows.forEach((row, i) => {
+          tableHtml += '<tr>';
+          row.forEach(cell => {
+            tableHtml += `<td style="border: 1px solid #e2e8f0; padding: 12px; ${i === 0 ? 'background:#f8fafc; font-weight:bold;' : ''}">${escapeHTML(cell)}</td>`;
+          });
+          tableHtml += '</tr>';
+        });
+        tableHtml += '</table>';
+        
+        previewFallback.innerHTML = `
+          <div style="padding: 20px; height: 100%; overflow: auto; background: #f1f5f9;">
+            <div style="background:white; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.05); overflow:hidden;">
+              ${tableHtml}
+            </div>
+          </div>
+        `;
+      } else {
+        previewFallback.innerHTML = `
+          <div style="padding: 40px; height: 100%; overflow: auto; background: #fff;">
+            <pre style="white-space: pre-wrap; font-family: monospace; font-size: 0.95rem; line-height: 1.5; color: #334155;">${escapeHTML(text)}</pre>
+          </div>
+        `;
+      }
     } else if (ext === 'pptx') {
       await renderLocalPPTX(arrayBuffer, filename, icon);
     } else {
-      // Fallback for pptx, xlsx etc on localhost
+      // Fallback for xlsx etc on localhost
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       if (isLocal) {
         previewFallback.innerHTML = `
@@ -642,6 +767,29 @@ function showFallbackCard(url, filename, icon, customMsg) {
   `;
 }
 
+function confirmDelete(folder, filename, uploaderEmail) {
+  const currentUserEmail = (localStorage.getItem('gantec_user_email') || '').toLowerCase();
+  const ownerEmail = (uploaderEmail || '').toLowerCase();
+
+  console.log('Ownership Check:', { ownerEmail, currentUserEmail });
+
+  // If no owner is tracked (old file), deny deletion by default for safety
+  if (!ownerEmail) {
+    showToast('Access Denied: You are not allowed to delete this document.', 'error');
+    return;
+  }
+
+  // If the current user is not the owner, deny deletion
+  if (ownerEmail !== currentUserEmail) {
+    showToast('Access Denied: You are not allowed to delete this document.', 'error');
+    return;
+  }
+
+  // Only if they are the owner, show the confirm modal
+  deleteConfirmMsg.textContent = `Are you sure you want to delete "${filename}"?`;
+  deleteCallback = () => performDelete(folder, filename);
+  deleteConfirmModal.classList.add('active');
+}
 
 function closePdf() {
   pdfModal.classList.add('hidden');
@@ -660,7 +808,17 @@ document.addEventListener('keydown', (e) => {
 // ─── Delete ───────────────────────────────────────────────────────────────────
 let deleteCallback = null;
 
-function confirmDelete(folder, filename) {
+function confirmDelete(folder, filename, uploaderEmail) {
+  console.log('Checking ownership:', { folder, filename, uploaderEmail });
+  const currentUserEmail = localStorage.getItem('gantec_user_email') || '';
+  if (uploaderEmail !== currentUserEmail && uploaderEmail != null) {
+    showToast('Access Denied: You are not allowed to delete this document.', 'error');
+    return;
+  } else if (!uploaderEmail) {
+    showToast('Access Denied: You are not allowed to delete this document.', 'error');
+    return;
+  }
+  
   deleteConfirmMsg.textContent = `Should I need to delete this?`;
   deleteCallback = () => performDelete(folder, filename);
   deleteConfirmModal.classList.add('active');
@@ -976,3 +1134,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Refresh every 30s in case files are uploaded from another tab
 setInterval(loadFolders, 30000);
+async function summarizeDocument(folder, filename) {
+  summaryContent.innerHTML = `
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; text-align: center;">
+      <div class="animate-pulse" style="font-size: 3rem; margin-bottom: 20px;">🧠</div>
+      <h3 style="margin: 0; color: var(--primary);">Analyzing Document...</h3>
+      <p style="color: var(--text-muted);">Gantec AI is reading and condensing the key insights for you.</p>
+    </div>
+  `;
+  summaryOverlay.classList.remove('hidden');
+
+  try {
+    const res = await fetch('/api/summarize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder, filename })
+    });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Failed to summarize');
+
+    // Format the summary with better typography
+    summaryContent.innerHTML = data.summary
+      .split('\n')
+      .map(line => line.startsWith('*') || line.startsWith('-') 
+        ? `<li style="margin-bottom: 12px; padding-left: 8px;">${line.replace(/^[* -]+/, '')}</li>` 
+        : line.trim() === '' ? '<br>' : `<p style="margin-bottom: 16px;">${line}</p>`)
+      .join('');
+      
+    // Wrap lists in <ul>
+    summaryContent.innerHTML = summaryContent.innerHTML.replace(/(<li>.*?<\/li>)+/g, match => `<ul style="margin-bottom: 24px; padding-left: 20px; list-style-type: disc;">${match}</ul>`);
+
+  } catch (err) {
+    console.error('Summarization error:', err);
+    summaryContent.innerHTML = `
+      <div style="background: #fef2f2; border: 1px solid #fee2e2; padding: 24px; border-radius: 12px; color: #991b1b;">
+        <h3 style="margin-top: 0;">Summarization Failed</h3>
+        <p>${err.message}</p>
+        <button onclick="summarizeDocument('${folder}', '${filename}')" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-top: 12px; font-weight: 600;">Try Again</button>
+      </div>
+    `;
+  }
+}

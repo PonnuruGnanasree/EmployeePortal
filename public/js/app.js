@@ -20,7 +20,8 @@ async function createFolder(name) {
 }
 
 async function deleteFile(folder, filename) {
-  const res = await fetch(`${API_BASE}/file?folder=${encodeURIComponent(folder)}&file=${encodeURIComponent(filename)}`, {
+  const email = localStorage.getItem('gantec_user_email') || '';
+  const res = await fetch(`${API_BASE}/file?folder=${encodeURIComponent(folder)}&file=${encodeURIComponent(filename)}&email=${encodeURIComponent(email)}`, {
     method: 'DELETE'
   });
   const data = await res.json();
@@ -35,8 +36,12 @@ function getFileUrl(folder, filename) {
 // ─── Toast Notifications ──────────────────────────────────────────────────────
 
 function showToast(message, type = 'info', duration = 3500) {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    document.body.appendChild(container);
+  }
 
   const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
   const toast = document.createElement('div');
@@ -52,6 +57,37 @@ function showToast(message, type = 'info', duration = 3500) {
     toast.style.animation = 'fadeOut 0.3s ease forwards';
     setTimeout(() => toast.remove(), 300);
   }, duration);
+}
+
+window.showCenterPopup = function(message, type = 'success') {
+  console.log('Center popup triggered:', message, type);
+  const overlay = document.createElement('div');
+  overlay.className = 'center-popup-overlay';
+  
+  const icons = {
+    success: '<div class="popup-icon-circle success">✓</div>',
+    video: '<div class="popup-icon-circle video">📺</div>'
+  };
+
+  overlay.innerHTML = `
+    <div class="center-popup-card">
+      ${icons[type] || icons.success}
+      <h2 class="popup-title">${message}</h2>
+      <button class="popup-close-btn">Done</button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  
+  const close = () => {
+    overlay.classList.add('closing');
+    setTimeout(() => overlay.remove(), 300);
+  };
+
+  overlay.querySelector('.popup-close-btn').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
 }
 
 // ─── File Size Formatter ──────────────────────────────────────────────────────
@@ -131,7 +167,7 @@ function initUserProfile() {
           <span class="user-email" style="font-size: 0.7rem; color: var(--text-muted); opacity: 0.8;">${userEmail}</span>
         </div>
         
-        <div class="dropdown-menu profile-menu right" style="min-width: 150px;">
+        <div class="dropdown-menu profile-menu right" style="min-width: 135px; width: max-content;">
           <a href="#" class="dropdown-item" id="view-profile-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             View Profile

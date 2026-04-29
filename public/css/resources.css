@@ -618,7 +618,7 @@ svg {
 
 .vault-hero-box {
   border-radius: 24px;
-  padding: 24px 32px;
+  padding: 20px 0px 20px 64px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
@@ -629,7 +629,7 @@ svg {
   background: linear-gradient(135deg, #eff6ff, #dbeafe); /* Light blue background */
   position: relative;
   overflow: hidden;
-  min-height: 120px;
+  min-height: 100px;
 }
 
 .vault-hero-box::after {
@@ -3851,7 +3851,7 @@ svg {
   flex-direction: column;
   position: absolute;
   top: calc(100% + 8px);
-  min-width: 180px;
+  min-width: 160px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -3881,7 +3881,7 @@ svg {
 }
 
 .nav-dropdown .dropdown-item {
-  padding: 12px 20px;
+  padding: 10px 16px;
   color: var(--text-primary);
   text-decoration: none;
   font-size: 0.9rem;
@@ -4266,6 +4266,49 @@ svg {
   background: transparent;
   border: none;
   cursor: pointer;
+}
+
+/* ─── Toast Notifications ─── */
+#toast-container {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  background: white;
+  color: #333;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  border-left: 4px solid #3b82f6;
+  animation: slideInRight 0.3s ease forwards;
+  pointer-events: auto;
+}
+
+.toast.success { border-left-color: #10b981; }
+.toast.error { border-left-color: #ef4444; color: #ef4444; }
+.toast.warning { border-left-color: #f59e0b; }
+.toast.info { border-left-color: #3b82f6; }
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
 }
 
 .dropdown-item:hover .delete-folder-btn,
