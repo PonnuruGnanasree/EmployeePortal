@@ -806,34 +806,30 @@ function serveDecryptedFile(filePath, res, filename) {
   const stats = fs.statSync(filePath);
   const fileSize = stats.size;
   
-  // AES-256-CBC with 16-byte IV and PKCS7 padding always results in a file size 
-  // that is a multiple of 16 (IV + encrypted blocks).
-  // If it's not a multiple of 16, it's definitely not encrypted by our system.
-  const potentiallyEncrypted = (fileSize > IV_LENGTH) && (fileSize % 16 === 0);
-
-  if (!potentiallyEncrypted) {
-    // Serve raw file
-    res.setHeader('Content-Type', getContentType(filename));
-    res.setHeader('Content-Disposition', 'inline');
-    return fs.createReadStream(filePath).pipe(res);
-  }
-
-  // If it is a multiple of 16, it MIGHT be encrypted, or it might just be a lucky unencrypted file.
-  // We check the first few bytes for common unencrypted headers as a fallback.
+  // Read the first 16 bytes to check for unencrypted headers
   const fd = fs.openSync(filePath, 'r');
-  const buffer = Buffer.alloc(4);
-  fs.readSync(fd, buffer, 0, 4, 0);
+  const buffer = Buffer.alloc(16);
+  const bytesRead = fs.readSync(fd, buffer, 0, 16, 0);
   fs.closeSync(fd);
 
-  const magic = buffer.toString('utf8');
-  if (magic.startsWith('%PDF') || magic.startsWith('{') || magic.startsWith('PK\x03\x04')) {
-    // Definitely unencrypted PDF, JSON (ytlink), or Office/Zip file
+  const head = buffer.toString('utf8');
+  const isUnencrypted = head.startsWith('%PDF') || 
+                        head.startsWith('{') || 
+                        head.startsWith('PK\x03\x04') || 
+                        head.startsWith('http') ||
+                        head.startsWith('{\n') ||
+                        head.startsWith('{"');
+
+  // Also, if the file size is not a multiple of 16, it cannot be encrypted by our system
+  const sizeMismatched = (fileSize % 16 !== 0);
+
+  if (isUnencrypted || sizeMismatched) {
     res.setHeader('Content-Type', getContentType(filename));
     res.setHeader('Content-Disposition', 'inline');
     return fs.createReadStream(filePath).pipe(res);
   }
 
-  // Proceed with decryption
+  // Proceed with decryption for everything else
   const readStream = fs.createReadStream(filePath);
   let iv = Buffer.alloc(0);
   let decipher = null;
@@ -854,8 +850,8 @@ function serveDecryptedFile(filePath, res, filename) {
             res.write(decipher.update(remaining));
           }
         } catch (e) {
-          // If decipher creation fails, fallback to raw (shouldn't happen with valid IV_LENGTH)
-          console.error('Decipher creation failed, falling back to raw:', e.message);
+          console.error('Decipher initialization failed:', e.message);
+          // Fallback to raw if decryption setup fails
           res.setHeader('Content-Type', getContentType(filename));
           res.setHeader('Content-Disposition', 'inline');
           res.write(chunk);
@@ -876,7 +872,7 @@ function serveDecryptedFile(filePath, res, filename) {
         res.write(decipher.final());
       }
     } catch (err) {
-      console.error('Decryption finalization failed:', err.message);
+      console.error('Decryption finalization failed (legacy fallback might be needed):', err.message);
     } finally {
       res.end();
     }
