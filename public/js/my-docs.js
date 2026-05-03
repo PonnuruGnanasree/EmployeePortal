@@ -128,6 +128,7 @@ function getMyFileUrl(folder, file) {
 
 // ─── Load Data ────────────────────────────────────────────────────────────────
 async function loadFolders() {
+  window.loadFolders = loadFolders; // Make it globally accessible for Real-time sync
   try {
     const data = await apiFetch(`/folders?email=${userEmail}`);
     allFolders = data.folders;
@@ -309,6 +310,7 @@ function buildTreeSidebar(node, container, level = 0) {
 
 function buildTreeDOM(node, container, level = 0, isModal = false) {
   const children = Object.values(node.children);
+  children.sort((a, b) => a.name.localeCompare(b.name));
 
   children.forEach(child => {
     const wrap = document.createElement('div');

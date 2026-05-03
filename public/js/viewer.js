@@ -370,8 +370,22 @@ function buildGridCard(doc) {
       try {
         const url = getFileUrl(doc.folder, doc.name);
         const res = await fetch(url);
-        const data = await res.json();
-        if (data.url) window.open(data.url, '_blank');
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (data.url) {
+            window.open(data.url, '_blank');
+          } else if (data.link) {
+            window.open(data.link, '_blank');
+          }
+        } catch (err) {
+          // If not JSON, check if the text itself is a URL (fallback for old unencrypted links)
+          if (text.trim().startsWith('http')) {
+            window.open(text.trim(), '_blank');
+          } else {
+            console.error('Redirect failed: Content is not a valid URL or JSON', err);
+          }
+        }
       } catch (err) { console.error('Redirect failed', err); }
     } else {
       openPdf(doc.folder, doc.name);
@@ -389,8 +403,21 @@ function buildGridCard(doc) {
       try {
         const url = getFileUrl(doc.folder, doc.name);
         const res = await fetch(url);
-        const data = await res.json();
-        if (data.url) window.open(data.url, '_blank');
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (data.url) {
+            window.open(data.url, '_blank');
+          } else if (data.link) {
+            window.open(data.link, '_blank');
+          }
+        } catch (err) {
+          if (text.trim().startsWith('http')) {
+            window.open(text.trim(), '_blank');
+          } else {
+            console.error('Redirect failed: Content is not a valid URL or JSON', err);
+          }
+        }
       } catch (err) { console.error('Redirect failed', err); }
     });
   }

@@ -61,6 +61,7 @@ const deleteConfirmMsg     = document.getElementById('delete-confirm-msg');
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function loadFolders() {
+  window.loadFolders = loadFolders; // Make it globally accessible for Real-time sync
   if (!allFolders) allFolders = [];
   try {
     const data = await fetchFolders();

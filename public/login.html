@@ -247,38 +247,72 @@
         }
       }
 
-      const endpoint = isSignUp ? '/api/auth/signup' : '/api/auth/login';
-      const body = isSignUp ? { fullname, email, password } : { email, password };
+      // Helper to wait for Supabase client injected by app.js or loaded via CDN
+      const getSupabase = () => {
+        return new Promise((resolve) => {
+          if (window.supabaseClient) return resolve(window.supabaseClient);
+          const check = setInterval(() => {
+            if (window.supabaseClient) {
+              clearInterval(check);
+              resolve(window.supabaseClient);
+            }
+          }, 100);
+        });
+      };
 
       try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
+        const supabase = await getSupabase();
+        let result;
 
-        const data = await response.json();
-
-        if (response.ok) {
-          console.log('Login successful, redirecting to welcome.html');
-          showToast(isSignUp ? 'Account created! Welcome.' : 'Sign in successful!', 'success');
-          localStorage.setItem('gantec_auth', 'true');
-          localStorage.setItem('gantec_user_name', data.user.fullname);
-          localStorage.setItem('gantec_user_email', data.user.email);
-          console.log('localStorage set:', {
-            auth: localStorage.getItem('gantec_auth'),
-            name: localStorage.getItem('gantec_user_name'),
-            email: localStorage.getItem('gantec_user_email')
+        if (isSignUp) {
+          // 1. Create user in SQLite and Supabase Auth via backend
+          const response = await fetch('/api/auth/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fullname, email, password })
           });
-          setTimeout(() => {
-            console.log('Executing redirect to welcome.html');
-            window.location.href = 'welcome.html';
-          }, 1200);
+          result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Signup failed');
+
+          // 2. Log in with Supabase Auth to establish session
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          showToast('Account created and signed in!', 'success');
         } else {
-          showToast(data.error || 'Authentication failed', 'error');
+          // 1. Simple Login via Supabase Auth
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+          
+          if (error) {
+            console.warn('Supabase Auth failed, trying legacy fallback/migration...');
+            // 2. Fallback to backend for legacy user check and auto-migration
+            const response = await fetch('/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password })
+            });
+            
+            if (!response.ok) {
+               const errData = await response.json();
+               throw new Error(errData.error || 'Invalid credentials');
+            }
+
+            // 3. Backend just migrated us! Try signing in with Supabase one more time
+            const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({ email, password });
+            if (retryError) throw retryError;
+            
+            showToast('Legacy account migrated and signed in!', 'success');
+          } else {
+            showToast('Sign in successful!', 'success');
+          }
         }
+
+        // Redirect handled by app.js onAuthStateChange, but we can force it here
+        setTimeout(() => {
+          window.location.href = 'welcome.html';
+        }, 1200);
+
       } catch (err) {
-        showToast('Server connection error. Please try again.', 'error');
+        showToast(err.message || 'Authentication failed', 'error');
       }
     });
 

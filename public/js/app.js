@@ -149,17 +149,63 @@ function initNavDropdown() {
 
 function initUserProfile() {
   const userSection = document.getElementById('user-profile-section');
-  if (!userSection) return;
 
-  const auth = localStorage.getItem('gantec_auth');
-  const userName = localStorage.getItem('gantec_user_name');
+  // We inject the Supabase SDK dynamically so it's available on all 15+ pages
+  // without having to edit every single HTML file.
+  if (!window.supabaseClient) {
+    const script = document.createElement('script');
+    script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+    script.onload = () => {
+      const SUPABASE_URL = 'https://pbicghsmejqlnksdtjzo.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiaWNnaHNtZWpxbG5rc2R0anpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NjM2MjEsImV4cCI6MjA5MjIzOTYyMX0.sI38ou9HZHK7vjLF8dTaEtvBvmMNx6u8LxBvOKFlwew';
+      window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      
+      // Native Supabase Session Management
+      window.supabaseClient.auth.onAuthStateChange((event, session) => {
+        console.log('Supabase Auth Event:', event);
+        if (session && session.user) {
+          const user = session.user;
+          const fullName = user.user_metadata?.fullname || user.email;
+          localStorage.setItem('gantec_auth', 'true');
+          localStorage.setItem('gantec_user_name', fullName);
+          localStorage.setItem('gantec_user_email', user.email);
+          if (userSection) renderUserProfileUI(userSection, fullName, user.email);
+        } else {
+          localStorage.removeItem('gantec_auth');
+          if (userSection) renderGuestUI(userSection);
+        }
+      });
+
+      // --- REAL-TIME SYNC ---
+      // Listen for any changes in the database and refresh the UI automatically
+      const syncChannel = window.supabaseClient.channel('db-sync');
+      
+      // Watch all relevant tables
+      syncChannel
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'user_documents' }, (payload) => {
+          console.log('Real-time: user_documents change', payload);
+          if (typeof window.loadFolders === 'function') window.loadFolders();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'resource_uploads' }, (payload) => {
+          console.log('Real-time: resource_uploads change', payload);
+          if (typeof window.loadFolders === 'function') window.loadFolders();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'resource_links' }, (payload) => {
+          console.log('Real-time: resource_links change', payload);
+          if (typeof window.loadFolders === 'function') window.loadFolders();
+        })
+        .subscribe();
+    };
+    document.head.appendChild(script);
+  }
+}
+
+function renderUserProfileUI(userSection, userName, userEmail) {
   const customProfile = localStorage.getItem('gantec_user_profile');
   const defaultProfile = 'images/default-avatar.png';
   const profileImgSrc = customProfile || defaultProfile;
   
-    if (auth && userName) {
-    const userEmail = localStorage.getItem('gantec_user_email') || '';
-    userSection.innerHTML = `
+  userSection.innerHTML = `
       <div class="user-profile-wrap nav-dropdown" id="profile-dropdown-wrap" style="display: flex; align-items: center; gap: 12px; margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--border); cursor: pointer; position: relative;">
         <img src="${profileImgSrc}" alt="Profile" id="profile-trigger-img" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-glow);">
         <div class="user-info-text" style="display: flex; flex-direction: column; line-height: 1.2;">
@@ -213,14 +259,19 @@ function initUserProfile() {
       showEditProfileModal(userName, profileImgSrc);
     });
 
-    logoutBtn.addEventListener('click', (e) => {
+    logoutBtn.addEventListener('click', async (e) => {
       e.preventDefault(); e.stopPropagation();
+      if (window.supabaseClient) {
+        await window.supabaseClient.auth.signOut();
+      }
       localStorage.removeItem('gantec_auth');
       localStorage.removeItem('gantec_user_name');
       localStorage.removeItem('gantec_user_email');
       window.location.href = 'login.html';
     });
-  } else {
+}
+
+function renderGuestUI(userSection) {
     // Session not found - show Sign In button
     userSection.innerHTML = `
       <a href="login.html" class="btn btn-primary btn-sm" style="display:flex; align-items:center; gap:8px; padding:10px 20px; background:#1a2b4b; border-radius:30px; border:none; box-shadow:0 4px 12px rgba(0,0,0,0.15); font-weight:700; color:white; text-decoration:none;">
@@ -228,7 +279,6 @@ function initUserProfile() {
         Sign In
       </a>
     `;
-  }
 }
 
 function showEditProfileModal(currentName, currentImg) {

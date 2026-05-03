@@ -33,8 +33,18 @@ let supabase = null;
 if (supabaseUrl && supabaseKey) {
   supabase = createClient(supabaseUrl, supabaseKey);
   console.log('Supabase initialized');
+  
+  // Verify connection immediately
+  supabase.from('users').select('count', { count: 'exact', head: true }).then(({ error }) => {
+    if (error) {
+      console.error('❌ Supabase Connection Error:', error.message);
+      console.error('👉 Please check your SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env');
+    } else {
+      console.log('✅ Supabase Connection Verified Successfully');
+    }
+  });
 } else {
-  console.log('Supabase credentials not found — running in SQLite mode');
+  console.log('⚠️ Supabase credentials not found — running in SQLite mode');
 }
 
 // Initialize SQLite database
@@ -129,18 +139,30 @@ app.post('/api/auth/signup', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert new user in Supabase if enabled
+    // Insert new user in Supabase Auth if enabled
     if (supabase) {
+      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+        email: email,
+        password: password,
+        email_confirm: true,
+        user_metadata: { fullname: fullname }
+      });
+
+      if (authError) {
+        console.error('Supabase Auth signup error:', authError);
+        return res.status(400).json({ error: authError.message });
+      }
+
+      // Sync with custom users table
       const { data, error } = await supabase
         .from('users')
-        .insert([{ fullname, email, password: hashedPassword, role: 'employee', points: 0 }])
+        .insert([{ id: authUser.user.id, fullname, email, password: hashedPassword, role: 'employee', points: 0 }])
         .select();
       
       if (error) {
-        console.error('Supabase signup error:', error);
-        return res.status(400).json({ error: error.message });
+        console.error('Supabase DB sync error:', error);
       }
-      console.log('User synced to Supabase');
+      console.log('User synced to Supabase Auth and DB');
     }
 
     // Insert new user in SQLite (always keep local copy for fallback/speed)
@@ -157,32 +179,87 @@ app.post('/api/auth/signup', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
+    const password = req.body.password;
 
     let user = null;
+    let localUser = null;
+    let supaUser = null;
 
+    // 1. Check Local SQLite (most reliable for legacy)
+    try {
+      const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
+      localUser = stmt.get(email);
+    } catch (e) { console.error('Local DB search failed:', e); }
+
+    // 2. Check Supabase DB
     if (supabase) {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .single();
-      
-      if (data) {
-        user = data;
-        console.log('User found in Supabase');
-      } else if (error) {
-        console.warn('User not found in Supabase, checking local DB:', error.message);
-      }
+      const { data } = await supabase.from('users').select('*').eq('email', email);
+      if (data && data.length > 0) supaUser = data[0];
     }
+
+    // 3. Resolve source of truth (Prefer Supabase if exists, else Local)
+    user = supaUser || localUser;
 
     if (!user) {
-      const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
-      user = stmt.get(email);
+      console.log(`Login failed: Email ${email} not found in any database.`);
+      return res.status(401).json({ error: 'Account does not exist' });
     }
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    const isMatch = await bcrypt.compare(password, user.password);
+    console.log(`Login attempt for ${email}:`);
+    console.log(`- User found in DB: ${!!user}`);
+    if (user) {
+        console.log(`- Hash exists: ${!!user.password}`);
+        console.log(`- Password provided length: ${password ? password.length : 0}`);
+    }
+    console.log(`- Password match result: ${isMatch}`);
+
+    if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // --- AUTO-MIGRATION LOGIC ---
+    if (supabase) {
+      try {
+        const { data: listData, error: listError } = await supabase.auth.admin.listUsers();
+        let authUser = null;
+        if (listData && listData.users) {
+           authUser = listData.users.find(u => u.email === email);
+        }
+        
+        let supaId = null;
+        if (!authUser) {
+          console.log('Migrating legacy user to Supabase Auth:', email);
+          const { data: newAuth, error: createErr } = await supabase.auth.admin.createUser({
+            email: email,
+            password: password, 
+            email_confirm: true,
+            user_metadata: { fullname: user.fullname }
+          });
+          if (newAuth && newAuth.user) supaId = newAuth.user.id;
+        } else {
+          supaId = authUser.id;
+        }
+
+        // IMPORTANT: Ensure the user exists in public.users table for FK linking
+        if (supaId) {
+          const { data: existingProfile } = await supabase.from('users').select('id').eq('email', email).single();
+          if (!existingProfile) {
+            console.log('Creating missing profile in public.users:', email);
+            await supabase.from('users').insert([{ 
+              id: supaId, 
+              fullname: user.fullname, 
+              email: email,
+              password: user.password,
+              role: 'employee',
+              points: user.points || 0 
+            }]);
+          }
+        }
+      } catch (e) {
+        console.warn('Migration check skip:', e.message);
+      }
     }
 
     res.json({ success: true, user: { fullname: user.fullname, email: user.email } });
@@ -399,6 +476,16 @@ async function getFoldersRecursive(startDir, baseDir) {
       }
     }
     console.log(`Scan complete. Found ${folders.length} folders.`);
+    
+    // Auto-Sync to Supabase
+    if (supabase) {
+      folders.forEach(f => {
+        supabase.from('resource_folders').upsert({ name: f.name }).then(({ error }) => {
+          if (error && error.code !== '23505') console.warn('Supabase folder auto-sync error:', error.message);
+        });
+      });
+    }
+
     return folders;
   } catch (err) {
     console.error(`Fatal error during scan:`, err.message);
@@ -406,12 +493,40 @@ async function getFoldersRecursive(startDir, baseDir) {
   }
 }
 
-// GET /api/folders – Return folder tree with files
+// GET /api/folders – Return folder tree with files (Database-driven)
 app.get('/api/folders', async (req, res) => {
   try {
-    await fs.ensureDir(UPLOADS_DIR);
-    const folders = await getFoldersRecursive(UPLOADS_DIR, UPLOADS_DIR);
-    res.json({ folders });
+    if (supabase) {
+      // 1. Fetch folders, files and links from Supabase
+      const { data: dbFoldersList } = await supabase.from('resource_folders').select('name');
+      const { data: dbFiles } = await supabase.from('resource_uploads').select('folder, filename');
+      const { data: dbLinks } = await supabase.from('resource_links').select('folder, title, url');
+      
+      const foldersMap = {};
+      
+      // Initialize folders (ensures empty folders show up)
+      (dbFoldersList || []).forEach(f => {
+        foldersMap[f.name] = { name: f.name, files: [], subfolders: [] };
+      });
+
+      // Add files
+      (dbFiles || []).forEach(row => {
+        if (!foldersMap[row.folder]) foldersMap[row.folder] = { name: row.folder, files: [], subfolders: [] };
+        foldersMap[row.folder].files.push({ name: row.filename, path: row.filename, type: 'file' });
+      });
+      
+      // Add links
+      (dbLinks || []).forEach(row => {
+        if (!foldersMap[row.folder]) foldersMap[row.folder] = { name: row.folder, files: [], subfolders: [] };
+        foldersMap[row.folder].files.push({ name: row.title, url: row.url, type: 'link' });
+      });
+
+      res.json({ folders: Object.values(foldersMap) });
+    } else {
+      await fs.ensureDir(UPLOADS_DIR);
+      const folders = await getFoldersRecursive(UPLOADS_DIR, UPLOADS_DIR);
+      res.json({ folders });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -432,6 +547,13 @@ app.post('/api/folders', async (req, res) => {
     }
 
     await fs.ensureDir(folderPath);
+    
+    if (supabase) {
+      try {
+        await supabase.from('resource_folders').upsert({ name: safe });
+      } catch (e) { console.error('Supabase folder sync error:', e.message); }
+    }
+    
     res.json({ success: true, name: safe });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -475,14 +597,18 @@ app.post('/api/upload', (req, res) => {
             if (user) {
                 await supabase.from('users').update({ points: (user.points || 0) + 1 }).eq('id', user.id);
             }
-            await supabase.from('resource_uploads').insert([{
+            const { data: syncData, error: syncError } = await supabase.from('resource_uploads').insert([{
                 filename: req.file.filename,
                 folder: req.body.folder || 'General',
-                size: req.file.size,
-                uploader_email: req.body.email
+                uploaded_by: req.body.email
             }]);
 
-        } catch (e) { console.error('Supabase shared sync error:', e); }
+            if (syncError) {
+              console.error('❌ Supabase Resource Upload Sync FAILED:', syncError.message);
+            } else {
+              console.log('✅ Supabase Resource Upload Sync SUCCESS');
+            }
+        } catch (e) { console.error('⚠️ Supabase shared sync caught error:', e.message); }
       }
 
       // Track uploader for deletion permissions
@@ -521,21 +647,31 @@ app.post('/api/resources/links', async (req, res) => {
     const email = req.body.email || ''; // Frontend should send email if logged in
     if (email) {
       db.prepare('UPDATE users SET points = points + 1 WHERE email = ?').run(email);
-      
       if (supabase) {
           try {
+              // 1. Always attempt to save the link first
+              console.log('Attempting Supabase sync for link:', { title, folder, uploaded_by: email });
+              const { data: syncData, error: syncError } = await supabase.from('resource_links').insert([{
+                  title,
+                  url,
+                  folder,
+                  uploaded_by: email
+              }]);
+              
+              if (syncError) {
+                console.error('❌ Supabase Resource Link Sync FAILED:', syncError.message);
+              } else {
+                console.log('✅ Supabase Resource Link Sync SUCCESS');
+              }
+
+              // 2. Separately try to update points
               const { data: user } = await supabase.from('users').select('id, points').eq('email', email).single();
               if (user) {
                   await supabase.from('users').update({ points: (user.points || 0) + 1 }).eq('id', user.id);
               }
-              await supabase.from('resource_links').insert([{
-                  title,
-                  url,
-                  folder,
-                  uploader_email: email
-              }]);
-
-          } catch (e) { console.error('Supabase link sync error:', e); }
+          } catch (e) { 
+              console.warn('⚠️ Supabase sync caught error:', e.message); 
+          }
       }
     }
 
@@ -913,31 +1049,46 @@ app.get('/api/my-documents/folders', async (req, res) => {
     // Sync with Supabase if available
     if (supabase) {
       try {
-        const { data: sbFolders } = await supabase.from('user_folders').select('path').eq('user_id', user.id);
-        if (sbFolders) {
-            const sbPaths = sbFolders.map(f => f.path);
-            // Add missing ones to userFolders
-            sbPaths.forEach(p => { if (!userFolders.includes(p)) userFolders.push(p); });
-        }
-        
-        const { data: sbDocs } = await supabase.from('user_documents').select('*').eq('user_id', user.id);
-        if (sbDocs) {
-            // Very basic merge logic
-            sbDocs.forEach(sbd => {
-               if (!userDocs.find(ud => ud.hashed_name === sbd.hashed_name)) {
-                   userDocs.push({
-                       original_name: sbd.original_name,
-                       hashed_name: sbd.hashed_name,
-                       folder: sbd.folder,
-                       size: sbd.size,
-                       upload_date: sbd.upload_date
-                   });
-               }
+        const { data: supaUser } = await supabase.from('users').select('id').eq('email', email).single();
+        if (supaUser) {
+          const { data: sbFolders } = await supabase.from('user_folders').select('path').eq('user_id', supaUser.id);
+          const { data: sbDocs } = await supabase.from('user_documents').select('*').eq('user_id', supaUser.id);
+          
+          if (sbFolders && sbDocs) {
+            const folderMap = { 'General': { name: 'General', files: [], subfolders: [] } };
+            sbFolders.forEach(f => { folderMap[f.path] = { name: f.path, files: [], subfolders: [] }; });
+            sbDocs.forEach(d => {
+              const folder = d.folder || 'General';
+              if (!folderMap[folder]) folderMap[folder] = { name: folder, files: [], subfolders: [] };
+              folderMap[folder].files.push({ name: d.original_name, path: d.hashed_name, size: d.size, upload_date: d.upload_date, type: 'file' });
             });
+            return res.json({ folders: Object.values(folderMap) });
+          }
         }
-      } catch (e) {
-        console.warn('Supabase sync warning:', e.message);
-      }
+      } catch (e) { console.warn('⚠️ Supabase sync fetch error:', e.message); }
+    }
+
+    // AUTO-MIGRATION: If Supabase was empty but local has data, sync them now
+    if (supabase) {
+      try {
+        const { data: supaUser } = await supabase.from('users').select('id').eq('email', email).single();
+        if (supaUser) {
+          for (const path of userFolders) {
+            await supabase.from('user_folders').upsert({ user_id: supaUser.id, path }, { onConflict: 'user_id,path' });
+          }
+          for (const d of userDocs) {
+            await supabase.from('user_documents').upsert({
+              user_id: supaUser.id,
+              original_name: d.original_name,
+              hashed_name: d.hashed_name,
+              folder: d.folder,
+              size: d.size,
+              upload_date: d.upload_date
+            }, { onConflict: 'hashed_name' });
+          }
+          console.log(`✅ Auto-Migrated ${userFolders.length} folders and ${userDocs.length} docs to Supabase for ${email}`);
+        }
+      } catch (e) { console.error('⚠️ Auto-Migration Failed:', e.message); }
     }
 
 
@@ -977,7 +1128,13 @@ app.post('/api/my-documents/folders', async (req, res) => {
     const safe = name.trim().replace(/[^a-zA-Z0-9_\-\.\/\\ ]/g, '_');
 
     if (supabase) {
-      await supabase.from('user_folders').insert([{ user_id: user.id, path: safe }]);
+      try {
+        const { data: supaUser } = await supabase.from('users').select('id').eq('email', email).single();
+        if (supaUser) {
+          await supabase.from('user_folders').upsert({ user_id: supaUser.id, path: safe }, { onConflict: 'user_id,path' });
+          console.log(`✅ Folder "${safe}" synced to Supabase for UUID: ${supaUser.id}`);
+        }
+      } catch (e) { console.error('❌ Supabase Folder Sync FAILED:', e.message); }
     }
 
     const stmt = db.prepare('INSERT OR IGNORE INTO user_folders (user_id, path) VALUES (?, ?)');
@@ -1027,15 +1184,42 @@ app.post('/api/my-documents/upload', uploadUserDoc.single('file'), async (req, r
     const targetFolder = folder || 'General';
     
     if (supabase) {
-      await supabase.from('user_folders').insert([{ user_id: user.id, path: targetFolder }]);
-      await supabase.from('user_documents').insert([{
-        user_id: user.id,
-        original_name: req.file.originalname,
-        hashed_name: req.file.filename,
-        folder: targetFolder,
-        size: req.file.size
-      }]);
-      await supabase.from('users').update({ points: (user.points || 0) + 10 }).eq('id', user.id);
+      try {
+        // 1. Get the real Supabase UUID (the local user.id is a SQLite integer)
+        const { data: supaUser, error: fetchError } = await supabase.from('users').select('id').eq('email', email).single();
+        
+        if (fetchError) {
+          console.error('❌ Supabase UUID Lookup FAILED:', fetchError.message);
+        }
+
+        if (supaUser && supaUser.id) {
+          const supaId = supaUser.id;
+          console.log(`Syncing private doc to Supabase using UUID: ${supaId}`);
+
+          // 2. Use the UUID for Supabase inserts
+          const { error: folderError } = await supabase.from('user_folders').upsert({ user_id: supaId, path: targetFolder }, { onConflict: 'user_id,path' });
+          if (folderError) console.error('❌ Supabase Folder Sync FAILED:', folderError.message);
+
+          const { error: syncError } = await supabase.from('user_documents').insert([{
+            user_id: supaId,
+            original_name: req.file.originalname,
+            hashed_name: req.file.filename,
+            folder: targetFolder,
+            size: req.file.size
+          }]);
+
+          if (syncError) {
+            console.error('❌ Supabase Private Doc Sync FAILED:', syncError.message);
+          } else {
+            console.log('✅ Supabase Private Doc Sync SUCCESS');
+          }
+          await supabase.from('users').update({ points: (user.points || 0) + 10 }).eq('id', supaId);
+        } else {
+          console.warn('⚠️ No Supabase UUID found for email. Sync skipped.');
+        }
+      } catch (e) {
+        console.error('⚠️ Supabase private sync catch:', e.message);
+      }
     }
 
     db.prepare('INSERT OR IGNORE INTO user_folders (user_id, path) VALUES (?, ?)').run(user.id, targetFolder);
@@ -1118,7 +1302,12 @@ app.delete('/api/my-documents/file', async (req, res) => {
     if (!doc) return res.status(404).json({ error: 'File not found' });
 
     if (supabase) {
-      await supabase.from('user_documents').delete().eq('user_id', user.id).eq('hashed_name', doc.hashed_name);
+      try {
+        const { data: supaUser } = await supabase.from('users').select('id').eq('email', email).single();
+        if (supaUser) {
+          await supabase.from('user_documents').delete().eq('user_id', supaUser.id).eq('hashed_name', doc.hashed_name);
+        }
+      } catch (e) { console.error('Supabase doc delete sync error:', e.message); }
     }
 
     db.prepare('DELETE FROM user_documents WHERE id = ?').run(doc.id);
@@ -1152,7 +1341,13 @@ app.delete('/api/my-documents/folder', async (req, res) => {
     }
 
     if (supabase) {
-      await supabase.from('user_folders').delete().eq('user_id', user.id).ilike('path', `${folder}%`);
+      try {
+        const { data: supaUser } = await supabase.from('users').select('id').eq('email', email).single();
+        if (supaUser) {
+          await supabase.from('user_folders').delete().eq('user_id', supaUser.id).eq('path', folder);
+          await supabase.from('user_documents').delete().eq('user_id', supaUser.id).ilike('folder', `${folder}%`);
+        }
+      } catch (e) { console.error('Supabase folder delete sync error:', e.message); }
     }
 
     db.prepare('DELETE FROM user_folders WHERE user_id = ? AND path LIKE ?').run(user.id, folder + '%');
@@ -1182,7 +1377,7 @@ app.patch('/api/my-documents/rename-file', async (req, res) => {
     if (supabase) {
       await supabase.from('user_documents')
         .update({ original_name: newName })
-        .eq('id', doc.id); // Assuming IDs match or using hashed_name
+        .eq('hashed_name', doc.hashed_name);
     }
 
     res.json({ success: true });
@@ -1208,18 +1403,22 @@ app.patch('/api/my-documents/rename-folder', async (req, res) => {
       db.prepare('UPDATE user_folders SET path = ? WHERE user_id = ? AND path = ?').run(updated, user.id, f.path);
     });
 
-    const docs = db.prepare('SELECT id, folder FROM user_documents WHERE user_id = ? AND folder LIKE ?').all(user.id, oldPath + '%');
+    const docs = db.prepare('SELECT id, folder, hashed_name FROM user_documents WHERE user_id = ? AND folder LIKE ?').all(user.id, oldPath + '%');
     docs.forEach(doc => {
       const updated = doc.folder.replace(oldPath, newPath);
       db.prepare('UPDATE user_documents SET folder = ? WHERE id = ?').run(updated, doc.id);
       
       if (supabase) {
-        supabase.from('user_documents').update({ folder: updated }).eq('id', doc.id).then();
+        supabase.from('user_documents').update({ folder: updated }).eq('hashed_name', doc.hashed_name).then();
       }
     });
 
     if (supabase) {
-      supabase.from('user_folders').update({ path: newPath }).eq('user_id', user.id).eq('path', oldPath).then();
+      supabase.from('users').select('id').eq('email', email).single().then(({ data: supaUser }) => {
+        if (supaUser) {
+           supabase.from('user_folders').update({ path: newPath }).eq('user_id', supaUser.id).eq('path', oldPath).then();
+        }
+      });
     }
 
     res.json({ success: true, newPath });
@@ -1228,20 +1427,6 @@ app.patch('/api/my-documents/rename-folder', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// ─── Resource Links (YouTube etc) ───
-app.post('/api/resources/links', async (req, res) => {
-  try {
-    const { title, url, folder } = req.body;
-    if (!title || !url) return res.status(400).json({ error: 'Title and URL required' });
-    
-    // In a real Supabase implementation, this would go to the resource_links table
-    console.log(`[LINK ADDED] ${title}: ${url} in ${folder}`);
-    res.json({ success: true, message: 'Link added successfully' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // ─── Garbage Collection / Cleanup ───
 app.post('/api/admin/cleanup', async (req, res) => {
   try {
@@ -1405,6 +1590,14 @@ app.get('*', (req, res) => {
 });
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`\n🚀 Gantec Employee Portal running at http://localhost:${PORT}\n`);
+  
+  // Trigger initial scan to sync local folders with Supabase
+  try {
+    const folders = await getFoldersRecursive(UPLOADS_DIR, UPLOADS_DIR);
+    console.log(`✅ Startup Sync Complete: Found ${folders.length} folders.`);
+  } catch (err) {
+    console.error('⚠️ Startup Sync Failed:', err.message);
+  }
 });
