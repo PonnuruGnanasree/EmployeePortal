@@ -47,24 +47,30 @@ if (supabaseUrl && supabaseKey) {
   console.log('⚠️ Supabase credentials not found — running in SQLite mode');
 }
 
+// Encryption Config (Move to top to avoid Temporal Dead Zone errors)
+const ENCRYPTION_ALGORITHM = 'aes-256-cbc';
+const ENCRYPTION_SECRET = crypto.createHash('sha256').update(process.env.ENCRYPTION_KEY || 'gantec-default-secret').digest();
+const IV_LENGTH = 16;
+
 // Initialize SQLite database
 const db = new Database(DB_FILE);
 db.pragma('journal_mode = WAL');
 
 // Create tables if they don't exist
+// Initialize tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id TEXT PRIMARY KEY,
     fullname TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     role TEXT DEFAULT 'employee',
     points REAL DEFAULT 0
   );
-  
+
   CREATE TABLE IF NOT EXISTS user_folders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
     path TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(id),
@@ -73,7 +79,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS user_documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
     original_name TEXT NOT NULL,
     hashed_name TEXT NOT NULL,
     folder TEXT NOT NULL,
@@ -87,14 +93,74 @@ db.exec(`
     uploader_email TEXT NOT NULL,
     folder TEXT NOT NULL,
     filename TEXT NOT NULL,
+    original_name TEXT,
     upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(folder, filename)
   );
 `);
 
+// ─── Schema Migration for UUID Support ────────────────────────────────────────
+// If users.id is INTEGER, we must migrate to TEXT to support Supabase UUIDs
+try {
+  const tableInfo = db.prepare("PRAGMA table_info(users)").all();
+  const idCol = tableInfo.find(c => c.name === 'id');
+  if (idCol && (String(idCol.type).toUpperCase().includes('INT'))) {
+    console.log('⚠️ Migrating users table to support UUIDs...');
+    db.exec(`
+      ALTER TABLE users RENAME TO users_old;
+      CREATE TABLE users (
+        id TEXT PRIMARY KEY,
+        fullname TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT DEFAULT 'employee',
+        points REAL DEFAULT 0
+      );
+      INSERT INTO users (id, fullname, email, password, role, points)
+      SELECT CAST(id AS TEXT), fullname, email, password, role, points FROM users_old;
+      DROP TABLE users_old;
+    `);
+    
+    // Also migrate dependent tables
+    db.exec(`
+      ALTER TABLE user_folders RENAME TO user_folders_old;
+      CREATE TABLE user_folders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        path TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        UNIQUE(user_id, path)
+      );
+      INSERT INTO user_folders (user_id, path) SELECT CAST(user_id AS TEXT), path FROM user_folders_old;
+      DROP TABLE user_folders_old;
+
+      ALTER TABLE user_documents RENAME TO user_documents_old;
+      CREATE TABLE user_documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        original_name TEXT NOT NULL,
+        hashed_name TEXT NOT NULL,
+        folder TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      );
+      INSERT INTO user_documents (user_id, original_name, hashed_name, folder, size)
+      SELECT CAST(user_id AS TEXT), original_name, hashed_name, folder, size FROM user_documents_old;
+      DROP TABLE user_documents_old;
+    `);
+    console.log('✅ Schema migration complete.');
+  }
+} catch (e) {
+  console.error('❌ Schema migration failed:', e.message);
+}
+
 // Ensure columns exist (for existing databases)
 try { db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'employee'"); } catch (e) {}
-try { db.exec("ALTER TABLE users ADD COLUMN points INTEGER DEFAULT 0"); } catch (e) {}
+try { db.exec("ALTER TABLE public_documents ADD COLUMN original_name TEXT"); } catch (e) {}
+// Back‑fill existing rows where original_name is null
+try { db.exec("UPDATE public_documents SET original_name = filename WHERE original_name IS NULL"); } catch (e) {}
 
 // ───────────────────────────────────────────────────────────────
 
@@ -201,6 +267,12 @@ app.post('/api/auth/login', async (req, res) => {
     // 3. Resolve source of truth (Prefer Supabase if exists, else Local)
     user = supaUser || localUser;
 
+    // FIX: If Supabase profile has an empty password (managed by Auth),
+    // we MUST securely fall back to the local SQLite password hash for bcrypt comparison.
+    if (user && !user.password && localUser && localUser.password) {
+      user.password = localUser.password;
+    }
+
     if (!user) {
       console.log(`Login failed: Email ${email} not found in any database.`);
       return res.status(401).json({ error: 'Account does not exist' });
@@ -262,7 +334,7 @@ app.post('/api/auth/login', async (req, res) => {
       }
     }
 
-    res.json({ success: true, user: { fullname: user.fullname, email: user.email } });
+    res.json({ success: true, user: { fullname: user.fullname, email: user.email, role: user.role } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });
@@ -297,7 +369,7 @@ app.get('/api/auth/profile', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
  
-    res.json({ success: true, user: { fullname: user.fullname, email: user.email, points: user.points || 0 } });
+    res.json({ success: true, user: { fullname: user.fullname, email: user.email, points: user.points || 0, role: user.role } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to get profile' });
@@ -423,7 +495,6 @@ async function getFoldersRecursive(startDir, baseDir) {
         });
       }
     } catch (dbErr) {
-
       console.warn('Could not fetch ownership data:', dbErr.message);
     }
 
@@ -465,7 +536,6 @@ async function getFoldersRecursive(startDir, baseDir) {
           }
         }
         folders.push({ name: relPath, files: docFiles });
-        console.log(`  Found folder: ${relPath} with ${docFiles.length} files`);
       }
 
       // Add subdirectories to queue
@@ -475,15 +545,39 @@ async function getFoldersRecursive(startDir, baseDir) {
         }
       }
     }
-    console.log(`Scan complete. Found ${folders.length} folders.`);
     
-    // Auto-Sync to Supabase
+    // Auto-Sync to Supabase (Robust Healing)
     if (supabase) {
-      folders.forEach(f => {
-        supabase.from('resource_folders').upsert({ name: f.name }).then(({ error }) => {
-          if (error && error.code !== '23505') console.warn('Supabase folder auto-sync error:', error.message);
-        });
-      });
+      console.log('🔄 Starting Supabase Resource Self-Healing Sync...');
+      for (const f of folders) {
+        // Sync Folder
+        await supabase.from('resource_folders').upsert({ name: f.name }, { onConflict: 'name' });
+        
+        // Sync Files/Links in this folder
+        for (const file of f.files) {
+          if (file.name.endsWith('.ytlink')) {
+            try {
+              const filePath = path.join(UPLOADS_DIR, f.name, file.hashedName);
+              const linkData = await fs.readJson(filePath);
+              // FIX: Use .insert() or .upsert() without invalid onConflict
+              await supabase.from('resource_links').insert([{
+                title: linkData.title,
+                url: linkData.url,
+                folder: f.name,
+                uploaded_by: file.uploader_email || 'anonymous@gantec.com'
+              }]);
+            } catch (e) { /* skip bad links */ }
+          } else {
+            // FIX: Remove original_name and size as they don't exist in Supabase
+            await supabase.from('resource_uploads').insert([{
+              filename: file.hashedName,
+              folder: f.name,
+              uploaded_by: file.uploader_email || 'anonymous@gantec.com'
+            }]);
+          }
+        }
+      }
+      console.log('✅ Supabase Resource Sync Complete.');
     }
 
     return folders;
@@ -496,429 +590,330 @@ async function getFoldersRecursive(startDir, baseDir) {
 // GET /api/folders – Return folder tree with files (Database-driven)
 app.get('/api/folders', async (req, res) => {
   try {
+    const foldersMap = {};
+
+    // 1. Fetch Local Data (SQLite) - This is our most immediate record
+    try {
+      const localDocs = db.prepare('SELECT folder, filename, original_name, uploader_email FROM public_documents').all();
+      localDocs.forEach(row => {
+        if (!foldersMap[row.folder]) foldersMap[row.folder] = { name: row.folder, files: [], subfolders: [] };
+        foldersMap[row.folder].files.push({ 
+          name: row.original_name || row.filename, 
+          path: row.filename, 
+          type: 'file', 
+          hashedName: row.filename,
+          uploader_email: row.uploader_email
+        });
+      });
+    } catch (e) { console.warn('⚠️ Local document fetch error:', e.message); }
+
+    // 2. Merge with Supabase Data (if available)
     if (supabase) {
-      // 1. Fetch folders, files and links from Supabase
       const { data: dbFoldersList } = await supabase.from('resource_folders').select('name');
-      const { data: dbFiles } = await supabase.from('resource_uploads').select('folder, filename');
-      const { data: dbLinks } = await supabase.from('resource_links').select('folder, title, url');
+      const { data: dbFiles } = await supabase.from('resource_uploads').select('folder, filename, uploaded_by');
+      const { data: dbLinks } = await supabase.from('resource_links').select('folder, title, url, uploaded_by');
       
-      const foldersMap = {};
-      
-      // Initialize folders (ensures empty folders show up)
-      (dbFoldersList || []).forEach(f => {
-        foldersMap[f.name] = { name: f.name, files: [], subfolders: [] };
+      (dbFoldersList || []).forEach(f => { 
+        if (!foldersMap[f.name]) foldersMap[f.name] = { name: f.name, files: [], subfolders: [] }; 
       });
 
-      // Add files
       (dbFiles || []).forEach(row => {
         if (!foldersMap[row.folder]) foldersMap[row.folder] = { name: row.folder, files: [], subfolders: [] };
-        foldersMap[row.folder].files.push({ name: row.filename, path: row.filename, type: 'file' });
+        // Avoid duplicates if already in local map
+        if (!foldersMap[row.folder].files.some(f => f.hashedName === row.filename)) {
+          foldersMap[row.folder].files.push({ 
+            name: row.original_name || row.filename, 
+            path: row.filename, 
+            type: 'file', 
+            hashedName: row.filename,
+            uploader_email: row.uploaded_by
+          });
+        }
       });
-      
-      // Add links
+
       (dbLinks || []).forEach(row => {
         if (!foldersMap[row.folder]) foldersMap[row.folder] = { name: row.folder, files: [], subfolders: [] };
-        foldersMap[row.folder].files.push({ name: row.title, url: row.url, type: 'link' });
+        if (!foldersMap[row.folder].files.some(f => f.name === row.title && f.type === 'link')) {
+          foldersMap[row.folder].files.push({ name: row.title, url: row.url, type: 'link', uploader_email: row.uploaded_by });
+        }
       });
+    }
 
-      res.json({ folders: Object.values(foldersMap) });
-    } else {
+    // 3. If everything is empty, fallback to a disk scan
+    if (Object.keys(foldersMap).length === 0) {
       await fs.ensureDir(UPLOADS_DIR);
       const folders = await getFoldersRecursive(UPLOADS_DIR, UPLOADS_DIR);
-      res.json({ folders });
+      return res.json({ folders });
     }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    
+    res.json({ folders: Object.values(foldersMap) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST /api/folders – Create a new folder
 app.post('/api/folders', async (req, res) => {
   try {
     const { name } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Folder name required' });
-
-    // Allow forward/back slashes to build nested directories
     const safe = name.trim().replace(/[^a-zA-Z0-9_\-\.\/\\ ]/g, '_');
     const folderPath = path.join(UPLOADS_DIR, safe);
-
-    if (await fs.pathExists(folderPath)) {
-      return res.status(409).json({ error: 'Folder already exists' });
-    }
-
+    if (await fs.pathExists(folderPath)) return res.status(409).json({ error: 'Folder already exists' });
     await fs.ensureDir(folderPath);
-    
     if (supabase) {
-      try {
-        await supabase.from('resource_folders').upsert({ name: safe });
-      } catch (e) { console.error('Supabase folder sync error:', e.message); }
+      try { await supabase.from('resource_folders').upsert({ name: safe }); } catch (e) { console.error('Supabase folder sync error:', e.message); }
     }
-    
     res.json({ success: true, name: safe });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST /api/upload – Upload a PDF
 app.post('/api/upload', (req, res) => {
   upload.single('file')(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-    if (err) {
-      return res.status(400).json({ error: err.message });
-    }
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    res.json({
-      success: true,
-      filename: req.file.filename,
-      folder: req.body.folder || 'General',
-      size: req.file.size
-    });
-
-    // Encrypt the file on disk
     try {
       const rawData = fs.readFileSync(req.file.path);
       const encryptedData = encryptFile(rawData);
       fs.writeFileSync(req.file.path, encryptedData);
-    } catch (err) {
-      console.error('Failed to encrypt public upload:', err);
+    } catch (encryptErr) {
+      console.error('Failed to encrypt public upload:', encryptErr);
+      return res.status(500).json({ error: 'Failed to encrypt file' });
     }
 
-    // Award points if email is provided
-    if (req.body.email) {
-      db.prepare('UPDATE users SET points = points + 1 WHERE email = ?').run(req.body.email);
-      
-      if (supabase) {
-        // Find user by email in Supabase to update points
-        try {
-            const { data: user } = await supabase.from('users').select('id, points').eq('email', req.body.email).single();
-            if (user) {
-                await supabase.from('users').update({ points: (user.points || 0) + 1 }).eq('id', user.id);
-            }
-            const { data: syncData, error: syncError } = await supabase.from('resource_uploads').insert([{
-                filename: req.file.filename,
-                folder: req.body.folder || 'General',
-                uploaded_by: req.body.email
-            }]);
-
-            if (syncError) {
-              console.error('❌ Supabase Resource Upload Sync FAILED:', syncError.message);
-            } else {
-              console.log('✅ Supabase Resource Upload Sync SUCCESS');
-            }
-        } catch (e) { console.error('⚠️ Supabase shared sync caught error:', e.message); }
-      }
-
-      // Track uploader for deletion permissions
+    const folder = req.body.folder || 'General';
+    const uploaderEmail = req.body.email || 'anonymous@gantec.com';
+    
+    if (supabase) {
       try {
-        db.prepare('INSERT OR REPLACE INTO public_documents (uploader_email, folder, filename) VALUES (?, ?, ?)')
-          .run(req.body.email, req.body.folder || 'General', req.file.filename);
-      } catch (e) {
-        console.error("Failed to track public document uploader:", e);
-      }
+        // FIX: Remove original_name and size as they don't exist in Supabase schema
+        // Also use .insert() to avoid constraint matching errors
+        await supabase.from('resource_uploads').insert([{
+          filename: req.file.filename,
+          folder: folder,
+          uploaded_by: uploaderEmail
+        }]);
+
+        if (req.body.email) {
+          const { data: supaUser } = await supabase.from('users').select('id, points').ilike('email', req.body.email).single();
+          if (supaUser) await supabase.from('users').update({ points: (supaUser.points || 0) + 1 }).eq('id', supaUser.id);
+        }
+      } catch (e) { console.error('⚠️ Supabase upload sync error:', e.message); }
     }
+
+    if (req.body.email) db.prepare('UPDATE users SET points = points + 1 WHERE email = ?').run(req.body.email);
+    try {
+      db.prepare('INSERT OR REPLACE INTO public_documents (uploader_email, folder, filename, original_name) VALUES (?, ?, ?, ?)')
+        .run(uploaderEmail, folder, req.file.filename, req.file.originalname);
+    } catch (e) { console.error('Failed to track public document in SQLite:', e); }
+
+    res.json({ success: true, filename: req.file.filename, folder: folder, size: req.file.size });
   });
 });
 
-// POST /api/resources/links – Add a YouTube link
 app.post('/api/resources/links', async (req, res) => {
-  console.log('API Request: Add YouTube Link', req.body);
   try {
-    const { url, title, folder } = req.body;
-    if (!url || !title || !folder) {
-      return res.status(400).json({ error: 'URL, title, and folder are required.' });
-    }
-
-    // Sanitize title for filename
+    const { url, title, folder, email } = req.body;
+    if (!url || !title || !folder) return res.status(400).json({ error: 'URL, title, and folder are required.' });
     const safeTitle = title.replace(/[^a-zA-Z0-9_\- ]/g, '_');
     const filename = `${safeTitle}.ytlink`;
     const folderPath = path.join(UPLOADS_DIR, folder);
     const filePath = path.join(folderPath, filename);
-
     await fs.ensureDir(folderPath);
-
-    // Save link as a JSON file
-    const linkData = { url, title, type: 'youtube' };
-    await fs.writeJson(filePath, linkData);
-
-    // Track in database for ownership and points
-    const email = req.body.email || ''; // Frontend should send email if logged in
-    if (email) {
-      db.prepare('UPDATE users SET points = points + 1 WHERE email = ?').run(email);
-      if (supabase) {
-          try {
-              // 1. Always attempt to save the link first
-              console.log('Attempting Supabase sync for link:', { title, folder, uploaded_by: email });
-              const { data: syncData, error: syncError } = await supabase.from('resource_links').insert([{
-                  title,
-                  url,
-                  folder,
-                  uploaded_by: email
-              }]);
-              
-              if (syncError) {
-                console.error('❌ Supabase Resource Link Sync FAILED:', syncError.message);
-              } else {
-                console.log('✅ Supabase Resource Link Sync SUCCESS');
-              }
-
-              // 2. Separately try to update points
-              const { data: user } = await supabase.from('users').select('id, points').eq('email', email).single();
-              if (user) {
-                  await supabase.from('users').update({ points: (user.points || 0) + 1 }).eq('id', user.id);
-              }
-          } catch (e) { 
-              console.warn('⚠️ Supabase sync caught error:', e.message); 
-          }
-      }
+    await fs.writeJson(filePath, { url, title, type: 'youtube' });
+    if (supabase) {
+      const uploaderEmail = email || 'anonymous@gantec.com';
+      try {
+        // FIX: Use .insert() instead of .upsert() because Supabase lacks the folder,title unique constraint
+        await supabase.from('resource_links').insert([{ title, url, folder, uploaded_by: uploaderEmail }]);
+        if (email) {
+          const { data: user } = await supabase.from('users').select('id, points').ilike('email', email).single();
+          if (user) await supabase.from('users').update({ points: (user.points || 0) + 1 }).eq('id', user.id);
+        }
+      } catch (e) { console.warn('⚠️ Supabase link sync error:', e.message); }
     }
-
-
+    if (email) db.prepare('UPDATE users SET points = points + 1 WHERE email = ?').run(email);
     try {
-      db.prepare('INSERT OR REPLACE INTO public_documents (uploader_email, folder, filename) VALUES (?, ?, ?)')
-        .run(email, folder, filename);
-    } catch (dbErr) {
-      console.error('Failed to track video link in DB:', dbErr);
-    }
-
+      db.prepare('INSERT OR REPLACE INTO public_documents (uploader_email, folder, filename, original_name) VALUES (?, ?, ?, ?)')
+        .run(email || 'anonymous@gantec.com', folder, filename, title);
+    } catch (dbErr) { console.error('Failed to track video link in DB:', dbErr); }
     res.json({ success: true, filename });
-  } catch (err) {
-    console.error('Failed to add video link:', err);
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /api/leaderboard – Return real users sorted by points
 app.get('/api/leaderboard', async (req, res) => {
   try {
     let users = [];
     if (supabase) {
-      const { data, error } = await supabase
-        .from('users')
-        .select('fullname, email, points')
-        .order('points', { ascending: false })
-        .limit(3);
-      
-      if (data) {
-        users = data.map(u => ({ name: u.fullname, email: u.email, points: u.points }));
-      }
+      const { data } = await supabase.from('users').select('fullname, email, points').order('points', { ascending: false }).limit(3);
+      if (data) users = data.map(u => ({ name: u.fullname, email: u.email, points: u.points }));
     }
-
-    if (users.length === 0) {
-      users = db.prepare('SELECT fullname as name, email, points FROM users ORDER BY points DESC, fullname ASC LIMIT 3').all();
-    }
-    
-    // Map stars based on rank
-
-    const leaderboard = users.map((u, index) => {
-      let stars = 1;
-      const rank = index + 1;
-      if (rank <= 3) stars = 3;
-      else if (rank <= 7) stars = 2;
-      
-      return {
-        ...u,
-        stars
-      };
-    });
-
-    res.json(leaderboard);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    if (users.length === 0) users = db.prepare('SELECT fullname as name, email, points FROM users ORDER BY points DESC, fullname ASC LIMIT 3').all();
+    res.json(users.map((u, i) => ({ ...u, stars: i < 3 ? 3 : (i < 7 ? 2 : 1) })));
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST /api/view-resource – Award points for viewing
 app.post('/api/view-resource', (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email required' });
-    
     db.prepare('UPDATE users SET points = points + 0.5 WHERE email = ?').run(email);
     res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/video-redirect - Server-side redirect for YouTube links
+app.get('/api/video-redirect', async (req, res) => {
+  try {
+    const { folder, file } = req.query;
+    if (!folder || !file) return res.status(400).send('Missing parameters');
+    
+    const filePath = path.join(UPLOADS_DIR, folder, file);
+    if (!fs.existsSync(filePath)) return res.status(404).send('Link not found');
+    
+    const linkData = await fs.readJson(filePath);
+    if (linkData && linkData.url) {
+      return res.redirect(linkData.url);
+    }
+    res.status(404).send('Invalid link data');
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).send(err.message);
   }
 });
 
-// GET /api/file?folder=...&file=... – Serve PDF inline
 app.get('/api/file', async (req, res) => {
   try {
     const { folder, file } = req.query;
     if (!folder || !file) return res.status(400).json({ error: 'Missing folder or file param' });
-
     const filePath = path.join(UPLOADS_DIR, folder, file);
-
-    if (!await fs.pathExists(filePath)) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-
-    // Decrypt and serve using stream
-    try {
-      serveDecryptedFile(filePath, res, file);
-    } catch (e) {
-      console.error('Decryption failed for public file:', e);
-      res.status(500).json({ error: 'Failed to decrypt file' });
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    if (!await fs.pathExists(filePath)) return res.status(404).json({ error: 'File not found' });
+    let doc = db.prepare('SELECT original_name FROM public_documents WHERE folder = ? AND filename = ?').get(folder, file);
+    let downloadName = doc ? doc.original_name : file;
+    serveDecryptedFile(filePath, res, downloadName);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-
-
-// DELETE /api/file?folder=...&file=... – Delete a file
 app.delete('/api/file', async (req, res) => {
   try {
     const { folder, file, email } = req.query;
-    if (!folder || !file || !email) return res.status(400).json({ error: 'Missing parameters' });
+    if (!folder || !file) return res.status(400).json({ error: 'Missing parameters' });
+    
+    // Find the document to check ownership
+    let doc = db.prepare('SELECT filename, uploader_email, original_name FROM public_documents WHERE folder = ? AND (original_name = ? OR filename = ?)').get(folder, file, file);
+    if (!doc) return res.status(404).json({ error: 'Document not found.' });
 
-    // 1. Resolve the hashed filename and check ownership
-    const docByOrig = db.prepare('SELECT filename, uploader_email FROM public_documents WHERE folder = ? AND original_name = ?').get(folder, file);
-    let targetHashedName = null;
-    let uploaderEmail = null;
+    // RESTORE OWNERSHIP CHECK FOR FILES (Allow admins to bypass)
+    const user = email ? await getUserByEmail(email) : null;
+    const isAdmin = user && user.role === 'admin';
 
-    if (docByOrig) {
-      targetHashedName = docByOrig.filename;
-      uploaderEmail = docByOrig.uploader_email;
-    } else {
-      const docByHashed = db.prepare('SELECT uploader_email FROM public_documents WHERE folder = ? AND filename = ?').get(folder, file);
-      if (docByHashed) {
-        targetHashedName = file;
-        uploaderEmail = docByHashed.uploader_email;
-      }
+    if (email && doc.uploader_email && doc.uploader_email.toLowerCase() !== email.toLowerCase() && !isAdmin) {
+      return res.status(403).json({ error: 'Access Denied: You are not the owner of this resource.' });
     }
 
-    if (!targetHashedName) {
-      return res.status(403).json({ error: 'Access Denied: Document not found or untracked.' });
-    }
-
-    if (uploaderEmail.toLowerCase() !== email.toLowerCase()) {
-      return res.status(403).json({ error: 'Access Denied: You are not the owner of this document.' });
-    }
-
-    // 2. Delete from Disk
-    const filePath = path.join(UPLOADS_DIR, folder, targetHashedName);
-    if (await fs.pathExists(filePath)) {
-      await fs.remove(filePath);
-    }
-
-    // 3. Sync with Supabase
+    const filePath = path.join(UPLOADS_DIR, folder, doc.filename);
+    if (await fs.pathExists(filePath)) await fs.remove(filePath);
+    
     if (supabase) {
-      await supabase.from('resource_uploads').delete().eq('folder', folder).eq('filename', targetHashedName);
-      
-      // Also check if it's a link and delete from resource_links
-      const originalName = docByOrig ? docByOrig.original_name : file;
-      if (originalName.endsWith('.ytlink')) {
-        const title = originalName.replace('.ytlink', '');
-        await supabase.from('resource_links').delete().eq('folder', folder).eq('title', title);
+      await supabase.from('resource_uploads').delete().eq('folder', folder).eq('filename', doc.filename);
+      if (doc.original_name.endsWith('.ytlink')) {
+        await supabase.from('resource_links').delete().eq('folder', folder).eq('title', doc.original_name.replace('.ytlink', ''));
       }
     }
-
-
-    // 4. Sync with local SQLite
-    db.prepare('DELETE FROM public_documents WHERE folder = ? AND filename = ?').run(folder, targetHashedName);
-
+    
+    db.prepare('DELETE FROM public_documents WHERE folder = ? AND filename = ?').run(folder, doc.filename);
     res.json({ success: true });
-  } catch (err) {
-    console.error('Delete error:', err);
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
 
 app.delete('/api/delete-folder', async (req, res) => {
   try {
-    const { folder } = req.body;
+    const folder = req.body.folder || req.query.folder;
+    const email = req.body.email || req.query.email;
     if (!folder) return res.status(400).json({ error: 'Folder path required' });
+    
+    if (folder === '.' || folder === './' || folder === '') return res.status(403).json({ error: 'Cannot delete root' });
 
-    // Security check: Don't allow deleting the root
-    if (folder === '.' || folder === './' || folder === '') {
-      return res.status(403).json({ error: 'Cannot delete the root directory' });
+    // --- Ownership Check ---
+    const user = email ? await getUserByEmail(email) : null;
+    const isAdmin = user && user.role === 'admin';
+
+    if (email && !isAdmin) {
+      // Check if there are ANY files in this folder (or subfolders) owned by someone else
+      const others = db.prepare('SELECT id FROM public_documents WHERE (folder = ? OR folder LIKE ?) AND uploader_email != ?')
+                       .all(folder, folder + '/%', email);
+      
+      if (others.length > 0) {
+        return res.status(403).json({ error: 'Access Denied: This folder contains documents uploaded by other users.' });
+      }
     }
-
+    
     const folderPath = path.join(UPLOADS_DIR, folder);
-    if (!await fs.pathExists(folderPath)) {
-      return res.status(404).json({ error: 'Folder not found' });
-    }
-
-    await fs.remove(folderPath);
-
+    if (await fs.pathExists(folderPath)) await fs.remove(folderPath);
+    
+    console.log(`[DELETE /api/delete-folder] Folder: "${folder}" by ${email || 'unknown'}`);
+    
     if (supabase) {
-      // Supabase table for shared folders is not explicitly tracked, 
-      // but we should delete all associated documents
-      await supabase.from('resource_uploads').delete().ilike('folder', `${folder}%`);
+      console.log(`[Supabase] Deleting folder records for: ${folder}`);
+      await supabase.from('resource_uploads').delete().or(`folder.eq.${folder},folder.ilike.${folder}/%`);
+      await supabase.from('resource_links').delete().or(`folder.eq.${folder},folder.ilike.${folder}/%`);
+      await supabase.from('resource_folders').delete().or(`name.eq.${folder},name.ilike.${folder}/%`);
     }
-
+    
+    const delRes = db.prepare('DELETE FROM public_documents WHERE folder = ? OR folder LIKE ?').run(folder, folder + '/%');
+    console.log(`[SQLite] Deleted ${delRes.changes} document records for ${folder}`);
+    
     res.json({ success: true });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.patch('/api/rename-file', async (req, res) => {
   try {
-    const { folder, oldName, newName } = req.body;
-    if (!folder || !oldName || !newName) return res.status(400).json({ error: 'All parameters required' });
+    const { folder, oldName, newName, email } = req.body;
+    if (!folder || !oldName || !newName || !email) return res.status(400).json({ error: 'All parameters required' });
+
+    const doc = db.prepare('SELECT uploader_email FROM public_documents WHERE folder = ? AND (original_name = ? OR filename = ?)').get(folder, oldName, oldName);
+    if (!doc || doc.uploader_email.toLowerCase() !== email.toLowerCase()) return res.status(403).json({ error: 'Access Denied: You are not the owner of this resource' });
 
     const oldPath = path.join(UPLOADS_DIR, folder, oldName);
     const newPath = path.join(UPLOADS_DIR, folder, newName);
-
     if (!await fs.pathExists(oldPath)) return res.status(404).json({ error: 'File not found' });
     if (await fs.pathExists(newPath)) return res.status(409).json({ error: 'Name already exists' });
-
     await fs.move(oldPath, newPath);
 
     if (supabase) {
-      await supabase.from('resource_uploads')
-        .update({ filename: newName })
-        .eq('folder', folder)
-        .eq('filename', oldName);
+      await supabase.from('resource_uploads').update({ filename: newName }).eq('folder', folder).eq('filename', oldName);
     }
-
+    db.prepare('UPDATE public_documents SET original_name = ?, filename = ? WHERE folder = ? AND (original_name = ? OR filename = ?)')
+      .run(newName, newName, folder, oldName, oldName);
     res.json({ success: true });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.patch('/api/rename-folder', async (req, res) => {
   try {
-    const { oldPath: oldRelPath, newName } = req.body;
-    if (!oldRelPath || !newName) return res.status(400).json({ error: 'All parameters required' });
+    const { oldPath: oldRelPath, newName, email } = req.body;
+    if (!oldRelPath || !newName || !email) return res.status(400).json({ error: 'All parameters required' });
+    if (oldRelPath === '.' || oldRelPath === './' || oldRelPath === '') return res.status(403).json({ error: 'Cannot rename root' });
 
-    // Security check: Don't allow renaming root
-    if (oldRelPath === '.' || oldRelPath === './' || oldRelPath === '') {
-      return res.status(403).json({ error: 'Cannot rename the root directory' });
-    }
+    const ownershipCheck = db.prepare('SELECT 1 FROM public_documents WHERE folder = ? AND uploader_email = ? LIMIT 1').get(oldRelPath, email);
+    if (!ownershipCheck) return res.status(403).json({ error: 'Access Denied: You do not own any resources in this folder' });
 
     const parentDir = path.dirname(oldRelPath);
     const newRelPath = path.join(parentDir, newName).replace(/\\/g, '/');
-
     const fullOldPath = path.join(UPLOADS_DIR, oldRelPath);
     const fullNewPath = path.join(UPLOADS_DIR, newRelPath);
 
     if (!await fs.pathExists(fullOldPath)) return res.status(404).json({ error: 'Folder not found' });
     if (await fs.pathExists(fullNewPath)) return res.status(409).json({ error: 'Folder name already exists' });
-
     await fs.move(fullOldPath, fullNewPath);
 
+    db.prepare('UPDATE public_documents SET folder = ? WHERE folder = ?').run(newRelPath, oldRelPath);
+    db.prepare('UPDATE public_documents SET folder = REPLACE(folder, ?, ?) WHERE folder LIKE ? || "/%"').run(oldRelPath, newRelPath, oldRelPath);
+
     if (supabase) {
-      // Update all documents in this folder and subfolders
-      await supabase.from('resource_uploads')
-        .update({ folder: newRelPath }) // This is a bit simplified, usually needs regex or multiple updates
-        .ilike('folder', `${oldRelPath}%`);
+      await supabase.from('resource_uploads').update({ folder: newRelPath }).ilike('folder', `${oldRelPath}%`);
+      await supabase.from('resource_links').update({ folder: newRelPath }).ilike('folder', `${oldRelPath}%`);
     }
-
     res.json({ success: true, newPath: newRelPath });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─── USER DOCUMENTS API ────────────────────────────────────────────────────────
@@ -926,10 +921,36 @@ app.patch('/api/rename-folder', async (req, res) => {
 const USER_UPLOADS_DIR = path.join(__dirname, 'user_uploads');
 fs.ensureDirSync(USER_UPLOADS_DIR);
 
-// Encryption Config
-const ENCRYPTION_ALGORITHM = 'aes-256-cbc';
-const ENCRYPTION_SECRET = crypto.createHash('sha256').update(process.env.ENCRYPTION_KEY || 'gantec-default-secret').digest();
-const IV_LENGTH = 16;
+// Encryption helpers (moved to config at top)
+
+async function decryptFileToBuffer(filePath) {
+  const data = await fs.readFile(filePath);
+  if (data.length < IV_LENGTH) return data;
+  
+  const iv = data.slice(0, IV_LENGTH);
+  const encrypted = data.slice(IV_LENGTH);
+  
+  // Check if it's actually encrypted by looking for common headers in the IV spot
+  const head = iv.toString('utf8');
+  const isUnencrypted = head.startsWith('%PDF') || 
+                        head.startsWith('{') || 
+                        head.startsWith('PK\x03\x04') || 
+                        head.startsWith('http') ||
+                        head.startsWith('{\n') ||
+                        head.startsWith('{"');
+  
+  // Also check if size is valid for AES
+  if (isUnencrypted || (data.length % 16 !== 0)) return data;
+
+  try {
+    const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_SECRET, iv);
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    return decrypted;
+  } catch (e) {
+    console.warn('Decryption failed in decryptFileToBuffer, returning raw data:', e.message);
+    return data;
+  }
+}
 
 function encryptFile(buffer) {
   const iv = crypto.randomBytes(IV_LENGTH);
@@ -961,7 +982,7 @@ function serveDecryptedFile(filePath, res, filename) {
 
   if (isUnencrypted || sizeMismatched) {
     res.setHeader('Content-Type', getContentType(filename));
-    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);
     return fs.createReadStream(filePath).pipe(res);
   }
 
@@ -979,7 +1000,7 @@ function serveDecryptedFile(filePath, res, filename) {
         try {
           decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_SECRET, iv);
           res.setHeader('Content-Type', getContentType(filename));
-          res.setHeader('Content-Disposition', 'inline');
+          res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);
           
           const remaining = chunk.slice(needed);
           if (remaining.length > 0) {
@@ -1022,8 +1043,118 @@ function serveDecryptedFile(filePath, res, filename) {
 
 
 
-function getUserByEmail(email) {
-  return db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+async function getUserByEmail(email) {
+  console.log('🔍 Looking up user:', email);
+
+  // First check local SQLite
+  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  console.log('SQLite user lookup result:', user ? 'Found' : 'Not found');
+
+  // If not found locally but Supabase is available, check Supabase Auth and users table
+  if (!user && supabase) {
+    try {
+      console.log('Checking Supabase Auth for user...');
+      // First check if user exists in Supabase Auth
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      const authUser = authUsers?.users?.find(u => u.email === email);
+
+      if (authUser) {
+        console.log('✅ Found user in Supabase Auth:', authUser.id);
+
+        // Check if user exists in users table
+        const { data: supaUser, error: userError } = await supabase.from('users').select('*').eq('id', authUser.id).single();
+
+        if (supaUser) {
+          console.log('✅ Found user in Supabase users table, syncing to SQLite');
+          console.log('Supabase user data:', JSON.stringify(supaUser, null, 2));
+          try {
+            // First check if user already exists by email
+            const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(supaUser.email);
+            if (existingUser) {
+              console.log('User already exists in SQLite, updating...');
+              const updateStmt = db.prepare('UPDATE users SET id = ?, fullname = ?, password = ?, role = ?, points = ? WHERE email = ?');
+              updateStmt.run(
+                String(supaUser.id),
+                String(supaUser.fullname || ''),
+                String(supaUser.password || ''),
+                String(supaUser.role || 'employee'),
+                Number(supaUser.points || 0),
+                String(supaUser.email)
+              );
+            } else {
+              console.log('Creating new user in SQLite...');
+              // Create user in local SQLite database - handle data type conversions
+              const stmt = db.prepare('INSERT INTO users (id, fullname, email, password, role, points) VALUES (?, ?, ?, ?, ?, ?)');
+              stmt.run(
+                String(supaUser.id),
+                String(supaUser.fullname || ''),
+                String(supaUser.email || ''),
+                String(supaUser.password || ''),
+                String(supaUser.role || 'employee'),
+                Number(supaUser.points || 0)
+              );
+            }
+            user = supaUser;
+            console.log('✅ SQLite sync successful');
+          } catch (dbError) {
+            console.error('❌ SQLite insert error:', dbError.message);
+            console.error('❌ Statement:', dbError.stmt?.source || 'Unknown');
+            // Try to get more info about existing records
+            try {
+              const existing = db.prepare('SELECT id, email FROM users WHERE email = ?').get(supaUser.email);
+              console.error('❌ Existing user with same email:', existing);
+            } catch (checkError) {
+              console.error('❌ Could not check existing users:', checkError.message);
+            }
+            // Fallback: return Supabase user even if SQLite sync fails
+            console.log('⚠️ Using Supabase user data despite SQLite sync failure');
+            user = supaUser;
+          }
+        } else {
+          console.log('⚠️ User exists in Auth but not in users table, creating profile');
+          // Create user profile in Supabase users table
+          const userData = {
+            id: authUser.id,
+            fullname: authUser.user_metadata?.fullname || email.split('@')[0],
+            email: email,
+            password: '', // No password for Auth users
+            role: 'employee',
+            points: 0
+          };
+
+          const { data: newUser, error: createError } = await supabase.from('users').insert([userData]).select().single();
+
+          if (newUser) {
+            try {
+              // Create in local SQLite - handle data types
+              const stmt = db.prepare('INSERT OR REPLACE INTO users (id, fullname, email, password, role, points) VALUES (?, ?, ?, ?, ?)');
+              stmt.run(
+                String(newUser.id),
+                String(newUser.fullname || ''),
+                String(newUser.email || ''),
+                String(newUser.password || ''),
+                String(newUser.role || 'employee'),
+                Number(newUser.points || 0)
+              );
+              user = newUser;
+              console.log('✅ User profile created and synced');
+            } catch (dbError) {
+              console.error('❌ SQLite sync error:', dbError.message);
+            }
+          } else {
+            console.error('❌ Failed to create user profile:', createError?.message);
+          }
+        }
+      } else {
+        console.log('❌ User not found in Supabase Auth');
+      }
+    } catch (e) {
+      console.warn('❌ Supabase lookup error:', e.message);
+    }
+  }
+
+  console.log('Final user lookup result:', user ? 'Found' : 'Not found');
+  return user;
 }
 
 app.get('/api/my-documents/folders', async (req, res) => {
@@ -1032,7 +1163,7 @@ app.get('/api/my-documents/folders', async (req, res) => {
     const { email } = req.query;
     console.log('Incoming folder request for:', email);
     if (!email) return res.status(400).json({ error: 'Email required' });
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) {
       console.warn('User not found in DB:', email);
       return res.status(404).json({ error: 'User not found' });
@@ -1049,7 +1180,7 @@ app.get('/api/my-documents/folders', async (req, res) => {
     // Sync with Supabase if available
     if (supabase) {
       try {
-        const { data: supaUser } = await supabase.from('users').select('id').eq('email', email).single();
+        const { data: supaUser } = await supabase.from('users').select('id').ilike('email', email).single();
         if (supaUser) {
           const { data: sbFolders } = await supabase.from('user_folders').select('path').eq('user_id', supaUser.id);
           const { data: sbDocs } = await supabase.from('user_documents').select('*').eq('user_id', supaUser.id);
@@ -1071,7 +1202,7 @@ app.get('/api/my-documents/folders', async (req, res) => {
     // AUTO-MIGRATION: If Supabase was empty but local has data, sync them now
     if (supabase) {
       try {
-        const { data: supaUser } = await supabase.from('users').select('id').eq('email', email).single();
+        const { data: supaUser } = await supabase.from('users').select('id').ilike('email', email).single();
         if (supaUser) {
           for (const path of userFolders) {
             await supabase.from('user_folders').upsert({ user_id: supaUser.id, path }, { onConflict: 'user_id,path' });
@@ -1122,14 +1253,14 @@ app.post('/api/my-documents/folders', async (req, res) => {
     const { email, name } = req.body;
     if (!email) return res.status(400).json({ error: 'Email required' });
     if (!name || !name.trim()) return res.status(400).json({ error: 'Folder name required' });
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const safe = name.trim().replace(/[^a-zA-Z0-9_\-\.\/\\ ]/g, '_');
 
     if (supabase) {
       try {
-        const { data: supaUser } = await supabase.from('users').select('id').eq('email', email).single();
+        const { data: supaUser } = await supabase.from('users').select('id').ilike('email', email).single();
         if (supaUser) {
           await supabase.from('user_folders').upsert({ user_id: supaUser.id, path: safe }, { onConflict: 'user_id,path' });
           console.log(`✅ Folder "${safe}" synced to Supabase for UUID: ${supaUser.id}`);
@@ -1161,32 +1292,39 @@ const uploadUserDoc = multer({
 });
 
 app.post('/api/my-documents/upload', uploadUserDoc.single('file'), async (req, res) => {
+  console.log('📥 Upload request received:', { email: req.body.email, folder: req.body.folder, file: req.file?.originalname });
 
   try {
     const { email, folder } = req.body;
     if (!email) {
+      console.error('❌ Upload failed: No email provided');
       if (req.file) fs.removeSync(req.file.path);
       return res.status(400).json({ error: 'Email required' });
     }
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) {
+      console.error('❌ Upload failed: User not found for email:', email);
       if (req.file) fs.removeSync(req.file.path);
       return res.status(404).json({ error: 'User not found' });
     }
 
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    if (!req.file) {
+      console.error('❌ Upload failed: No file in request');
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
 
-    // Encrypt the file on disk
+    // Encrypt the file on disk FIRST (before any DB operations)
     const rawData = fs.readFileSync(req.file.path);
     const encryptedData = encryptFile(rawData);
     fs.writeFileSync(req.file.path, encryptedData);
 
     const targetFolder = folder || 'General';
     
+    // Supabase Sync (sync to backend BEFORE responding)
     if (supabase) {
       try {
         // 1. Get the real Supabase UUID (the local user.id is a SQLite integer)
-        const { data: supaUser, error: fetchError } = await supabase.from('users').select('id').eq('email', email).single();
+        const { data: supaUser, error: fetchError } = await supabase.from('users').select('id').ilike('email', email).single();
         
         if (fetchError) {
           console.error('❌ Supabase UUID Lookup FAILED:', fetchError.message);
@@ -1222,6 +1360,7 @@ app.post('/api/my-documents/upload', uploadUserDoc.single('file'), async (req, r
       }
     }
 
+    // Local SQLite operations
     db.prepare('INSERT OR IGNORE INTO user_folders (user_id, path) VALUES (?, ?)').run(user.id, targetFolder);
     const stmt = db.prepare('INSERT INTO user_documents (user_id, original_name, hashed_name, folder, size) VALUES (?, ?, ?, ?, ?)');
     stmt.run(user.id, req.file.originalname, req.file.filename, targetFolder, req.file.size);
@@ -1245,7 +1384,7 @@ app.get('/api/my-documents/file', async (req, res) => {
   try {
     const { email, folder, file } = req.query;
     if (!email || !folder || !file) return res.status(400).json({ error: 'Missing params' });
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const doc = db.prepare('SELECT hashed_name FROM user_documents WHERE user_id = ? AND folder = ? AND original_name = ?').get(user.id, folder, file);
@@ -1285,7 +1424,15 @@ function getContentType(filename) {
     '.ppt': 'application/vnd.ms-powerpoint',
     '.ytlink': 'application/json',
     '.mp4': 'video/mp4',
-    '.mp3': 'audio/mpeg'
+    '.mp3': 'audio/mpeg',
+    '.html': 'text/html',
+    '.htm': 'text/html',
+    '.csv': 'text/csv',
+    '.json': 'application/json',
+    '.svg': 'image/svg+xml',
+    '.webm': 'video/webm',
+    '.webp': 'image/webp',
+    '.xml': 'application/xml'
   };
   return types[ext] || 'application/octet-stream';
 }
@@ -1295,28 +1442,31 @@ app.delete('/api/my-documents/file', async (req, res) => {
   try {
     const { email, folder, file } = req.query;
     if (!email || !folder || !file) return res.status(400).json({ error: 'Missing params' });
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const doc = db.prepare('SELECT id, hashed_name FROM user_documents WHERE user_id = ? AND folder = ? AND original_name = ?').get(user.id, folder, file);
     if (!doc) return res.status(404).json({ error: 'File not found' });
 
+    // 1. Delete from disk FIRST
+    const filePath = path.join(USER_UPLOADS_DIR, doc.hashed_name);
+    if (await fs.pathExists(filePath)) {
+      await fs.remove(filePath);
+    }
+
+    // 2. Sync with Supabase
     if (supabase) {
       try {
-        const { data: supaUser } = await supabase.from('users').select('id').eq('email', email).single();
+        const { data: supaUser } = await supabase.from('users').select('id').ilike('email', email).single();
         if (supaUser) {
           await supabase.from('user_documents').delete().eq('user_id', supaUser.id).eq('hashed_name', doc.hashed_name);
         }
       } catch (e) { console.error('Supabase doc delete sync error:', e.message); }
     }
 
+    // 3. Delete from SQLite
     db.prepare('DELETE FROM user_documents WHERE id = ?').run(doc.id);
 
-
-    const filePath = path.join(USER_UPLOADS_DIR, doc.hashed_name);
-    if (await fs.pathExists(filePath)) {
-      await fs.remove(filePath);
-    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1327,22 +1477,24 @@ app.delete('/api/my-documents/folder', async (req, res) => {
   try {
     const { email, folder } = req.body;
     if (!email || !folder) return res.status(400).json({ error: 'Missing params' });
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const docs = db.prepare('SELECT id, hashed_name FROM user_documents WHERE user_id = ? AND folder LIKE ?').all(user.id, folder + '%');
+    
+    // 1. Delete files from disk FIRST
     for (const doc of docs) {
-      if (supabase) {
-        await supabase.from('user_documents').delete().eq('hashed_name', doc.hashed_name);
-      }
-      db.prepare('DELETE FROM user_documents WHERE id = ?').run(doc.id);
       const filePath = path.join(USER_UPLOADS_DIR, doc.hashed_name);
       if (await fs.pathExists(filePath)) await fs.remove(filePath);
     }
-
+    
+    // 2. Sync with Supabase
     if (supabase) {
+      for (const doc of docs) {
+        await supabase.from('user_documents').delete().eq('hashed_name', doc.hashed_name);
+      }
       try {
-        const { data: supaUser } = await supabase.from('users').select('id').eq('email', email).single();
+        const { data: supaUser } = await supabase.from('users').select('id').ilike('email', email).single();
         if (supaUser) {
           await supabase.from('user_folders').delete().eq('user_id', supaUser.id).eq('path', folder);
           await supabase.from('user_documents').delete().eq('user_id', supaUser.id).ilike('folder', `${folder}%`);
@@ -1350,8 +1502,12 @@ app.delete('/api/my-documents/folder', async (req, res) => {
       } catch (e) { console.error('Supabase folder delete sync error:', e.message); }
     }
 
-    db.prepare('DELETE FROM user_folders WHERE user_id = ? AND path LIKE ?').run(user.id, folder + '%');
-
+    // 3. Delete from SQLite
+    for (const doc of docs) {
+      db.prepare('DELETE FROM user_documents WHERE id = ?').run(doc.id);
+    }
+    // Delete the folder and all sub-paths
+    db.prepare('DELETE FROM user_folders WHERE user_id = ? AND (path = ? OR path LIKE ?)').run(user.id, folder, folder + '/%');
 
     res.json({ success: true });
   } catch (err) {
@@ -1363,10 +1519,10 @@ app.patch('/api/my-documents/rename-file', async (req, res) => {
   try {
     const { email, folder, oldName, newName } = req.body;
     if (!email || !folder || !oldName || !newName) return res.status(400).json({ error: 'Missing params' });
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const doc = db.prepare('SELECT id FROM user_documents WHERE user_id = ? AND folder = ? AND original_name = ?').get(user.id, folder, oldName);
+    const doc = db.prepare('SELECT id, hashed_name FROM user_documents WHERE user_id = ? AND folder = ? AND original_name = ?').get(user.id, folder, oldName);
     if (!doc) return res.status(404).json({ error: 'File not found' });
 
     const existing = db.prepare('SELECT id FROM user_documents WHERE user_id = ? AND folder = ? AND original_name = ?').get(user.id, folder, newName);
@@ -1391,7 +1547,7 @@ app.patch('/api/my-documents/rename-folder', async (req, res) => {
   try {
     const { email, oldPath, newName } = req.body;
     if (!email || !oldPath || !newName) return res.status(400).json({ error: 'Missing params' });
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const parentDir = path.dirname(oldPath);
@@ -1519,54 +1675,157 @@ app.post('/api/chat', async (req, res) => {
 
 // ─── Document Summarization Route ─────────────────────────────────────────────
 app.post('/api/summarize', async (req, res) => {
-  const { folder, filename } = req.body;
+  const { folder, filename, originalName } = req.body;
+  console.log('Summarize request:', { folder, filename, originalName });
   if (!folder || !filename) return res.status(400).json({ error: 'Folder and filename are required' });
 
-  if (!process.env.GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'Gemini API Key is missing. Please provide it in the .env file.' });
-  }
-
   try {
-    const filePath = path.join(UPLOADS_DIR, folder, filename);
+    // Resolve actual disk path: support both public & private docs
+    // 1. If caller passes the hashed filename directly, try public uploads/folder/filename
+    // 2. Also try to find by original_name in case display name was passed
+    let filePath = path.join(UPLOADS_DIR, folder, filename);
+    console.log(`🔍 Checking path: ${filePath}`);
+
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File not found' });
+      // Try resolving via the public_documents table (caller may have passed original_name)
+      try {
+        const row = db.prepare(
+          'SELECT filename FROM public_documents WHERE folder = ? AND (filename = ? OR original_name = ?)'
+        ).get(folder, filename, filename);
+        if (row) filePath = path.join(UPLOADS_DIR, folder, row.filename);
+      } catch (e) { /* ignore */ }
     }
 
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(USER_UPLOADS_DIR, filename);
+    }
+
+    // If still not found locally, try to download from Supabase storage
+    if (!fs.existsSync(filePath) && supabase) {
+      try {
+        const row = db.prepare(
+          'SELECT filename FROM public_documents WHERE folder = ? AND (filename = ? OR original_name = ?)'
+        ).get(folder, filename, filename);
+        const storageName = row ? row.filename : filename;
+        const storagePath = `${folder}/${storageName}`;
+        console.log(`⬇️  File not local, fetching from Supabase: ${storagePath}`);
+        const { data: fileData, error: dlErr } = await supabase.storage
+          .from('resource-uploads')
+          .download(storagePath);
+        if (dlErr) throw new Error('Supabase download error: ' + dlErr.message);
+        const arrayBuffer = await fileData.arrayBuffer();
+        const tmpPath = path.join(UPLOADS_DIR, folder, storageName);
+        await fs.ensureDir(path.dirname(tmpPath));
+        await fs.writeFile(tmpPath, Buffer.from(arrayBuffer));
+        filePath = tmpPath;
+        console.log(`✅ Downloaded from Supabase to ${tmpPath}`);
+      } catch (dlError) {
+        console.error('Supabase storage download failed:', dlError.message);
+      }
+    }
+
+    console.log(`📍 Final filePath: ${filePath} (Exists: ${fs.existsSync(filePath)})`);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found on server. It may have been uploaded to a remote location. Please re-upload the file to enable summarization.' });
+    }
+
+    console.log('File found at:', filePath);
     let extractedText = '';
-    const ext = path.extname(filename).toLowerCase();
+    const nameToUse = originalName || filename;
+    const ext = path.extname(nameToUse).toLowerCase();
+    console.log('Extension:', ext);
 
-    if (ext === '.pdf') {
-      const dataBuffer = await fs.readFile(filePath);
-      const data = await pdfParse(dataBuffer);
-      extractedText = data.text;
-    } else if (ext === '.docx') {
-      const dataBuffer = await fs.readFile(filePath);
-      const result = await mammoth.extractRawText({ buffer: dataBuffer });
-      extractedText = result.value;
-    } else if (ext === '.txt') {
-      extractedText = await fs.readFile(filePath, 'utf-8');
+    // Use the decryption helper
+    const dataBuffer = await decryptFileToBuffer(filePath);
+
+    // Determine the actual file type — .bin files use originalName to detect format
+    const effectiveName = nameToUse.toLowerCase();
+    const isPdf  = effectiveName.endsWith('.pdf');
+    const isDocx = effectiveName.endsWith('.docx');
+    const isTxt  = effectiveName.endsWith('.txt');
+
+    if (isPdf) {
+      try {
+        if (typeof pdfParse !== 'function') throw new Error('pdf-parse module is not loaded correctly.');
+        const data = await pdfParse(dataBuffer);
+        extractedText = data.text || '';
+        console.log('PDF text length:', extractedText.length);
+      } catch (e) {
+        console.error('PDF parse error:', e.message);
+        extractedText = '';
+      }
+    } else if (isDocx) {
+      try {
+        const result = await mammoth.extractRawText({ buffer: dataBuffer });
+        extractedText = result.value || '';
+        console.log('DOCX text length:', extractedText.length);
+      } catch (e) {
+        console.error('DOCX parse error:', e.message);
+        extractedText = '';
+      }
+    } else if (isTxt || ext === '.txt' || ext === '.bin' || !ext) {
+      // Fallback for .bin (encrypted user docs) or plaintext
+      extractedText = dataBuffer.toString('utf-8').replace(/[\x00-\x08\x0e-\x1f\x7f-\x9f]/g, '').trim();
+      console.log('TXT/BIN text length:', extractedText.length);
     } else {
-      return res.status(400).json({ error: 'Unsupported file format for summarization' });
+      return res.status(400).json({ error: `Unsupported file format for summarization: ${ext || 'unknown'}` });
     }
 
-    // Limit text to avoid token limits (approx 10k characters)
-    const textToSummarize = extractedText.substring(0, 10000);
+    console.log('Extracted text sample:', extractedText.substring(0, 200));
+    // Summarize the full extracted text for complete coverage
+    const textToSummarize = extractedText;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const apiKey = process.env.GEMINI_API_KEY;
+    console.log('API Key present:', !!apiKey && apiKey !== 'your_gemini_api_key_here');
+
+    if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+      console.log('⚠️ GEMINI_API_KEY missing. Providing simulated summary.');
+
+      // Smart simulation — only use meaningful sentences from the extracted text
+      const cleanText = extractedText.trim();
+      let highlights = '';
+      if (cleanText.length > 30) {
+        const sentences = cleanText.split(/[.!?\n]+/).map(s => s.trim()).filter(s => s.length > 20 && s.length < 400);
+        const keyPoints = sentences.slice(0, 5);
+        if (keyPoints.length > 0) {
+          highlights = keyPoints.map(p => `* ${p}`).join('\n');
+        } else {
+          highlights = `* ${cleanText.substring(0, 300)}`;
+        }
+      } else {
+        highlights = `* No extractable text found in this document. It may be an image-based PDF or a scanned document. AI summarization requires text-based PDFs.`;
+      }
+
+      const displayName = originalName || filename;
+      const simulatedSummary = `### 📝 Simulated Summary (Demo Mode)
+**Document:** ${displayName}
+**Location:** ${folder} folder
+
+**Key Highlights:**
+${highlights}
+
+---
+*💡 Note: To enable genuine AI analysis, please add a valid **GEMINI_API_KEY** to your .env file.*`;
+
+      return res.json({ success: true, summary: simulatedSummary });
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `Please provide a professional, concise summary of the following document content. 
-            Focus on key takeaways and main points. Use bullet points where appropriate.
-            
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Please provide a professional, complete summary of the following document content.
+            Include all key points, main ideas, and important details. Use bullet points where appropriate for clarity.
+
             Document Content:
             ${textToSummarize}`
+            }]
           }]
-        }]
-      })
+        })
     });
 
     const data = await response.json();

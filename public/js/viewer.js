@@ -9,6 +9,9 @@ let searchQuery = '';
 let expandedFolders = new Set(['General']); 
 let sidebarIsCollapsed = false;
 
+// ─── Icon Helpers ────────────────────────────────────────────────────────────
+// (Now using global getFileIconHtml from app.js)
+
 // ─── DOM References ───────────────────────────────────────────────────────────
 const subfoldersBtn = document.getElementById('subfolders-btn');
 const dropdownMenu = document.getElementById('dropdown-menu');
@@ -63,6 +66,7 @@ const summaryContent = document.getElementById('summary-content');
 const closeSummaryBtn = document.getElementById('close-summary');
 let currentOpenFolder = '';
 let currentOpenFile = '';
+let currentOpenDisplayName = '';
 
 modalClose?.addEventListener('click', () => {
   pdfModal.classList.add('hidden');
@@ -75,7 +79,8 @@ closeSummaryBtn?.addEventListener('click', () => {
 });
 
 summarizeBtn?.addEventListener('click', () => {
-  summarizeDocument(currentOpenFolder, currentOpenFile);
+  console.log('Summarize button clicked for:', currentOpenFolder, currentOpenFile, currentOpenDisplayName);
+  summarizeDocument(currentOpenFolder, currentOpenFile, currentOpenDisplayName);
 });
 
 // Upload UI
@@ -221,7 +226,7 @@ function renderDropdown() {
         fileItem.className = 'dropdown-item file-item';
         fileItem.innerHTML = `
           <div style="width: 24px; flex-shrink: 0;"></div>
-          <span style="margin-right: 12px; font-size: 1.1rem;">📄</span>
+          <span style="margin-right: 12px; display: flex; align-items: center;">${getFileIconHtml(file.name, 20)}</span>
           <span class="file-name" style="cursor: default; user-select: none;">${escapeHTML(file.name)}</span>
           <button class="delete-file-btn" title="Delete File">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
@@ -318,24 +323,15 @@ function buildGridCard(doc) {
   const card = document.createElement('div');
   card.className = 'doc-card';
   const ext = doc.name.toLowerCase().split('.').pop();
-  const isYt = ext === 'ytlink';
+  const internalExt = (doc.hashedName || doc.path || '').toLowerCase().split('.').pop();
+  const isYt = ext === 'ytlink' || internalExt === 'ytlink' || doc.type === 'link' || doc.name.toLowerCase().includes('youtube.com') || doc.name.toLowerCase().includes('youtu.be') || (doc.hashedName || '').toLowerCase().includes('youtube.com');
   
-  // Vibrant Icons
-  let iconHtml = '';
-  if (isYt) {
-    iconHtml = `
-      <svg viewBox="0 0 24 24" fill="#ff0000" style="width: 48px; height: 48px;">
-        <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
-      </svg>`;
-  } else if (ext === 'pdf') {
-    iconHtml = `<svg viewBox="0 0 24 24" fill="#ef4444" style="width:40px; height:40px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
-  } else if (['doc', 'docx', 'txt'].includes(ext)) {
-    iconHtml = `<svg viewBox="0 0 24 24" fill="#3b82f6" style="width:40px; height:40px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
-  } else if (['xls', 'xlsx', 'csv'].includes(ext)) {
-    iconHtml = `<svg viewBox="0 0 24 24" fill="#10b981" style="width:40px; height:40px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
-  } else {
-    iconHtml = `<svg viewBox="0 0 24 24" fill="#64748b" style="width:40px; height:40px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
-  }
+  // Small, Clean Icons
+  let iconHtml = getFileIconHtml(doc.name, 36, doc.type, doc.hashedName || doc.path);
+
+  const currentUserEmail = (localStorage.getItem('gantec_user_email') || '').toLowerCase();
+  const currentUserRole = localStorage.getItem('gantec_user_role') || 'employee';
+  const isOwner = (doc.uploader_email && doc.uploader_email.toLowerCase() === currentUserEmail) || (currentUserRole === 'admin');
 
   card.innerHTML = `
     <div class="doc-thumb">${iconHtml}</div>
@@ -367,8 +363,9 @@ function buildGridCard(doc) {
   card.querySelector('.view-doc').addEventListener('click', async (e) => {
     e.stopPropagation();
     if (isYt) {
+      // ... same logic as before ...
       try {
-        const url = getFileUrl(doc.folder, doc.name);
+        const url = getFileUrl(doc.folder, doc.hashedName || doc.path || doc.name);
         const res = await fetch(url);
         const text = await res.text();
         try {
@@ -379,7 +376,6 @@ function buildGridCard(doc) {
             window.open(data.link, '_blank');
           }
         } catch (err) {
-          // If not JSON, check if the text itself is a URL (fallback for old unencrypted links)
           if (text.trim().startsWith('http')) {
             window.open(text.trim(), '_blank');
           } else {
@@ -388,13 +384,17 @@ function buildGridCard(doc) {
         }
       } catch (err) { console.error('Redirect failed', err); }
     } else {
-      openPdf(doc.folder, doc.name);
+      openPdf(doc.folder, doc.hashedName || doc.name, doc.name);
     }
   });
   
   card.querySelector('.delete').addEventListener('click', (e) => {
     e.stopPropagation();
-    confirmDelete(doc.folder, doc.name, doc.uploader_email);
+    if (!isOwner) {
+        showToast('Access Denied – You do not have permission to delete this resource.', 'error');
+        return;
+    }
+    confirmDelete(doc.folder, doc.hashedName || doc.name, doc.uploader_email, doc.name);
   });
 
   if (isYt) {
@@ -446,16 +446,17 @@ listBtn?.addEventListener('click', () => {
 });
 
 // ─── Document Viewer ──────────────────────────────────────────────────────────
-function openPdf(folder, filename) {
+function openPdf(folder, diskFilename, displayName, isUserDoc = false) {
   currentOpenFolder = folder;
-  currentOpenFile = filename;
-  const url = getFileUrl(folder, filename);
+  currentOpenFile = diskFilename;
+  currentOpenDisplayName = displayName || diskFilename;
+  const url = getFileUrl(folder, diskFilename);
   
   // Award points for viewing
   const authEmail = localStorage.getItem('gantec_user_email');
   if (authEmail) {
     // Only award once per file per session to prevent spam
-    const viewKey = `viewed_${folder}_${filename}`;
+    const viewKey = `viewed_${folder}_${diskFilename}`;
     if (!sessionStorage.getItem(viewKey)) {
         fetch('/api/view-resource', {
             method: 'POST',
@@ -467,9 +468,12 @@ function openPdf(folder, filename) {
     }
   }
   
-  const ext = filename.split('.').pop().toLowerCase();
+  const diskExt = diskFilename.split('.').pop().toLowerCase();
+  const displayExt = displayName.split('.').length > 1 ? displayName.split('.').pop().toLowerCase() : '';
+  const ext = displayExt || diskExt;
+  
   const isOffice = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'csv'].includes(ext);
-  const isYt = ext === 'ytlink';
+  const isYt = ext === 'ytlink' || diskExt === 'ytlink';
 
   // Reset state
   pdfIframe.src = '';
@@ -477,29 +481,24 @@ function openPdf(folder, filename) {
   previewFallback.classList.add('hidden');
   previewFallback.innerHTML = '';
   
-  modalFilename.textContent = filename.replace('.ytlink', '');
+  modalFilename.textContent = displayName.replace('.ytlink', '');
   modalDownload.href = url;
-  modalDownload.download = filename;
+  modalDownload.download = displayName;
 
   let isNative = false;
-  let icon = '📄';
 
   // Format Determination
-  if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) {
-    icon = '🖼️'; isNative = true;
-  } else if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) {
-    icon = '🎬'; isNative = true;
-  } else if (ext === 'pdf') {
-    icon = '📕'; isNative = true;
-  } else if (['mp3', 'wav', 'm4a'].includes(ext)) {
-    icon = '🎵'; isNative = true;
-  } else if (['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)) {
-    icon = '📝'; // Office
-  } else if (ext === 'ytlink') {
-    icon = '📺';
-  }
+  modalIcon.innerHTML = getFileIconHtml(displayName, 24, isYt ? 'link' : 'file', diskFilename);
 
-  modalIcon.textContent = icon;
+  if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) {
+    isNative = true;
+  } else if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) {
+    isNative = true;
+  } else if (ext === 'pdf') {
+    isNative = true;
+  } else if (['mp3', 'wav', 'm4a'].includes(ext)) {
+    isNative = true;
+  }
 
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   
@@ -542,12 +541,8 @@ function openPdf(folder, filename) {
         <div style="position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:10; background:rgba(0,0,0,0.7); padding:8px 16px; border-radius:30px; display:flex; gap:16px; align-items:center; backdrop-filter:blur(8px); box-shadow:0 10px 25px rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1);">
           <button id="img-zoom-out" style="background:rgba(255,255,255,0.1); color:#fff; border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:20px; display:flex; align-items:center; justify-content:center; transition:background 0.2s;">−</button>
           <span id="img-zoom-txt" style="color:#fff; font-size:14px; font-weight:700; min-width:54px; text-align:center; font-family:monospace;">100%</span>
-          <button id="img-zoom-in" style="background:rgba(255,255,255,0.1); color:#fff; border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:20px; display:flex; align-items:center; justify-content:center; transition:background 0.2s;">+</button>
-          <div style="width:1px; height:20px; background:rgba(255,255,255,0.2);"></div>
-          <button id="img-zoom-reset" style="background:transparent; color:#4ade80; border:none; cursor:pointer; font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Reset</button>
-        </div>
         <div id="img-scroll-box" style="flex:1; overflow:auto; position:relative; display:flex; align-items:center; justify-content:center;">
-          <img id="viewed-image" src="${url}" style="max-height:100%; max-width:100%; object-fit:contain; transition: width 0.15s ease-out;" alt="${filename}">
+          <img id="viewed-image" src="${url}" style="max-height:100%; max-width:100%; object-fit:contain; transition: width 0.15s ease-out;" alt="${displayName}">
         </div>
       </div>
     `;
@@ -599,14 +594,30 @@ function openPdf(folder, filename) {
     }, 50);
 
   } else if (isNative) {
-    // Native browser support
-    pdfIframe.src = url;
+    // Check if file actually exists before loading in iframe
+    fetch(url, { method: 'HEAD' }).then(chk => {
+      if (!chk.ok) {
+        pdfIframe.classList.add('hidden');
+        previewFallback.classList.remove('hidden');
+        previewFallback.innerHTML = `
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;padding:40px;text-align:center;">
+            <div style="font-size:3rem;">⚠️</div>
+            <h3 style="color:#dc2626;margin:0;">File Not Available</h3>
+            <p style="color:#64748b;max-width:400px;">The file <strong>${escapeHTML(displayName)}</strong> is not present on this server. It may have been uploaded to a different location.<br><br>Please re-upload the file to view it here.</p>
+          </div>`;
+      } else {
+        // Native browser support
+        pdfIframe.src = url;
+      }
+    }).catch(() => { pdfIframe.src = url; });
   } else if (isOffice) {
     // Attempt local rendering first for high-end "details" feel
-    renderLocalDoc(url, filename, ext, icon);
+    const iconHtml = getFileIconHtml(displayName, 24, isYt ? 'link' : 'file', diskFilename);
+    renderLocalDoc(url, displayName, ext, iconHtml);
   } else {
     // Show Vibrant Fallback Card for others (zip, etc)
-    showFallbackCard(url, filename, icon);
+    const iconHtml = getFileIconHtml(displayName, 24, isYt ? 'link' : 'file', diskFilename);
+    showFallbackCard(url, displayName, iconHtml);
   }
 
   // Show Modal
@@ -794,29 +805,7 @@ function showFallbackCard(url, filename, icon, customMsg) {
   `;
 }
 
-function confirmDelete(folder, filename, uploaderEmail) {
-  const currentUserEmail = (localStorage.getItem('gantec_user_email') || '').toLowerCase();
-  const ownerEmail = (uploaderEmail || '').toLowerCase();
 
-  console.log('Ownership Check:', { ownerEmail, currentUserEmail });
-
-  // If no owner is tracked (old file), deny deletion by default for safety
-  if (!ownerEmail) {
-    showToast('Access Denied: You are not allowed to delete this document.', 'error');
-    return;
-  }
-
-  // If the current user is not the owner, deny deletion
-  if (ownerEmail !== currentUserEmail) {
-    showToast('Access Denied: You are not allowed to delete this document.', 'error');
-    return;
-  }
-
-  // Only if they are the owner, show the confirm modal
-  deleteConfirmMsg.textContent = `Are you sure you want to delete "${filename}"?`;
-  deleteCallback = () => performDelete(folder, filename);
-  deleteConfirmModal.classList.add('active');
-}
 
 function closePdf() {
   pdfModal.classList.add('hidden');
@@ -835,19 +824,20 @@ document.addEventListener('keydown', (e) => {
 // ─── Delete ───────────────────────────────────────────────────────────────────
 let deleteCallback = null;
 
-function confirmDelete(folder, filename, uploaderEmail) {
-  console.log('Checking ownership:', { folder, filename, uploaderEmail });
-  const currentUserEmail = localStorage.getItem('gantec_user_email') || '';
-  if (uploaderEmail !== currentUserEmail && uploaderEmail != null) {
-    showToast('Access Denied: You are not allowed to delete this document.', 'error');
-    return;
-  } else if (!uploaderEmail) {
-    showToast('Access Denied: You are not allowed to delete this document.', 'error');
+function confirmDelete(folder, diskFilename, uploaderEmail, displayName, isUserDoc = false) {
+  const currentUserEmail = (localStorage.getItem('gantec_user_email') || '').toLowerCase();
+  const currentUserRole = localStorage.getItem('gantec_user_role') || 'employee';
+  const ownerEmail = (uploaderEmail || '').toLowerCase();
+
+  console.log('Checking ownership:', { ownerEmail, currentUserEmail, currentUserRole });
+
+  if (currentUserRole !== 'admin' && (!ownerEmail || ownerEmail !== currentUserEmail)) {
+    showToast('Access Denied – You do not have permission to delete this resource.', 'error');
     return;
   }
-  
-  deleteConfirmMsg.textContent = `Should I need to delete this?`;
-  deleteCallback = () => performDelete(folder, filename);
+
+  deleteConfirmMsg.textContent = `Are you sure you want to delete "${displayName || diskFilename}"?`;
+  deleteCallback = () => performDelete(folder, diskFilename, isUserDoc);
   deleteConfirmModal.classList.add('active');
 }
 
@@ -870,9 +860,9 @@ deleteConfirmModal.addEventListener('click', (e) => {
   if (e.target === deleteConfirmModal) closeDeleteConfirmModal();
 });
 
-async function performDelete(folder, filename) {
+async function performDelete(folder, filename, isUserDoc = false) {
   try {
-    await deleteFile(folder, filename);
+    await deleteFile(folder, filename, isUserDoc);
     showToast(`"${filename}" deleted`, 'success');
     await loadFolders();
   } catch (err) {
@@ -888,10 +878,14 @@ function confirmDeleteFolder(folderPath) {
 
 async function performDeleteFolder(folderPath) {
   try {
+    const authEmail = localStorage.getItem('gantec_user_email');
     const res = await fetch('/api/delete-folder', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folder: folderPath })
+      body: JSON.stringify({ 
+        folder: folderPath,
+        email: authEmail
+      })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
@@ -1161,7 +1155,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Refresh every 30s in case files are uploaded from another tab
 setInterval(loadFolders, 30000);
-async function summarizeDocument(folder, filename) {
+async function summarizeDocument(folder, filename, originalName) {
+  // Expose to window for the 'Try Again' onclick handler
+  window.summarizeDocument = summarizeDocument;
+  
+  console.log('Starting summarize for:', folder, filename, originalName);
   summaryContent.innerHTML = `
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; text-align: center;">
       <div class="animate-pulse" style="font-size: 3rem; margin-bottom: 20px;">🧠</div>
@@ -1175,18 +1173,38 @@ async function summarizeDocument(folder, filename) {
     const res = await fetch('/api/summarize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folder, filename })
+      body: JSON.stringify({ folder, filename, originalName })
     });
+    console.log('Summarize fetch response status:', res.status);
     const data = await res.json();
+    console.log('Summarize data:', data);
 
     if (!res.ok) throw new Error(data.error || 'Failed to summarize');
 
     // Format the summary with better typography
     summaryContent.innerHTML = data.summary
       .split('\n')
-      .map(line => line.startsWith('*') || line.startsWith('-') 
-        ? `<li style="margin-bottom: 12px; padding-left: 8px;">${line.replace(/^[* -]+/, '')}</li>` 
-        : line.trim() === '' ? '<br>' : `<p style="margin-bottom: 16px;">${line}</p>`)
+      .map(line => {
+        line = line.trim();
+        if (!line) return '<br>';
+        
+        // Handle Headers
+        if (line.startsWith('###')) {
+          return `<h3 style="color: var(--primary); margin: 24px 0 12px 0; font-size: 1.25rem; font-weight: 700;">${line.replace(/^###\s*/, '')}</h3>`;
+        }
+        
+        // Handle Bullet Points
+        if (line.startsWith('*') || line.startsWith('-')) {
+          let content = line.replace(/^[* -]+\s*/, '');
+          // Handle Bold in bullets
+          content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+          return `<li style="margin-bottom: 12px; padding-left: 8px;">${content}</li>`;
+        }
+        
+        // Handle Bold in paragraphs
+        let content = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        return `<p style="margin-bottom: 16px;">${content}</p>`;
+      })
       .join('');
       
     // Wrap lists in <ul>
@@ -1198,7 +1216,7 @@ async function summarizeDocument(folder, filename) {
       <div style="background: #fef2f2; border: 1px solid #fee2e2; padding: 24px; border-radius: 12px; color: #991b1b;">
         <h3 style="margin-top: 0;">Summarization Failed</h3>
         <p>${err.message}</p>
-        <button onclick="summarizeDocument('${folder}', '${filename}')" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-top: 12px; font-weight: 600;">Try Again</button>
+        <button onclick="summarizeDocument('${folder}', '${filename}', '${originalName}')" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-top: 12px; font-weight: 600;">Try Again</button>
       </div>
     `;
   }

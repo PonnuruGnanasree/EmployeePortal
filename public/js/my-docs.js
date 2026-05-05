@@ -3,7 +3,10 @@
  */
 
 const userEmail = localStorage.getItem('gantec_user_email');
-if (!userEmail) { window.location.href = 'login.html'; }
+if (!userEmail) { 
+  console.error('No user email found - redirecting to login');
+  window.location.href = 'login.html'; 
+}
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let allFolders = [];
@@ -514,20 +517,7 @@ function getFilteredItems() {
   return files;
 }
 
-function getFileIcon(name) {
-  const ext = (name.split('.').pop() || '').toLowerCase();
-  if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) return '🖼️';
-  if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) return '🎬';
-  if (ext === 'pdf') return '📕';
-  if (['mp3', 'wav', 'm4a', 'flac', 'ogg'].includes(ext)) return '🎵';
-  if (['doc', 'docx', 'rtf', 'txt', 'odt'].includes(ext)) return '📝';
-  if (['xls', 'xlsx', 'csv', 'ods'].includes(ext)) return '📊';
-  if (['ppt', 'pptx', 'key', 'odp'].includes(ext)) return '📽️';
-  if (['zip', 'rar', '7z', 'tar', 'gz', 'iso'].includes(ext)) return '🗜️';
-  if (['exe', 'msi', 'dmg', 'apk'].includes(ext)) return '⚙️';
-  if (['js', 'py', 'java', 'html', 'css', 'json', 'sql'].includes(ext)) return '📁';
-  return '📄';
-}
+// (Using global getFileIconHtml from app.js)
 
 function renderDocs() {
   const files = getFilteredItems();
@@ -549,7 +539,7 @@ function renderDocs() {
 function buildGridCard(doc) {
   const card = document.createElement('div');
   card.className = 'doc-card';
-  const icon = getFileIcon(doc.name);
+  const icon = getFileIconHtml(doc.name, 36, doc.type);
   card.innerHTML = `
     <div class="doc-thumb">${icon}</div>
     <div class="doc-info">
@@ -577,7 +567,7 @@ function buildGridCard(doc) {
 function buildListCard(doc) {
   const card = document.createElement('div');
   card.className = 'doc-card list-card';
-  const icon = getFileIcon(doc.name);
+  const icon = getFileIconHtml(doc.name, 36, doc.type);
   card.innerHTML = `
     <div class="doc-thumb">${icon}</div>
     <div class="doc-info">
@@ -629,7 +619,7 @@ function openFile(folder, filename) {
   }
 
   const ext = filename.split('.').pop().toLowerCase();
-  const icon = getFileIcon(filename);
+  const icon = getFileIconHtml(filename, 24);
 
   pdfIframe.src = '';
   pdfIframe.classList.remove('hidden');
@@ -638,10 +628,10 @@ function openFile(folder, filename) {
   modalFilename.textContent = filename;
   modalDownload.href = url;
   modalDownload.download = filename;
-  modalIcon.textContent = icon;
+  modalIcon.innerHTML = icon;
 
   const imgExts = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'];
-  const nativeExts = ['mp4', 'webm', 'ogg', 'mov', 'pdf', 'mp3', 'wav', 'm4a'];
+  const nativeExts = ['mp4', 'webm', 'ogg', 'mov', 'pdf', 'mp3', 'wav', 'm4a', 'txt', 'html', 'htm', 'xml', 'svg'];
   const officeExts = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'];
 
   previewFallback.style.background = '';
@@ -1007,7 +997,9 @@ confirmUploadBtn?.addEventListener('click', async () => {
     if (confirmProgressFill) confirmProgressFill.style.width = '100%';
     if (confirmProgressText) confirmProgressText.textContent = 'Upload complete! ✓';
 
+    // Show both toast and center popup notification
     showToast(`"${data.filename}" uploaded to "${data.folder}"`, 'success');
+    if (window.showCenterPopup) window.showCenterPopup(`File uploaded!`, 'success');
 
     // Refresh and close
     await loadFolders();

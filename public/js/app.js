@@ -3,7 +3,7 @@ const API_BASE = '/api';
 // ─── API Helpers ──────────────────────────────────────────────────────────────
 
 async function fetchFolders() {
-  const res = await fetch(`${API_BASE}/folders`);
+  const res = await fetch(`${API_BASE}/folders?t=${Date.now()}`);
   if (!res.ok) throw new Error('Failed to fetch folders');
   return res.json();
 }
@@ -93,9 +93,67 @@ window.showCenterPopup = function(message, type = 'success') {
 // ─── File Size Formatter ──────────────────────────────────────────────────────
 
 function formatSize(bytes) {
+  if (bytes === undefined || bytes === null || isNaN(bytes)) return '—';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * Centralized File Icon Generator
+ * Used across viewer.html and document-locker.html
+ */
+function getFileIconHtml(filename, size = 36, type = 'file', internalPath = '') {
+  const ext = (filename || '').toLowerCase().split('.').pop();
+  const internalExt = (internalPath || '').toLowerCase().split('.').pop();
+  const isYt = ext === 'ytlink' || internalExt === 'ytlink' || type === 'link' || (filename || '').toLowerCase().includes('youtube.com') || (filename || '').toLowerCase().includes('youtu.be') || (internalPath || '').toLowerCase().includes('youtube.com');
+  
+  const style = `width: ${size}px; height: ${size}px;`;
+
+  if (isYt) {
+    return `
+      <svg viewBox="0 0 24 24" style="${style}">
+        <rect width="24" height="24" rx="5" fill="#FF0000" />
+        <path d="M9.5 8.5l6.5 3.5-6.5 3.5v-7z" fill="white" />
+      </svg>`;
+  }
+
+  // PDF Icon
+  if (ext === 'pdf') {
+    return `
+      <svg viewBox="0 0 24 24" style="${style}">
+        <path d="M4 18h16v2H4z" fill="#E53935" />
+        <path d="M4 4h16v14H4z" fill="#F44336" />
+        <text x="12" y="14" fill="white" font-size="6" font-weight="900" text-anchor="middle" font-family="Inter, Arial">PDF</text>
+      </svg>`;
+  }
+
+  // Office Docs (Blue)
+  if (['doc', 'docx'].includes(ext)) {
+    return `<svg viewBox="0 0 24 24" style="${style}"><path d="M4 2h16v20H4z" fill="#2B579A"/><text x="12" y="15" fill="white" font-size="6" font-weight="900" text-anchor="middle">DOC</text></svg>`;
+  }
+
+  // Excel (Green)
+  if (['xls', 'xlsx'].includes(ext)) {
+    return `<svg viewBox="0 0 24 24" style="${style}"><path d="M4 2h16v20H4z" fill="#217346"/><text x="12" y="15" fill="white" font-size="6" font-weight="900" text-anchor="middle">XLS</text></svg>`;
+  }
+
+  // PPT (Orange)
+  if (['ppt', 'pptx'].includes(ext)) {
+    return `<svg viewBox="0 0 24 24" style="${style}"><path d="M4 2h16v20H4z" fill="#D24726"/><text x="12" y="15" fill="white" font-size="6" font-weight="900" text-anchor="middle">PPT</text></svg>`;
+  }
+
+  // Images
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+    return `<svg viewBox="0 0 24 24" style="${style}"><path d="M4 2h16v20H4z" fill="#27AE60"/><path d="M8 14l3-3 4 4" stroke="white" stroke-width="1.5" fill="none"/></svg>`;
+  }
+
+  // Default Gray File
+  return `
+    <svg viewBox="0 0 24 24" style="${style}">
+      <path d="M6 2h12v20H6z" fill="#94A3B8" />
+      <path d="M12 2v6h6" fill="#64748B" />
+    </svg>`;
 }
 
 // ─── Date Formatter ───────────────────────────────────────────────────────────
@@ -169,9 +227,22 @@ function initUserProfile() {
           localStorage.setItem('gantec_auth', 'true');
           localStorage.setItem('gantec_user_name', fullName);
           localStorage.setItem('gantec_user_email', user.email);
-          if (userSection) renderUserProfileUI(userSection, fullName, user.email);
+          
+          // Fetch additional profile info (like role) from our backend
+          fetch(`/api/auth/profile?email=${encodeURIComponent(user.email)}`)
+            .then(r => r.json())
+            .then(data => {
+              if (data.success && data.user) {
+                localStorage.setItem('gantec_user_role', data.user.role || 'employee');
+                if (userSection) renderUserProfileUI(userSection, data.user.fullname, data.user.email);
+              }
+            }).catch(err => {
+              console.warn('Failed to fetch role:', err);
+              if (userSection) renderUserProfileUI(userSection, fullName, user.email);
+            });
         } else {
           localStorage.removeItem('gantec_auth');
+          localStorage.removeItem('gantec_user_role');
           if (userSection) renderGuestUI(userSection);
         }
       });
@@ -298,7 +369,7 @@ function createEditProfileModal(userData, currentImg) {
     modal = document.createElement('div');
     modal.id = 'profile-edit-modal';
     modal.className = 'confirm-overlay hidden'; // Start hidden
-    modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 24px;';
+    modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 9999; display: flex; align-items: flex-start; justify-content: center; padding: 40px 24px; overflow-y: auto;';
     document.body.appendChild(modal);
   } else {
     // Ensure modal starts hidden
@@ -306,7 +377,7 @@ function createEditProfileModal(userData, currentImg) {
   }
 
   modal.innerHTML = `
-    <div class="glass-card" style="padding: 24px; max-width: 500px; width: 90%; position: relative; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+    <div class="glass-card" style="padding: 24px; max-width: 500px; width: 90%; position: relative; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin: auto;">
       <h3 style="margin-bottom: 20px; font-size: 1.25rem; font-weight: 700; color: #2563eb;">Edit Profile</h3>
       
       <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 0.9rem; color: #0c4a6e;">

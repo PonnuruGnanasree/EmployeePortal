@@ -250,8 +250,9 @@ function renderDocs() {
 function buildGridCard(doc) {
   const card = document.createElement('div');
   card.className = 'doc-card';
+  const icon = getFileIconHtml(doc.name, 36, doc.type);
   card.innerHTML = `
-    <div class="doc-thumb">📄</div>
+    <div class="doc-thumb">${icon}</div>
     <div class="doc-info">
       <div class="doc-name" title="${escapeHTML(doc.name)}">${escapeHTML(doc.name)}</div>
       <div class="doc-meta">
@@ -295,8 +296,9 @@ function buildGridCard(doc) {
 function buildListCard(doc) {
   const card = document.createElement('div');
   card.className = 'doc-card list-card';
+  const icon = getFileIconHtml(doc.name, 36, doc.type);
   card.innerHTML = `
-    <div class="doc-thumb">📄</div>
+    <div class="doc-thumb">${icon}</div>
     <div class="doc-info">
       <div class="doc-name" title="${escapeHTML(doc.name)}">${escapeHTML(doc.name)}</div>
       <div class="doc-meta">
@@ -376,30 +378,28 @@ function openPdf(folder, filename) {
 
   const ext = filename.split('.').pop().toLowerCase();
   let isNative = false;
-  let icon = '📄';
+  const iconHtml = getFileIconHtml(filename, 24);
 
   if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) {
-    icon = '🖼️'; isNative = true;
+    isNative = true;
   } else if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) {
-    icon = '🎬'; isNative = true;
+    isNative = true;
   } else if (ext === 'pdf') {
-    icon = '📕'; isNative = true;
+    isNative = true;
   } else if (['mp3', 'wav', 'm4a'].includes(ext)) {
-    icon = '🎵'; isNative = true;
-  } else if (['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)) {
-    icon = '📝';
+    isNative = true;
   }
 
-  modalIcon.textContent = icon;
+  modalIcon.innerHTML = iconHtml;
 
   const isOffice = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext);
 
   if (isNative) {
     pdfIframe.src = url;
   } else if (isOffice) {
-    renderLocalDoc(url, filename, ext, icon);
+    renderLocalDoc(url, filename, ext, iconHtml);
   } else {
-    showFallbackCard(url, filename, icon);
+    showFallbackCard(url, filename, iconHtml);
   }
 
   pdfModal.classList.remove('hidden');

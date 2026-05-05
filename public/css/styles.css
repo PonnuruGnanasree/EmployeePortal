@@ -1537,8 +1537,9 @@ svg {
 /* --- Toast Notifications --- */
 .toast-container {
   position: fixed;
-  bottom: 28px;
-  right: 28px;
+  top: 50%;
+  right: 24px;
+  transform: translateY(-50%);
   z-index: 999;
   display: flex;
   flex-direction: column;
@@ -3083,10 +3084,16 @@ svg {
   -webkit-backdrop-filter: blur(10px);
   z-index: 600;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 24px;
+  padding: 40px 24px;
+  overflow-y: auto;
   animation: fadeIn 0.2s ease;
+}
+
+.confirm-overlay > .confirm-dialog,
+.confirm-overlay > .glass-card {
+  margin: auto;
 }
 
 .confirm-overlay.hidden {
@@ -3779,8 +3786,9 @@ svg {
 /* ─── Toast Notifications ─── */
 #toast-container {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  top: 50%;
+  right: 24px;
+  transform: translateY(-50%);
   z-index: 9999;
   display: flex;
   flex-direction: column;
@@ -3906,10 +3914,16 @@ svg {
   background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(8px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding: 40px 24px;
+  overflow-y: auto;
   z-index: 10000;
   animation: fadeIn 0.3s ease;
+}
+
+.center-popup-overlay > .center-popup-card {
+  margin: auto;
 }
 
 .center-popup-card {
