@@ -1,0 +1,30 @@
+function getFilteredItems() {
+  let f_files = [];
+
+  const q = searchQuery ? searchQuery.toLowerCase() : '';
+
+  if (q) {
+    allFolders.forEach(folder => {
+      const folderMatch = folder.name.toLowerCase().includes(q);
+      folder.files.forEach(file => {
+        if (folderMatch || file.name.toLowerCase().includes(q)) {
+          f_files.push({ ...file, folder: folder.name });
+        }
+      });
+    });
+  } else {
+    if (activeFolder === '__all__') {
+      allFolders.forEach(folder => {
+        folder.files.forEach(file => {
+          f_files.push({ ...file, folder: folder.name });
+        });
+      });
+    } else {
+      const folder = allFolders.find(f => f.name === activeFolder);
+      if (folder) {
+        f_files = folder.files.map(file => ({ ...file, folder: folder.name }));
+      }
+    }
+  }
+
+

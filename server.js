@@ -1626,6 +1626,17 @@ app.post('/api/chat', async (req, res) => {
   }
 
   try {
+    // Load knowledge base
+    let knowledgeBase = '';
+    try {
+      const kbPath = path.join(__dirname, 'data', 'knowledge_base.txt');
+      if (fs.existsSync(kbPath)) {
+        knowledgeBase = fs.readFileSync(kbPath, 'utf8');
+      }
+    } catch (kbErr) {
+      console.warn('Could not read knowledge base file:', kbErr.message);
+    }
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
     const response = await fetch(url, {
       method: 'POST',
@@ -1638,17 +1649,16 @@ app.post('/api/chat', async (req, res) => {
             - BE EXTREMELY CONCISE. 
             - NO long introductions like "I'd be happy to help". Just give the answer.
             - Use bullet points for lists.
-            - Maximum 2 sentences for general text.
+            - Maximum 3 sentences for general text.
+            - If you don't know the answer based on the knowledge base, ask the user to contact HR at dl-hr@gantecusa.com.
             
             Platform Navigation:
             - Training Resources: Sidebar menu -> Training Resources.
             - Document Locker: Sidebar menu.
             - Company Culture/Certifications/Contact HR: Sidebar menu.
             
-            Gantec Facts:
-            - Monthly Feedback: Month-end by managers.
-            - Weekly Connect: Thursdays 4:00 PM - 4:45 PM IST.
-            - HR Manager: Hemalatha Malem.
+            Gantec Knowledge Base:
+            ${knowledgeBase}
             
             Question: ${message}`
           }]
@@ -1811,7 +1821,7 @@ ${highlights}
       return res.json({ success: true, summary: simulatedSummary });
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
