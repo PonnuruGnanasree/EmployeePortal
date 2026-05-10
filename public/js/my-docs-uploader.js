@@ -3,7 +3,7 @@
  * Uses /api/my-documents/* endpoints (per-user, email-authenticated)
  */
 
-const MY_DOCS_API = 'http://localhost:3000/api/my-documents';
+const MY_DOCS_API = '/api/my-documents';
 
 function getMyEmail() {
   return localStorage.getItem('gantec_user_email') || '';

@@ -55,33 +55,20 @@ const modalIcon       = document.getElementById('modal-icon');
 const modalDownload   = document.getElementById('modal-download');
 const previewFallback = document.getElementById('preview-fallback');
 const modalClose      = document.getElementById('modal-close');
+const summarizeBtn    = document.getElementById('modal-summarize');
+const summaryOverlay  = document.getElementById('summary-overlay');
+const summaryContent  = document.getElementById('summary-content');
+const closeSummaryBtn = document.getElementById('close-summary');
 
 const deleteConfirmModal = document.getElementById('delete-confirm-modal');
 const deleteConfirmOkBtn = document.getElementById('delete-confirm-ok-btn');
 const deleteConfirmCancelBtn = document.getElementById('delete-confirm-cancel-btn');
 const deleteConfirmMsg = document.getElementById('delete-confirm-msg');
-const summarizeBtn = document.getElementById('modal-summarize');
-const summaryOverlay = document.getElementById('summary-overlay');
-const summaryContent = document.getElementById('summary-content');
-const closeSummaryBtn = document.getElementById('close-summary');
 let currentOpenFolder = '';
 let currentOpenFile = '';
 let currentOpenDisplayName = '';
 
-modalClose?.addEventListener('click', () => {
-  pdfModal.classList.add('hidden');
-  if (summaryOverlay) summaryOverlay.classList.add('hidden');
-  document.body.style.overflow = '';
-});
-
-closeSummaryBtn?.addEventListener('click', () => {
-  summaryOverlay.classList.add('hidden');
-});
-
-summarizeBtn?.addEventListener('click', () => {
-  console.log('Summarize button clicked for:', currentOpenFolder, currentOpenFile, currentOpenDisplayName);
-  summarizeDocument(currentOpenFolder, currentOpenFile, currentOpenDisplayName);
-});
+// (Listeners moved to initViewer/DOMContentLoaded)
 
 // Upload UI
 const fileInput = document.getElementById('file-input');
@@ -190,12 +177,13 @@ function renderDropdown() {
       <span class="folder-name">${escapeHTML(folder.name)}</span>
       <div class="item-right-actions">
         <span class="file-count">${folder.files ? folder.files.length : 0}</span>
+        ${(localStorage.getItem('gantec_user_role') === 'admin') ? `
         <button class="delete-folder-btn" title="Delete Folder">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
             <path d="M3 6h18"></path>
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
           </svg>
-        </button>
+        </button>` : ''}
       </div>
     `;
     
@@ -212,10 +200,12 @@ function renderDropdown() {
       renderDropdown(); // Only re-render dropdown for visibility, no navigation
     });
 
-    folderHeader.querySelector('.delete-folder-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      confirmDeleteFolder(folder.name);
-    });
+    if (folderHeader.querySelector('.delete-folder-btn')) {
+      folderHeader.querySelector('.delete-folder-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        confirmDeleteFolder(folder.name);
+      });
+    }
 
     dropdownList.appendChild(folderHeader);
 
@@ -228,22 +218,25 @@ function renderDropdown() {
           <div style="width: 24px; flex-shrink: 0;"></div>
           <span style="margin-right: 12px; display: flex; align-items: center;">${getFileIconHtml(file.name, 20)}</span>
           <span class="file-name" style="cursor: default; user-select: none;">${escapeHTML(file.name)}</span>
+          ${((file.uploader_email && file.uploader_email.toLowerCase() === localStorage.getItem('gantec_user_email')?.toLowerCase()) || localStorage.getItem('gantec_user_role') === 'admin') ? `
           <button class="delete-file-btn" title="Delete File">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
               <path d="M3 6h18"></path>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
             </svg>
-          </button>
+          </button>` : ''}
         `;
         
         fileItem.addEventListener('click', (e) => {
           e.stopPropagation(); // Prevent dropdown from closing and avoid any unintended bubbling
         });
 
-        fileItem.querySelector('.delete-file-btn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          confirmDelete(folder.name, file.name, file.uploader_email);
-        });
+        if (fileItem.querySelector('.delete-file-btn')) {
+          fileItem.querySelector('.delete-file-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            confirmDelete(folder.name, file.name, file.uploader_email);
+          });
+        }
 
         // Removed click listener that opened PDF or filtered view
         dropdownList.appendChild(fileItem);
@@ -349,6 +342,7 @@ function buildGridCard(doc) {
           <circle cx="12" cy="12" r="3"/>
         </svg>
       </button>
+      ${isOwner ? `
       <button class="doc-action-btn delete" data-folder="${escapeHTML(doc.folder)}" data-name="${escapeHTML(doc.name)}" title="Delete">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px; height:16px;">
           <path d="M3 6h18"></path>
@@ -356,70 +350,57 @@ function buildGridCard(doc) {
           <line x1="10" y1="11" x2="10" y2="17"></line>
           <line x1="14" y1="11" x2="14" y2="17"></line>
         </svg>
-      </button>
+      </button>` : ''}
     </div>
   `;
 
-  card.querySelector('.view-doc').addEventListener('click', async (e) => {
+  const handleYtClick = async (e) => {
+    if (e) e.stopPropagation();
+    try {
+      const url = getFileUrl(doc.folder, doc.hashedName || doc.path || doc.name);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch link data');
+      const text = await res.text();
+      try {
+        const data = JSON.parse(text);
+        const finalUrl = data.url || data.link || (typeof data === 'string' ? data : null);
+        if (finalUrl && finalUrl.startsWith('http')) {
+          window.open(finalUrl, '_blank');
+        }
+      } catch (err) {
+        if (text.trim().startsWith('http')) {
+          window.open(text.trim(), '_blank');
+        }
+      }
+    } catch (err) { 
+      console.error('YouTube redirect failed', err);
+      // Fallback: if it's a known link, just try to open it
+      if (doc.name.toLowerCase().includes('youtube.com') || doc.name.toLowerCase().includes('youtu.be')) {
+        const query = encodeURIComponent(doc.name);
+        window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
+      }
+    }
+  };
+
+  card.querySelector('.view-doc').addEventListener('click', (e) => {
     e.stopPropagation();
     if (isYt) {
-      // ... same logic as before ...
-      try {
-        const url = getFileUrl(doc.folder, doc.hashedName || doc.path || doc.name);
-        const res = await fetch(url);
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text);
-          if (data.url) {
-            window.open(data.url, '_blank');
-          } else if (data.link) {
-            window.open(data.link, '_blank');
-          }
-        } catch (err) {
-          if (text.trim().startsWith('http')) {
-            window.open(text.trim(), '_blank');
-          } else {
-            console.error('Redirect failed: Content is not a valid URL or JSON', err);
-          }
-        }
-      } catch (err) { console.error('Redirect failed', err); }
+      handleYtClick(e);
     } else {
-      openPdf(doc.folder, doc.hashedName || doc.name, doc.name);
+      openPdf(doc.folder, doc.hashedName || doc.path || doc.name, doc.name);
     }
   });
   
-  card.querySelector('.delete').addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (!isOwner) {
-        showToast('Access Denied – You do not have permission to delete this resource.', 'error');
-        return;
-    }
-    confirmDelete(doc.folder, doc.hashedName || doc.name, doc.uploader_email, doc.name);
-  });
+  if (card.querySelector('.delete')) {
+    card.querySelector('.delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      confirmDelete(doc.folder, doc.hashedName || doc.name, doc.uploader_email, doc.name);
+    });
+  }
 
   if (isYt) {
     card.style.cursor = 'pointer';
-    card.addEventListener('click', async () => {
-      try {
-        const url = getFileUrl(doc.folder, doc.name);
-        const res = await fetch(url);
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text);
-          if (data.url) {
-            window.open(data.url, '_blank');
-          } else if (data.link) {
-            window.open(data.link, '_blank');
-          }
-        } catch (err) {
-          if (text.trim().startsWith('http')) {
-            window.open(text.trim(), '_blank');
-          } else {
-            console.error('Redirect failed: Content is not a valid URL or JSON', err);
-          }
-        }
-      } catch (err) { console.error('Redirect failed', err); }
-    });
+    card.addEventListener('click', handleYtClick);
   }
 
   return card;
@@ -447,9 +428,11 @@ listBtn?.addEventListener('click', () => {
 
 // ─── Document Viewer ──────────────────────────────────────────────────────────
 function openPdf(folder, diskFilename, displayName, isUserDoc = false) {
-  currentOpenFolder = folder;
-  currentOpenFile = diskFilename;
-  currentOpenDisplayName = displayName || diskFilename;
+  // Store globally for buttons
+  window.currentOpenFolder = folder;
+  window.currentOpenFile = diskFilename;
+  window.currentOpenDisplayName = displayName || diskFilename;
+  
   const url = getFileUrl(folder, diskFilename);
   
   // Award points for viewing
@@ -472,8 +455,10 @@ function openPdf(folder, diskFilename, displayName, isUserDoc = false) {
   const displayExt = displayName.split('.').length > 1 ? displayName.split('.').pop().toLowerCase() : '';
   const ext = displayExt || diskExt;
   
-  const isOffice = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'csv'].includes(ext);
+  const isOffice = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'csv', 'txt', 'md', 'rtf', 'odt', 'ods', 'odp'].includes(ext);
   const isYt = ext === 'ytlink' || diskExt === 'ytlink';
+  
+  if (summaryOverlay) summaryOverlay.classList.add('hidden');
 
   // Reset state
   pdfIframe.src = '';
@@ -494,9 +479,9 @@ function openPdf(folder, diskFilename, displayName, isUserDoc = false) {
     isNative = true;
   } else if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) {
     isNative = true;
-  } else if (ext === 'pdf') {
+  } else if (['mp3', 'wav', 'm4a', 'aac'].includes(ext)) {
     isNative = true;
-  } else if (['mp3', 'wav', 'm4a'].includes(ext)) {
+  } else if (['pdf', 'txt', 'html', 'htm'].includes(ext)) {
     isNative = true;
   }
 
@@ -527,8 +512,20 @@ function openPdf(folder, diskFilename, displayName, isUserDoc = false) {
         `;
       })
       .catch(err => {
-        previewFallback.innerHTML = `<div style="color:var(--danger); padding:20px;">Failed to load video link: ${err.message}</div>`;
-      });
+    console.error('Failed to load document content:', err);
+    pdfIframe.classList.add('hidden');
+    previewFallback.classList.remove('hidden');
+    previewFallback.innerHTML = `
+      <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+        <div style="font-size: 48px; margin-bottom: 20px;">📂</div>
+        <h3 style="color: #fff; margin-bottom: 10px;">Document Unavailable</h3>
+        <p style="max-width: 300px; margin: 0 auto 20px;">This file was uploaded by another user and is not currently available in the cloud storage.</p>
+        <div style="font-size: 12px; opacity: 0.6; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
+          Error Code: 404_NOT_FOUND_IN_CLOUD
+        </div>
+      </div>
+    `;
+  });
     return;
   }
 
@@ -594,22 +591,13 @@ function openPdf(folder, diskFilename, displayName, isUserDoc = false) {
     }, 50);
 
   } else if (isNative) {
-    // Check if file actually exists before loading in iframe
-    fetch(url, { method: 'HEAD' }).then(chk => {
-      if (!chk.ok) {
-        pdfIframe.classList.add('hidden');
-        previewFallback.classList.remove('hidden');
-        previewFallback.innerHTML = `
-          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;padding:40px;text-align:center;">
-            <div style="font-size:3rem;">⚠️</div>
-            <h3 style="color:#dc2626;margin:0;">File Not Available</h3>
-            <p style="color:#64748b;max-width:400px;">The file <strong>${escapeHTML(displayName)}</strong> is not present on this server. It may have been uploaded to a different location.<br><br>Please re-upload the file to view it here.</p>
-          </div>`;
-      } else {
-        // Native browser support
-        pdfIframe.src = url;
-      }
-    }).catch(() => { pdfIframe.src = url; });
+    // Native browser support
+    pdfIframe.src = url;
+    pdfIframe.onerror = () => {
+      pdfIframe.classList.add('hidden');
+      previewFallback.classList.remove('hidden');
+      previewFallback.innerHTML = `<div style="padding:40px;text-align:center;"><h3>Failed to load preview</h3><p>This file might be too large or not supported for direct viewing.</p></div>`;
+    };
   } else if (isOffice) {
     // Attempt local rendering first for high-end "details" feel
     const iconHtml = getFileIconHtml(displayName, 24, isYt ? 'link' : 'file', diskFilename);
@@ -982,12 +970,42 @@ async function makeEditable(el, type, oldName, folder = '') {
 // (Sidebar toggle is now handled globally in app.js)
 function initViewer() {
   loadFolders();
-  
   // Refresh UI every 30s
   setInterval(loadFolders, 30000);
 }
 
-document.addEventListener('DOMContentLoaded', initViewer);
+document.addEventListener('DOMContentLoaded', () => {
+  initViewer();
+  
+  modalClose?.addEventListener('click', () => {
+    pdfModal.classList.add('hidden');
+    if (summaryOverlay) summaryOverlay.classList.add('hidden');
+    document.body.style.overflow = '';
+  });
+
+  closeSummaryBtn?.addEventListener('click', () => {
+    summaryOverlay.classList.add('hidden');
+  });
+
+  summarizeBtn?.addEventListener('click', () => {
+    const folder = window.currentOpenFolder;
+    const file = window.currentOpenFile;
+    const name = window.currentOpenDisplayName;
+    
+    if (!folder || !file) {
+      console.error('❌ Cannot summarize: Missing file info', { folder, file });
+      showToast('Error: Document info missing. Please close and re-open.', 'error');
+      return;
+    }
+    
+    console.log('🚀 Summarize clicked for:', { folder, file, name });
+    summarizeDocument(folder, file, name);
+  });
+  
+  modalDownload?.addEventListener('click', (e) => {
+    console.log('💾 Download clicked:', modalDownload.href);
+  });
+});
 
 // ─── Upload Logic ─────────────────────────────────────────────────────────────
 function triggerFilePick() { if (fileInput) fileInput.click(); }
@@ -1159,28 +1177,56 @@ async function summarizeDocument(folder, filename, originalName) {
   // Expose to window for the 'Try Again' onclick handler
   window.summarizeDocument = summarizeDocument;
   
+  const originalBtnContent = summarizeBtn.innerHTML;
+  summarizeBtn.disabled = true;
+  summarizeBtn.innerHTML = `
+    <svg class="animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width: 18px; height: 18px;">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+    Analyzing...
+  `;
+  
   console.log('Starting summarize for:', folder, filename, originalName);
   summaryContent.innerHTML = `
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; text-align: center;">
-      <div class="animate-pulse" style="font-size: 3rem; margin-bottom: 20px;">🧠</div>
-      <h3 style="margin: 0; color: var(--primary);">Analyzing Document...</h3>
-      <p style="color: var(--text-muted);">Gantec AI is reading and condensing the key insights for you.</p>
+      <div class="animate-pulse" style="font-size: 3.5rem; margin-bottom: 24px; filter: drop-shadow(0 0 15px rgba(59,130,246,0.3));">🧠</div>
+      <h3 style="margin: 0; color: var(--primary); font-size: 1.5rem; font-weight: 800;">Gantec AI is Thinking...</h3>
+      <p style="color: var(--text-muted); font-size: 1.05rem; margin-top: 12px;">Reading and condensing the key insights for you. This usually takes a few seconds.</p>
+      <div style="margin-top: 32px; width: 240px; height: 6px; background: #f1f5f9; border-radius: 10px; overflow: hidden;">
+        <div class="loading-bar-progress" style="height: 100%; background: var(--accent); width: 0%; border-radius: 10px;"></div>
+      </div>
     </div>
   `;
+  
+  // Animate the tiny loading bar
+  setTimeout(() => {
+    const bar = document.querySelector('.loading-bar-progress');
+    if (bar) bar.style.transition = 'width 10s cubic-bezier(0.1, 0, 0.2, 1)';
+    if (bar) bar.style.width = '90%';
+  }, 100);
+
   summaryOverlay.classList.remove('hidden');
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
+
     const res = await fetch('/api/summarize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folder, filename, originalName })
+      body: JSON.stringify({ folder, filename, originalName }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
+    
     console.log('Summarize fetch response status:', res.status);
     const data = await res.json();
     console.log('Summarize data:', data);
 
     if (!res.ok) throw new Error(data.error || 'Failed to summarize');
+    if (!data.summary) throw new Error('AI returned an empty summary. This usually happens with empty or non-text files.');
 
+    console.log('✅ Summary received, rendering...');
     // Format the summary with better typography
     summaryContent.innerHTML = data.summary
       .split('\n')
@@ -1213,11 +1259,15 @@ async function summarizeDocument(folder, filename, originalName) {
   } catch (err) {
     console.error('Summarization error:', err);
     summaryContent.innerHTML = `
-      <div style="background: #fef2f2; border: 1px solid #fee2e2; padding: 24px; border-radius: 12px; color: #991b1b;">
-        <h3 style="margin-top: 0;">Summarization Failed</h3>
-        <p>${err.message}</p>
-        <button onclick="summarizeDocument('${folder}', '${filename}', '${originalName}')" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-top: 12px; font-weight: 600;">Try Again</button>
+      <div style="background: #fef2f2; border: 1px solid #fee2e2; padding: 32px; border-radius: 20px; color: #991b1b; max-width: 600px; margin: 40px auto; text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 20px;">❌</div>
+        <h3 style="margin-top: 0; font-weight: 800; font-size: 1.25rem;">Summarization Failed</h3>
+        <p style="margin: 12px 0 24px; line-height: 1.6;">${err.message}</p>
+        <button onclick="summarizeDocument('${folder}', '${filename}', '${originalName}')" style="background: #ef4444; color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-weight: 700; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">Try Again</button>
       </div>
     `;
+  } finally {
+    summarizeBtn.disabled = false;
+    summarizeBtn.innerHTML = originalBtnContent;
   }
 }

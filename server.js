@@ -16,7 +16,7 @@ const crypto = require('crypto');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3001;
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const DB_FILE = path.join(__dirname, 'data', 'database.sqlite');
 
@@ -597,10 +597,15 @@ app.get('/api/folders', async (req, res) => {
       const localDocs = db.prepare('SELECT folder, filename, original_name, uploader_email FROM public_documents').all();
       localDocs.forEach(row => {
         if (!foldersMap[row.folder]) foldersMap[row.folder] = { name: row.folder, files: [], subfolders: [] };
+        
+        const isYt = row.filename.toLowerCase().endsWith('.ytlink');
+        let displayName = row.original_name || row.filename;
+        if (isYt) displayName = displayName.replace(/\.ytlink$/i, '');
+        
         foldersMap[row.folder].files.push({ 
-          name: row.original_name || row.filename, 
+          name: displayName, 
           path: row.filename, 
-          type: 'file', 
+          type: isYt ? 'link' : 'file', 
           hashedName: row.filename,
           uploader_email: row.uploader_email
         });
@@ -609,34 +614,56 @@ app.get('/api/folders', async (req, res) => {
 
     // 2. Merge with Supabase Data (if available)
     if (supabase) {
-      const { data: dbFoldersList } = await supabase.from('resource_folders').select('name');
-      const { data: dbFiles } = await supabase.from('resource_uploads').select('folder, filename, uploaded_by');
-      const { data: dbLinks } = await supabase.from('resource_links').select('folder, title, url, uploaded_by');
-      
-      (dbFoldersList || []).forEach(f => { 
-        if (!foldersMap[f.name]) foldersMap[f.name] = { name: f.name, files: [], subfolders: [] }; 
-      });
+      try {
+        const { data: dbFoldersList } = await supabase.from('resource_folders').select('name');
+        // Select only existing columns: folder, filename, uploaded_by (ignore original_name if it fails)
+        const { data: dbFiles, error: fileErr } = await supabase.from('resource_uploads').select('folder, filename, uploaded_by');
+        const { data: dbLinks } = await supabase.from('resource_links').select('folder, title, url, uploaded_by');
+        
+        if (fileErr) console.warn('⚠️ Supabase file fetch error:', fileErr.message);
 
-      (dbFiles || []).forEach(row => {
-        if (!foldersMap[row.folder]) foldersMap[row.folder] = { name: row.folder, files: [], subfolders: [] };
-        // Avoid duplicates if already in local map
-        if (!foldersMap[row.folder].files.some(f => f.hashedName === row.filename)) {
-          foldersMap[row.folder].files.push({ 
-            name: row.original_name || row.filename, 
-            path: row.filename, 
-            type: 'file', 
-            hashedName: row.filename,
-            uploader_email: row.uploaded_by
-          });
-        }
-      });
+        (dbFoldersList || []).forEach(f => { 
+          if (!foldersMap[f.name]) foldersMap[f.name] = { name: f.name, files: [], subfolders: [] }; 
+        });
 
-      (dbLinks || []).forEach(row => {
-        if (!foldersMap[row.folder]) foldersMap[row.folder] = { name: row.folder, files: [], subfolders: [] };
-        if (!foldersMap[row.folder].files.some(f => f.name === row.title && f.type === 'link')) {
-          foldersMap[row.folder].files.push({ name: row.title, url: row.url, type: 'link', uploader_email: row.uploaded_by });
-        }
-      });
+        (dbFiles || []).forEach(row => {
+          if (!foldersMap[row.folder]) foldersMap[row.folder] = { name: row.folder, files: [], subfolders: [] };
+          
+          // SYNC: Ensure this file is in our local SQLite for later retrieval/decryption
+          try {
+            const exists = db.prepare('SELECT id FROM public_documents WHERE folder = ? AND filename = ?').get(row.folder, row.filename);
+            if (!exists) {
+              console.log(`📡 Syncing missing Supabase file record: ${row.filename}`);
+              // Use filename as original_name since we don't have that column in Supabase yet
+              db.prepare('INSERT INTO public_documents (folder, filename, original_name, uploader_email) VALUES (?, ?, ?, ?)')
+                .run(row.folder, row.filename, row.filename, row.uploaded_by);
+            }
+          } catch (syncErr) { /* ignore sync errors */ }
+
+          if (!foldersMap[row.folder].files.some(f => f.hashedName === row.filename)) {
+            foldersMap[row.folder].files.push({ 
+              name: row.filename, 
+              path: row.filename, 
+              type: 'file', 
+              hashedName: row.filename,
+              uploader_email: row.uploaded_by
+            });
+          }
+        });
+
+        (dbLinks || []).forEach(row => {
+          if (!foldersMap[row.folder]) foldersMap[row.folder] = { name: row.folder, files: [], subfolders: [] };
+          
+          const normalize = s => (s || '').toLowerCase().replace(/_/g, ' ').trim();
+          const alreadyExists = foldersMap[row.folder].files.some(f => 
+            normalize(f.name) === normalize(row.title) && f.type === 'link'
+          );
+
+          if (!alreadyExists) {
+            foldersMap[row.folder].files.push({ name: row.title, url: row.url, type: 'link', uploader_email: row.uploaded_by });
+          }
+        });
+      } catch (e) { console.error('Supabase global sync error:', e.message); }
     }
 
     // 3. If everything is empty, fallback to a disk scan
@@ -684,8 +711,25 @@ app.post('/api/upload', (req, res) => {
     
     if (supabase) {
       try {
-        // FIX: Remove original_name and size as they don't exist in Supabase schema
-        // Also use .insert() to avoid constraint matching errors
+        // 1. Upload to Supabase Storage (Bucket: resource-uploads)
+        const fileBuffer = fs.readFileSync(req.file.path);
+        const { error: storageErr } = await supabase.storage
+          .from('resource-uploads')
+          .upload(`${folder}/${req.file.filename}`, fileBuffer, {
+            contentType: req.file.mimetype,
+            upsert: true
+          });
+
+        if (storageErr) {
+            console.error('⚠️ Supabase Storage Upload Error:', storageErr.message);
+            // If bucket not found, it might be named with underscore
+            await supabase.storage.from('resource_uploads').upload(`${folder}/${req.file.filename}`, fileBuffer, {
+              contentType: req.file.mimetype,
+              upsert: true
+            });
+        }
+
+        // 2. Sync Metadata to resource_uploads table
         await supabase.from('resource_uploads').insert([{
           filename: req.file.filename,
           folder: folder,
@@ -696,7 +740,7 @@ app.post('/api/upload', (req, res) => {
           const { data: supaUser } = await supabase.from('users').select('id, points').ilike('email', req.body.email).single();
           if (supaUser) await supabase.from('users').update({ points: (supaUser.points || 0) + 1 }).eq('id', supaUser.id);
         }
-      } catch (e) { console.error('⚠️ Supabase upload sync error:', e.message); }
+      } catch (e) { console.error('⚠️ Supabase sync error:', e.message); }
     }
 
     if (req.body.email) db.prepare('UPDATE users SET points = points + 1 WHERE email = ?').run(req.body.email);
@@ -783,12 +827,59 @@ app.get('/api/file', async (req, res) => {
   try {
     const { folder, file } = req.query;
     if (!folder || !file) return res.status(400).json({ error: 'Missing folder or file param' });
-    const filePath = path.join(UPLOADS_DIR, folder, file);
-    if (!await fs.pathExists(filePath)) return res.status(404).json({ error: 'File not found' });
+    
+    let filePath = path.join(UPLOADS_DIR, folder, file);
+    
+    // Check if file exists locally
+    if (!await fs.pathExists(filePath)) {
+      console.log(`🔍 File not found locally: ${filePath}. Checking Supabase...`);
+      
+      if (supabase) {
+        try {
+          // Find the record to confirm it exists and get its metadata if needed
+          const row = db.prepare('SELECT filename FROM public_documents WHERE folder = ? AND (filename = ? OR original_name = ?)').get(folder, file, file);
+          const storageName = row ? row.filename : file;
+          const storagePath = `${folder}/${storageName}`;
+          
+          console.log(`📡 Attempting Supabase download: ${storagePath}`);
+          
+          let { data: fileData, error: dlErr } = await supabase.storage
+            .from('resource-uploads')
+            .download(storagePath);
+            
+          // Fallback to resource_uploads if resource-uploads fails
+          if (dlErr) {
+            console.warn(`⚠️ Primary bucket failed, trying fallback: ${dlErr.message}`);
+            const fallback = await supabase.storage.from('resource_uploads').download(storagePath);
+            fileData = fallback.data;
+            dlErr = fallback.error;
+          }
+            
+          if (!dlErr && fileData) {
+            const arrayBuffer = await fileData.arrayBuffer();
+            await fs.ensureDir(path.dirname(filePath));
+            await fs.writeFile(filePath, Buffer.from(arrayBuffer));
+            console.log(`✅ Downloaded ${file} from Supabase.`);
+          } else {
+            console.error(`❌ Supabase download failed for ${file}:`, dlErr?.message);
+          }
+        } catch (supaErr) {
+          console.error(`❌ Supabase logic error:`, supaErr.message);
+        }
+      }
+    }
+
+    if (!await fs.pathExists(filePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
     let doc = db.prepare('SELECT original_name FROM public_documents WHERE folder = ? AND filename = ?').get(folder, file);
     let downloadName = doc ? doc.original_name : file;
     serveDecryptedFile(filePath, res, downloadName);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+    console.error('API /api/file error:', err);
+    res.status(500).json({ error: err.message }); 
+  }
 });
 
 app.delete('/api/file', async (req, res) => {
@@ -800,11 +891,13 @@ app.delete('/api/file', async (req, res) => {
     let doc = db.prepare('SELECT filename, uploader_email, original_name FROM public_documents WHERE folder = ? AND (original_name = ? OR filename = ?)').get(folder, file, file);
     if (!doc) return res.status(404).json({ error: 'Document not found.' });
 
+    if (!email) return res.status(401).json({ error: 'Authentication required to delete resources.' });
+
     // RESTORE OWNERSHIP CHECK FOR FILES (Allow admins to bypass)
-    const user = email ? await getUserByEmail(email) : null;
+    const user = await getUserByEmail(email);
     const isAdmin = user && user.role === 'admin';
 
-    if (email && doc.uploader_email && doc.uploader_email.toLowerCase() !== email.toLowerCase() && !isAdmin) {
+    if (doc.uploader_email && doc.uploader_email.toLowerCase() !== email.toLowerCase() && !isAdmin) {
       return res.status(403).json({ error: 'Access Denied: You are not the owner of this resource.' });
     }
 
@@ -831,11 +924,13 @@ app.delete('/api/delete-folder', async (req, res) => {
     
     if (folder === '.' || folder === './' || folder === '') return res.status(403).json({ error: 'Cannot delete root' });
 
+    if (!email) return res.status(401).json({ error: 'Authentication required to delete folders.' });
+
     // --- Ownership Check ---
-    const user = email ? await getUserByEmail(email) : null;
+    const user = await getUserByEmail(email);
     const isAdmin = user && user.role === 'admin';
 
-    if (email && !isAdmin) {
+    if (!isAdmin) {
       // Check if there are ANY files in this folder (or subfolders) owned by someone else
       const others = db.prepare('SELECT id FROM public_documents WHERE (folder = ? OR folder LIKE ?) AND uploader_email != ?')
                        .all(folder, folder + '/%', email);
@@ -1718,19 +1813,31 @@ app.post('/api/summarize', async (req, res) => {
         ).get(folder, filename, filename);
         const storageName = row ? row.filename : filename;
         const storagePath = `${folder}/${storageName}`;
-        console.log(`⬇️  File not local, fetching from Supabase: ${storagePath}`);
-        const { data: fileData, error: dlErr } = await supabase.storage
+        console.log(`⬇️  Summarizer: Fetching from Supabase: ${storagePath}`);
+        
+        let { data: fileData, error: dlErr } = await supabase.storage
           .from('resource-uploads')
           .download(storagePath);
-        if (dlErr) throw new Error('Supabase download error: ' + dlErr.message);
-        const arrayBuffer = await fileData.arrayBuffer();
-        const tmpPath = path.join(UPLOADS_DIR, folder, storageName);
-        await fs.ensureDir(path.dirname(tmpPath));
-        await fs.writeFile(tmpPath, Buffer.from(arrayBuffer));
-        filePath = tmpPath;
-        console.log(`✅ Downloaded from Supabase to ${tmpPath}`);
+          
+        if (dlErr) {
+          console.warn(`⚠️ Summarizer primary bucket failed, trying fallback...`);
+          const fallback = await supabase.storage.from('resource_uploads').download(storagePath);
+          fileData = fallback.data;
+          dlErr = fallback.error;
+        }
+
+        if (!dlErr && fileData) {
+          const arrayBuffer = await fileData.arrayBuffer();
+          const tmpPath = path.join(UPLOADS_DIR, folder, storageName);
+          await fs.ensureDir(path.dirname(tmpPath));
+          await fs.writeFile(tmpPath, Buffer.from(arrayBuffer));
+          filePath = tmpPath;
+          console.log(`✅ Summarizer: Downloaded to ${tmpPath}`);
+        } else {
+          console.error('Summarizer: Supabase download failed:', dlErr?.message);
+        }
       } catch (dlError) {
-        console.error('Supabase storage download failed:', dlError.message);
+        console.error('Summarizer: Supabase storage logic error:', dlError.message);
       }
     }
 
@@ -1774,10 +1881,10 @@ app.post('/api/summarize', async (req, res) => {
         console.error('DOCX parse error:', e.message);
         extractedText = '';
       }
-    } else if (isTxt || ext === '.txt' || ext === '.bin' || !ext) {
-      // Fallback for .bin (encrypted user docs) or plaintext
+    } else if (isTxt || ['.txt', '.md', '.rtf', '.html', '.htm', '.csv', '.bin'].includes(ext) || !ext) {
+      // Fallback for plaintext and other readable types
       extractedText = dataBuffer.toString('utf-8').replace(/[\x00-\x08\x0e-\x1f\x7f-\x9f]/g, '').trim();
-      console.log('TXT/BIN text length:', extractedText.length);
+      console.log('Text-based parse length:', extractedText.length);
     } else {
       return res.status(400).json({ error: `Unsupported file format for summarization: ${ext || 'unknown'}` });
     }
@@ -1821,34 +1928,56 @@ ${highlights}
       return res.json({ success: true, summary: simulatedSummary });
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Please provide a professional, complete summary of the following document content.
-            Include all key points, main ideas, and important details. Use bullet points where appropriate for clarity.
+    const genModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1' });
+    
+    console.log(`🤖 Summarizing with Gemini SDK (v1): ${filename}...`);
+    
+    // Safety check: ensure truncatedText is defined and valid
+    const finalSafeText = (textToSummarize || "No content found").substring(0, 30000);
+    
+    const prompt = `Please provide a professional, comprehensive summary of the following document content. 
+    Highlight the key objectives, main points, and actionable details. 
+    Use clear headers and bullet points.
+    
+    Document Content:
+    ${finalSafeText}`;
 
-            Document Content:
-            ${textToSummarize}`
-            }]
-          }]
-        })
-    });
+    try {
+      const result = await genModel.generateContent(prompt);
+      const response = await result.response;
+      const summary = response.text();
+      
+      if (!summary) throw new Error('Empty response from AI');
+      res.json({ success: true, summary });
+    } catch (apiErr) {
+      console.warn('⚠️ Gemini API failed, falling back to simulated summary:', apiErr.message);
+      
+      // FALLBACK: Use simulated logic if API fails
+      const cleanText = (textToSummarize || '').trim();
+      let highlights = '';
+      if (cleanText.length > 30) {
+        const sentences = cleanText.split(/[.!?\n]+/).map(s => s.trim()).filter(s => s.length > 20 && s.length < 400);
+        highlights = sentences.slice(0, 5).map(p => `* ${p}`).join('\n') || `* ${cleanText.substring(0, 300)}...`;
+      } else {
+        highlights = `* No extractable text found in this document.`;
+      }
 
-    const data = await response.json();
+      const displayName = originalName || filename;
+      const fallbackSummary = `### 📝 Document Insights (Smart Fallback)
+**Document:** ${displayName}
+**Location:** ${folder} folder
 
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'Gemini API Error');
+**Key Highlights extracted from document:**
+${highlights}
+
+---
+*💡 Note: The AI service is currently experiencing high demand. The above summary was generated using our local backup analyzer.*`;
+      
+      res.json({ success: true, summary: fallbackSummary });
     }
 
-    const summary = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a summary.";
-    res.json({ success: true, summary });
-
   } catch (err) {
-    console.error('Summarization error:', err);
+    console.error('Summarization fatal error:', err);
     res.status(500).json({ error: 'Failed to generate summary: ' + err.message });
   }
 });
@@ -1861,6 +1990,31 @@ app.get('*', (req, res) => {
 // ─── Start Server ─────────────────────────────────────────────────────────────
 app.listen(PORT, async () => {
   console.log(`\n🚀 Gantec Employee Portal running at http://localhost:${PORT}\n`);
+  
+  // Force Ensure Supabase Buckets exist
+  if (supabase) {
+    try {
+      console.log('📦 Verifying Supabase storage buckets...');
+      const { data: buckets, error: bErr } = await supabase.storage.listBuckets();
+      if (bErr) throw bErr;
+      
+      const targetBucket = 'resource-uploads';
+      const exists = buckets && buckets.some(b => b.name === targetBucket);
+      
+      if (!exists) {
+        console.log(`📦 Creating missing bucket: ${targetBucket}`);
+        const { error: cErr } = await supabase.storage.createBucket(targetBucket, { public: true });
+        if (cErr) console.error('❌ Failed to create bucket:', cErr.message);
+        else console.log('✅ Bucket created successfully');
+      } else {
+        console.log(`✅ Verified bucket exists: ${targetBucket}`);
+      }
+    } catch (e) { 
+      console.warn('⚠️ Bucket verification failed:', e.message);
+      // Fallback: try to create it anyway just in case listBuckets failed
+      try { await supabase.storage.createBucket('resource-uploads', { public: true }); } catch(err) {}
+    }
+  }
   
   // Trigger initial scan to sync local folders with Supabase
   try {

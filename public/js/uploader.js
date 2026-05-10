@@ -142,13 +142,41 @@ function buildTreeDOM(node, container, level = 0, isModal = false) {
       <span class="${isModal ? '' : 'folder-opt-name'}" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHTML(child.name)}</span>
       <span class="${isModal ? 'modal-folder-count' : 'folder-file-count'}">${child.files.length}</span>
       ${!isModal ? `
-      <button class="folder-delete-btn" title="Delete Folder" style="padding:4px; opacity:0.6;">
+      <button class="folder-delete-btn" title="Delete Folder" style="padding:4px; opacity:0.8;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px; height:14px;">
           <path d="M3 6h18"></path>
           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
         </svg>
       </button>` : ''}
     `;
+
+    // Render Files if expanded
+    if (!isModal && isExpanded && child.files.length > 0) {
+      child.files.forEach(file => {
+        const fileRow = document.createElement('div');
+        fileRow.className = 'tree-file-row';
+        fileRow.style.paddingLeft = `${(level * 20) + 38}px`;
+        fileRow.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs" style="margin-right: 8px; opacity: 0.5;">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+            <polyline points="13 2 13 9 20 9"></polyline>
+          </svg>
+          <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.8rem; opacity:0.8;">${escapeHTML(file.name)}</span>
+          <button class="file-delete-btn" data-folder="${escapeHTML(child.fullPath)}" data-file="${escapeHTML(file.name)}" title="Delete File" style="padding:4px; opacity:0.6; background:none; border:none; color:var(--text-muted); cursor:pointer;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px; height:12px;">
+              <path d="M3 6h18"></path>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        `;
+        fileRow.querySelector('.file-delete-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          confirmDeleteFile(child.fullPath, file.name);
+        });
+        childrenContainer.appendChild(fileRow);
+      });
+    }
+
 
     if (!isModal) {
       const label = row.querySelector('.folder-opt-name');
@@ -736,10 +764,11 @@ function confirmDeleteFolder(folderPath) {
 
 async function performDeleteFolder(folderPath) {
   try {
+    const email = localStorage.getItem('gantec_user_email');
     const res = await fetch('/api/delete-folder', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folder: folderPath })
+      body: JSON.stringify({ folder: folderPath, email })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
@@ -750,6 +779,27 @@ async function performDeleteFolder(folderPath) {
       selectedFolderName.textContent = 'None';
       if (createSubfolderBtn) createSubfolderBtn.disabled = true;
     }
+    await loadFolders();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function confirmDeleteFile(folder, filename) {
+  deleteConfirmMsg.textContent = `Are you sure you want to delete "${filename}"? This cannot be undone.`;
+  deleteCallback = () => performDeleteFile(folder, filename);
+  deleteConfirmModal.classList.add('active');
+}
+
+async function performDeleteFile(folder, filename) {
+  try {
+    const res = await fetch(`/api/file?folder=${encodeURIComponent(folder)}&file=${encodeURIComponent(filename)}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete file');
+
+    showToast(`File "${filename}" deleted`, 'success');
     await loadFolders();
   } catch (err) {
     showToast(err.message, 'error');

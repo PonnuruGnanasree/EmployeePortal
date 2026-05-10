@@ -6,7 +6,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 async function testUrlUniqueness() {
   const url = 'http://unique-test.com';
   const data = { title: 'test', url, folder: 'General', uploaded_by: 'test@test.com' };
-  
+
   console.log("Inserting first time...");
   const { error: e1 } = await supabase.from('resource_links').insert([data]);
   if (e1) console.log("First failed:", e1.message);

@@ -1812,6 +1812,33 @@ svg {
   flex-direction: column;
 }
 
+.tree-file-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: background 0.2s;
+  cursor: default;
+}
+
+.tree-file-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.file-delete-btn {
+  opacity: 0 !important;
+  transition: opacity 0.2s;
+}
+
+.tree-file-row:hover .file-delete-btn {
+  opacity: 0.6 !important;
+}
+
+.file-delete-btn:hover {
+  color: var(--danger) !important;
+  opacity: 1 !important;
+}
+
 .selected-folder-badge {
   display: flex;
   align-items: center;
