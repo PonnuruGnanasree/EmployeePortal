@@ -16,7 +16,6 @@ const crypto = require('crypto');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const DB_FILE = path.join(__dirname, 'data', 'database.sqlite');
 
@@ -1988,8 +1987,9 @@ app.get('*', (req, res) => {
 });
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, async () => {
-  console.log(`\n🚀 Gantec Employee Portal running at http://localhost:${PORT}\n`);
+  console.log(`🚀 Server running on port ${PORT}`);
   
   // Force Ensure Supabase Buckets exist
   if (supabase) {
