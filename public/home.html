@@ -152,6 +152,15 @@
           <span class="link-text">FAQ</span>
         </a>
 
+        <a href="weekly-connect.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <span class="link-text">Weekly Connect</span>
+        </a>
+
         <a href="contact-hr.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path
@@ -255,6 +264,19 @@
                   questions.</p>
               </div>
 
+              <!-- Weekly Connect -->
+              <div class="feature-card" data-module="weekly">
+                <div class="card-icon-wrap" style="background:rgba(14,165,233,0.1);color:#0ea5e9;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                  </svg>
+                </div>
+                <h3 class="card-title">Weekly Connect</h3>
+                <p class="card-desc">Stay synced with the Gantec family. Join our weekly sessions for updates and highlights.</p>
+              </div>
+
               <!-- Leave Management -->
               <!-- <div class="feature-card" data-module="leave" data-href="#">
               <div class="card-icon-wrap" style="background:rgba(241,196,15,0.1);color:#f1c40f;">
@@ -321,6 +343,22 @@
       }
     }
     loadHomeStats();
+
+    // Feature Card Navigation
+    document.querySelectorAll('.feature-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const module = card.dataset.module;
+        switch (module) {
+          case 'training': window.location.href = 'viewer.html'; break;
+          case 'locker': window.location.href = 'document-locker.html'; break;
+          case 'culture': window.location.href = 'company-culture.html'; break;
+          case 'certifications': window.location.href = 'certifications.html'; break;
+          case 'faq': window.location.href = 'faq.html'; break;
+          case 'weekly': window.location.href = 'weekly-connect.html'; break;
+          case 'hr': window.location.href = 'contact-hr.html'; break;
+        }
+      });
+    });
   </script>
 </body>
 

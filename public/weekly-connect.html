@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weekly Connect | Gantec Employee Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <link rel="stylesheet" href="css/branding.css" />
+  <style>
+    /* Content Area Styling - keeping the new dynamic design for the main area */
+    .connect-main {
+      padding: 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .connect-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .week-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      background: rgba(99, 102, 241, 0.1);
+      color: #6366f1;
+      border-radius: 100px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .connect-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 3rem;
+      font-weight: 800;
+      margin: 0 0 16px 0;
+      color: var(--primary);
+    }
+
+    .timing-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* Compact Card Styling */
+    .session-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .section-box {
+      background: var(--bg-2);
+      padding: 18px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .section-box h3 {
+      font-size: 0.95rem !important;
+      margin-bottom: 12px !important;
+    }
+
+    .section-box p {
+      font-size: 0.85rem !important;
+      line-height: 1.4 !important;
+    }
+
+    .admin-action-btn {
+      position: fixed;
+      bottom: 40px;
+      right: 40px;
+      width: 64px;
+      height: 64px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--shadow-lg);
+      z-index: 1000;
+      transition: transform 0.2s;
+    }
+
+    .admin-action-btn:hover { transform: scale(1.1); }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal-card {
+      background: white;
+      width: 100%;
+      max-width: 600px;
+      border-radius: var(--radius-xl);
+      padding: 40px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .form-group { margin-bottom: 20px; }
+    .label { display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 8px; color: var(--text-primary); }
+    .input { width: 100%; padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-family: inherit; }
+    .btn-post { width: 100%; padding: 16px; background: var(--secondary); color: white; border: none; border-radius: var(--radius-sm); font-weight: 800; cursor: pointer; margin-top: 10px; }
+  </style>
+</head>
+
+<body>
+  <div class="app-layout">
+    <header class="app-header">
+      <a href="home.html" class="header-brand">
+        <span class="gantec-logo-text">GANTEC <span class="gantec-logo-gradient">EMPLOYEE PORTAL</span></span>
+      </a>
+      <div id="user-profile-section"></div>
+    </header>
+
+    <aside class="app-sidebar">
+      <nav class="sidebar-nav">
+        <a href="home.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <span class="link-text">Home</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="viewer.html" class="sidebar-link sidebar-dropdown-trigger" id="nav-training">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span class="link-text">Training Resources</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="viewer.html" class="submenu-link">View and Upload Resources</a>
+            <a href="content-leader.html" class="submenu-link">Content Leaders</a>
+          </div>
+        </div>
+
+        <a href="document-locker.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="2" />
+            <line x1="9" y1="7" x2="15" y2="7" />
+            <line x1="9" y1="11" x2="15" y2="11" />
+            <line x1="9" y1="15" x2="12" y2="15" />
+          </svg>
+          <span class="link-text">Document Locker</span>
+        </a>
+
+        <a href="certifications.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="8" r="7"></circle>
+            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+          </svg>
+          <span class="link-text">Certifications</span>
+        </a>
+
+        <a href="company-culture.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span class="link-text">Company Culture</span>
+        </a>
+
+        <a href="faq.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <circle cx="12" cy="17" r="0.5" fill="currentColor"></circle>
+          </svg>
+          <span class="link-text">FAQ</span>
+        </a>
+
+        <a href="weekly-connect.html" class="sidebar-link active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <span class="link-text">Weekly Connect</span>
+        </a>
+
+        <a href="contact-hr.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+            </path>
+          </svg>
+          <span class="link-text">Contact HR</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="app-main">
+      <div class="connect-main">
+        <div class="connect-header">
+          <span class="week-badge">Week 19 Highlights</span>
+          <h1 class="connect-title">Gantec Connect</h1>
+          <div class="timing-wrap">
+            <div class="pulse-dot"></div>
+            <span>Every Thursday • 4:00 PM – 4:45 PM</span>
+          </div>
+        </div>
+
+        <div id="session-output">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </main>
+
+    <!-- Custom Delete Modal -->
+    <div class="modal-overlay" id="delete-modal">
+      <div class="modal-card" style="max-width: 400px; text-align: center;">
+        <div style="background: #fee2e2; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#ef4444" stroke-width="2.5">
+            <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+          </svg>
+        </div>
+        <h2 style="margin: 0 0 12px; font-weight: 800;">Are you sure?</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 30px;">This will permanently remove this session card. This action cannot be undone.</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <button id="cancel-delete-btn" style="padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: white; font-weight: 700; cursor: pointer;">Cancel</button>
+          <button id="confirm-delete-btn" style="padding: 12px; border-radius: 12px; border: none; background: #ef4444; color: white; font-weight: 700; cursor: pointer;">Delete Now</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-action-btn" id="open-post-modal">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="3">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="post-modal">
+      <div class="modal-card">
+        <h2 style="margin-top:0; font-weight:800; color:var(--primary);">Generate Session Card</h2>
+        <form id="post-form">
+          <input type="hidden" id="edit-id">
+          <div class="form-group">
+            <label class="label">Date / Week Info</label>
+            <input type="date" id="weekInfo" class="input" required>
+          </div>
+          <div class="form-group">
+            <label class="label">Connect Name</label>
+            <input type="text" id="connectName" class="input" placeholder="e.g. Gantec Connect" required>
+          </div>
+          <div class="form-group">
+            <label class="label">Tech Topic</label>
+            <input type="text" id="techTopic" class="input" placeholder="What was demonstrated?" required>
+          </div>
+          <div class="form-group">
+            <label class="label">Upload File</label>
+            <input type="file" id="techFile" class="input">
+          </div>
+          <div class="form-group">
+            <label class="label">OR Document Link</label>
+            <input type="text" id="techLink" class="input" placeholder="https://...">
+          </div>
+          <div class="form-group">
+            <label class="label">Other Updates</label>
+            <textarea id="otherUpdates" class="input" rows="3" placeholder="General announcements..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="label">Fun Activity</label>
+            <input type="text" id="funName" class="input" placeholder="Activity name" required>
+          </div>
+          <div class="form-group">
+            <label class="label">Winners (1st, 2nd, 3rd)</label>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+              <input type="text" id="w1" class="input" placeholder="1st" required>
+              <input type="text" id="w2" class="input" placeholder="2nd" required>
+              <input type="text" id="w3" class="input" placeholder="3rd" required>
+            </div>
+          </div>
+          <button type="submit" class="btn-post">Generate & Post Card</button>
+          <button type="button" onclick="document.getElementById('post-modal').classList.remove('active')" style="width:100%; margin-top:12px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-weight:700;">Cancel</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    const sessionOutput = document.getElementById('session-output');
+    const postModal = document.getElementById('post-modal');
+    const openModalBtn = document.getElementById('open-post-modal');
+    const postForm = document.getElementById('post-form');
+
+    openModalBtn.addEventListener('click', () => postModal.classList.add('active'));
+
+    // Dropdown toggle logic
+    document.querySelector('.sidebar-dropdown-trigger').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.target.closest('.sidebar-dropdown').classList.toggle('open');
+    });
+
+    postForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = postForm.querySelector('.btn-post');
+      const editId = document.getElementById('edit-id').value;
+      submitBtn.disabled = true;
+      submitBtn.textContent = editId ? 'Saving Changes...' : 'Uploading & Posting...';
+
+      let finalUrl = document.getElementById('techLink').value || '#';
+      const fileInput = document.getElementById('techFile');
+
+      // Only upload if a new file is chosen
+      if (fileInput.files.length > 0) {
+        try {
+          const formData = new FormData();
+          formData.append('folder', 'Weekly Connect');
+          formData.append('file', fileInput.files[0]);
+          const res = await fetch('/api/upload', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          finalUrl = getFileUrl('Weekly Connect', data.filename);
+        } catch (err) {
+          showToast('Upload failed, using current link', 'warning');
+        }
+      }
+
+      const session = {
+        id: editId ? parseInt(editId) : Date.now(),
+        week: document.getElementById('weekInfo').value,
+        name: document.getElementById('connectName').value,
+        topic: document.getElementById('techTopic').value,
+        link: finalUrl,
+        filename: fileInput.files.length > 0 ? fileInput.files[0].name : (document.getElementById('techLink').value ? 'External Link' : ''),
+        updates: document.getElementById('otherUpdates').value,
+        fun: document.getElementById('funName').value,
+        winners: [
+          document.getElementById('w1').value,
+          document.getElementById('w2').value,
+          document.getElementById('w3').value
+        ]
+      };
+
+      const history = JSON.parse(localStorage.getItem('gantec_weekly_sessions') || '[]');
+      
+      if (editId) {
+        const index = history.findIndex(s => s.id === parseInt(editId));
+        if (index !== -1) history[index] = session;
+      } else {
+        history.unshift(session);
+      }
+      
+      localStorage.setItem('gantec_weekly_sessions', JSON.stringify(history));
+
+      render(history);
+      postModal.classList.remove('active');
+      postForm.reset();
+      document.getElementById('edit-id').value = '';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Generate & Post Card';
+    });
+
+    function render(sessions) {
+      if (!sessions || sessions.length === 0) {
+        sessionOutput.innerHTML = '<div style="text-align:center; padding:100px 20px; color:var(--text-muted); border:2px dashed var(--border); border-radius:var(--radius-xl);">No sessions posted yet. Start by generating your first weekly connect card!</div>';
+        return;
+      }
+
+      sessionOutput.innerHTML = sessions.map(s => `
+        <div class="session-card">
+          <div class="card-top">
+            <div>
+              <span class="week-badge" style="margin:0; font-size:0.7rem; padding:4px 10px;">${s.week}</span>
+              <h2 style="margin:8px 0 0 0; font-size:1.35rem; font-weight:800; color:var(--primary);">${s.name}</h2>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button onclick="editS(${s.id})" style="background:#f1f5f9; border:none; color:var(--primary); padding:10px; border-radius:12px; cursor:pointer;" title="Edit Card">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button onclick="deleteS(${s.id})" style="background:#fee2e2; border:none; color:#ef4444; padding:10px; border-radius:12px; cursor:pointer;" title="Delete Card">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="card-grid">
+            <div class="section-box">
+              <h3 style="margin:0 0 16px 0; color:var(--secondary); font-weight:800; display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.2rem;">💻</span> Tech Demo
+              </h3>
+              <p style="font-weight:600; margin-bottom:12px;">${s.topic}</p>
+              ${s.link && s.link !== '#' ? `
+                <a href="${s.link}" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:700; font-size:0.85rem; display:inline-flex; align-items:center; gap:8px; background:white; padding:8px 12px; border-radius:10px; border:1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                  <span style="background:var(--bg-2); padding:4px; border-radius:6px; display:flex;">
+                    ${getFileIconHtml(s.filename || 'file.txt', 18)}
+                  </span>
+                  <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    ${s.filename || 'Resource Access'}
+                  </span>
+                </a>
+              ` : '<span style="color:var(--text-muted); font-size:0.85rem; font-style:italic;">No resource attached</span>'}
+            </div>
+
+            <div class="section-box">
+              <h3 style="margin:0 0 16px 0; color:var(--secondary); font-weight:800; display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.2rem;">📢</span> Other Updates
+              </h3>
+              <p style="color:var(--text-secondary); font-size:0.95rem; line-height:1.6;">${s.updates || 'No extra announcements for this session.'}</p>
+            </div>
+
+            <div class="section-box" style="grid-column: 1 / -1; background:#fff1f2; border-color:#ffe4e6;">
+              <h3 style="margin:0 0 16px 0; color:#e11d48; font-weight:800; display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.2rem;">🎉</span> Fun Activity & Winners
+              </h3>
+              <div style="display:flex; flex-wrap:wrap; gap:32px; align-items:center;">
+                <div style="flex:1; min-width:200px;">
+                  <span style="font-size:0.75rem; font-weight:800; color:#e11d48; text-transform:uppercase; letter-spacing:0.5px;">Activity</span>
+                  <div style="font-size:1.25rem; font-weight:800; color:var(--primary);">${s.fun}</div>
+                </div>
+                <div style="flex:2; display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
+                  <div style="background:white; padding:10px; border-radius:12px; text-align:center; border:1px solid #ffe4e6;">
+                    <div style="background:#FFD700; color:#854d0e; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 4px; font-size:0.7rem; font-weight:900; box-shadow: 0 2px 4px rgba(255,215,0,0.3);">1</div>
+                    <div style="font-weight:700; color:var(--primary); font-size:0.8rem;">${s.winners[0]}</div>
+                  </div>
+                  <div style="background:white; padding:10px; border-radius:12px; text-align:center; border:1px solid #ffe4e6;">
+                    <div style="background:#cbd5e1; color:#475569; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 4px; font-size:0.7rem; font-weight:900; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">2</div>
+                    <div style="font-weight:700; color:var(--primary); font-size:0.8rem;">${s.winners[1]}</div>
+                  </div>
+                  <div style="background:white; padding:10px; border-radius:12px; text-align:center; border:1px solid #ffe4e6;">
+                    <div style="background:#b45309; color:white; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 4px; font-size:0.7rem; font-weight:900; box-shadow: 0 2px 4px rgba(180,83,9,0.2);">3</div>
+                    <div style="font-weight:700; color:var(--primary); font-size:0.8rem;">${s.winners[2]}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    let sessionToDelete = null;
+    const deleteModal = document.getElementById('delete-modal');
+    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+    const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+
+    window.deleteS = (id) => {
+      sessionToDelete = id;
+      deleteModal.classList.add('active');
+    };
+
+    cancelDeleteBtn.addEventListener('click', () => {
+      deleteModal.classList.remove('active');
+      sessionToDelete = null;
+    });
+
+    confirmDeleteBtn.addEventListener('click', () => {
+      if (sessionToDelete) {
+        const history = JSON.parse(localStorage.getItem('gantec_weekly_sessions') || '[]');
+        const filtered = history.filter(s => s.id !== sessionToDelete);
+        localStorage.setItem('gantec_weekly_sessions', JSON.stringify(filtered));
+        render(filtered);
+        deleteModal.classList.remove('active');
+        sessionToDelete = null;
+        showToast('Session deleted successfully', 'success');
+      }
+    });
+
+    window.editS = (id) => {
+      const history = JSON.parse(localStorage.getItem('gantec_weekly_sessions') || '[]');
+      const session = history.find(s => s.id === id);
+      if (!session) return;
+
+      document.getElementById('edit-id').value = session.id;
+      document.getElementById('weekInfo').value = session.week;
+      document.getElementById('connectName').value = session.name;
+      document.getElementById('techTopic').value = session.topic;
+      document.getElementById('techLink').value = session.link === '#' ? '' : session.link;
+      document.getElementById('otherUpdates').value = session.updates;
+      document.getElementById('funName').value = session.fun;
+      document.getElementById('w1').value = session.winners[0];
+      document.getElementById('w2').value = session.winners[1];
+      document.getElementById('w3').value = session.winners[2];
+
+      postModal.querySelector('h2').textContent = 'Edit Session Card';
+      postModal.querySelector('.btn-post').textContent = 'Save Changes';
+      postModal.classList.add('active');
+    };
+
+    openModalBtn.addEventListener('click', () => {
+      postForm.reset();
+      document.getElementById('edit-id').value = '';
+      postModal.querySelector('h2').textContent = 'Generate Session Card';
+      postModal.querySelector('.btn-post').textContent = 'Generate & Post Card';
+      postModal.classList.add('active');
+    });
+  </script>
+</body>
+
+</html>
