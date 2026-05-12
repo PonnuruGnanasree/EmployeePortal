@@ -348,13 +348,13 @@
     }
 
     .btn-gen {
-      padding: 20px 50px;
-      border-radius: 100px;
+      padding: 14px 40px;
+      border-radius: 50px;
       border: none;
       background: var(--accent);
       color: white;
-      font-weight: 800;
-      font-size: 1.2rem;
+      font-weight: 700;
+      font-size: 1.1rem;
       cursor: pointer;
       transition: var(--transition);
     }
@@ -592,13 +592,16 @@
           <span id="quiz-num" class="q-num">Question 1</span>
           <h2 id="quiz-text" class="q-text">Loading question...</h2>
 
+          <div style="margin-bottom: 20px; display: flex; justify-content: center;">
+            <button id="btn-show-answer" class="btn-gen" style="background:var(--primary);"
+              onclick="showAnswer()">Show Answer</button>
+          </div>
+
           <div id="answer-box" class="answer-box">
             The answer is: <span id="answer-text"></span>
           </div>
 
-          <div style="margin-top: 40px; display: flex; gap: 20px; justify-content: center;">
-            <button id="btn-show-answer" class="btn-gen" style="background:var(--primary);"
-              onclick="showAnswer()">Show Answer</button>
+          <div style="margin-top: 20px; display: flex; justify-content: center;">
             <button id="btn-next-q" class="btn-gen" style="display:none;" onclick="nextQuestion()">Next
               Question</button>
           </div>
