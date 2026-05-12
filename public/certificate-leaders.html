@@ -7,7 +7,8 @@
   <title>Certificate Leaders – Gantec Employee Portal</title>
   <meta name="description" content="Top certification achievers at Gantec." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css?v=2" />
   <link rel="stylesheet" href="css/branding.css" />
   <style>
@@ -60,9 +61,20 @@
       opacity: 0;
     }
 
-    .podium-rank-1 { animation-delay: 0.2s; order: 2; }
-    .podium-rank-2 { animation-delay: 0.1s; order: 1; }
-    .podium-rank-3 { animation-delay: 0.3s; order: 3; }
+    .podium-rank-1 {
+      animation-delay: 0.2s;
+      order: 2;
+    }
+
+    .podium-rank-2 {
+      animation-delay: 0.1s;
+      order: 1;
+    }
+
+    .podium-rank-3 {
+      animation-delay: 0.3s;
+      order: 3;
+    }
 
     .podium-avatar {
       width: 100px;
@@ -82,9 +94,20 @@
       position: relative;
     }
 
-    .podium-rank-1 .podium-avatar { border-color: #fbbf24; width: 120px; height: 120px; font-size: 3rem; }
-    .podium-rank-2 .podium-avatar { border-color: #9ca3af; }
-    .podium-rank-3 .podium-avatar { border-color: #b45309; }
+    .podium-rank-1 .podium-avatar {
+      border-color: #fbbf24;
+      width: 120px;
+      height: 120px;
+      font-size: 3rem;
+    }
+
+    .podium-rank-2 .podium-avatar {
+      border-color: #9ca3af;
+    }
+
+    .podium-rank-3 .podium-avatar {
+      border-color: #b45309;
+    }
 
     .podium-base {
       width: 100%;
@@ -95,16 +118,36 @@
       align-items: center;
       padding: 40px 20px 20px;
       color: white;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
       text-align: center;
     }
 
-    .podium-rank-1 .podium-base { height: 260px; background: linear-gradient(to top, #f59e0b, #fbbf24); }
-    .podium-rank-2 .podium-base { height: 200px; background: linear-gradient(to top, #6b7280, #9ca3af); }
-    .podium-rank-3 .podium-base { height: 160px; background: linear-gradient(to top, #92400e, #b45309); }
+    .podium-rank-1 .podium-base {
+      height: 260px;
+      background: linear-gradient(to top, #f59e0b, #fbbf24);
+    }
 
-    .podium-name { font-weight: 800; font-size: 1.2rem; margin-bottom: 8px; }
-    .podium-score { font-size: 1rem; opacity: 0.9; font-weight: 500; }
+    .podium-rank-2 .podium-base {
+      height: 200px;
+      background: linear-gradient(to top, #6b7280, #9ca3af);
+    }
+
+    .podium-rank-3 .podium-base {
+      height: 160px;
+      background: linear-gradient(to top, #92400e, #b45309);
+    }
+
+    .podium-name {
+      font-weight: 800;
+      font-size: 1.2rem;
+      margin-bottom: 8px;
+    }
+
+    .podium-score {
+      font-size: 1rem;
+      opacity: 0.9;
+      font-weight: 500;
+    }
 
     /* Certificate Groups Grid */
     .section-title {
@@ -213,8 +256,15 @@
     }
 
     @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(30px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .empty-state {
@@ -349,10 +399,11 @@
 
       <main class="app-main">
         <div class="leaders-container">
-          
+
           <div class="leaders-header">
             <h1 class="leaders-title">Certificate Leaders</h1>
-            <p class="leaders-subtitle">Highlighting the most popular certifications and our top professional achievers at Gantec.</p>
+            <p class="leaders-subtitle">Highlighting the most popular certifications and our top professional achievers
+              at Gantec.</p>
           </div>
 
           <!-- Leaderboard Podium Section -->
@@ -388,7 +439,7 @@
     async function fetchLeaderData() {
       const podiumWrapper = document.getElementById('podium-wrapper');
       const groupsWrapper = document.getElementById('cert-groups-wrapper');
-      
+
       if (!podiumWrapper || !groupsWrapper) {
         console.error('Missing containers in DOM!');
         return;
@@ -404,7 +455,7 @@
         console.log('API Response:', data);
 
         if (!data.success) throw new Error(data.error || 'Failed to load');
-        
+
         const certs = data.certifications || [];
         console.log('Certifications found:', certs.length);
 
@@ -455,7 +506,7 @@
       sorted.forEach(([name, count], index) => {
         const rank = index + 1;
         const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-        
+
         const item = document.createElement('div');
         item.className = `podium-item podium-rank-${rank}`;
         item.innerHTML = `
@@ -479,7 +530,7 @@
       sortedGroups.forEach(([name, owners]) => {
         const card = document.createElement('div');
         card.className = 'cert-group-card';
-        
+
         const ownersHtml = owners.map(owner => {
           const initials = owner.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
           return `
@@ -513,4 +564,5 @@
     }
   </script>
 </body>
+
 </html>
