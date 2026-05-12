@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Weekly Connect | Gantec Employee Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css?v=2" />
   <link rel="stylesheet" href="css/branding.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
@@ -14,14 +15,25 @@
   <style>
     /* Content Area Styling - keeping the new dynamic design for the main area */
     .connect-main {
-      padding: 40px;
       max-width: 1200px;
       margin: 0 auto;
+      padding: 0;
     }
 
     .connect-header {
       text-align: center;
-      margin-bottom: 60px;
+      position: sticky;
+      top: 0;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(15px);
+      padding: 20px 20px;
+      z-index: 100;
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    }
+
+    #session-output {
+      padding: 40px;
     }
 
     .week-badge {
@@ -39,9 +51,9 @@
 
     .connect-title {
       font-family: 'Inter', sans-serif;
-      font-size: 3rem;
+      font-size: 2rem;
       font-weight: 800;
-      margin: 0 0 16px 0;
+      margin: 0 0 8px 0;
       color: var(--primary);
     }
 
@@ -63,9 +75,17 @@
     }
 
     @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-      70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+      0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+      }
+
+      70% {
+        box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+      }
     }
 
     /* Compact Card Styling */
@@ -128,7 +148,9 @@
       transition: transform 0.2s;
     }
 
-    .admin-action-btn:hover { transform: scale(1.1); }
+    .admin-action-btn:hover {
+      transform: scale(1.1);
+    }
 
     .modal-overlay {
       position: fixed;
@@ -141,7 +163,9 @@
       z-index: 2000;
     }
 
-    .modal-overlay.active { display: flex; }
+    .modal-overlay.active {
+      display: flex;
+    }
 
     .modal-card {
       background: white;
@@ -153,14 +177,57 @@
       overflow-y: auto;
     }
 
-    .form-group { margin-bottom: 20px; }
-    .label { display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 8px; color: var(--text-primary); }
-    .input { width: 100%; padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-family: inherit; }
-    .btn-post { width: 100%; padding: 16px; background: var(--secondary); color: white; border: none; border-radius: var(--radius-sm); font-weight: 800; cursor: pointer; margin-top: 10px; }
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .label {
+      display: block;
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      font-family: inherit;
+    }
+
+    .btn-post {
+      width: 100%;
+      padding: 16px;
+      background: var(--secondary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 10px;
+    }
 
     /* Animations */
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .loader-spinner { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loader-spinner {
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
   </style>
 </head>
 
@@ -207,21 +274,37 @@
           <span class="link-text">Document Locker</span>
         </a>
 
-        <a href="certifications.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="8" r="7"></circle>
-            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
-          </svg>
-          <span class="link-text">Certifications</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="certifications.html" class="sidebar-link sidebar-dropdown-trigger" id="nav-certifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="7"></circle>
+              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+            </svg>
+            <span class="link-text">Certifications</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="certifications.html" class="submenu-link">View Certifications</a>
+            <a href="certificate-leaders.html" class="submenu-link">Certificate Leaders</a>
+          </div>
+        </div>
 
         <a href="company-holidays.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
           <span class="link-text">Company Holidays</span>
         </a>
 
-        <a href="https://apps.powerapps.com/play/e/default-ced75afe-4090-4a10-abf8-341ef09ef1cd/a/9ea3498a-fa3c-4c95-b390-5edd3ce97108?tenantId=ced75afe-4090-4a10-abf8-341ef09ef1cd&hint=57114947-a9fc-4feb-8ce4-00a9ea82d511&source=sharebutton&sourcetime=1778565137667" target="_blank" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><path d="M16 2v4M8 2v4M3 10h18" /><path d="M10 14l2 2 4-4" /></svg>
+        <a href="https://apps.powerapps.com/play/e/default-ced75afe-4090-4a10-abf8-341ef09ef1cd/a/9ea3498a-fa3c-4c95-b390-5edd3ce97108?tenantId=ced75afe-4090-4a10-abf8-341ef09ef1cd&hint=57114947-a9fc-4feb-8ce4-00a9ea82d511&source=sharebutton&sourcetime=1778565137667"
+          target="_blank" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <path d="M16 2v4M8 2v4M3 10h18" />
+            <path d="M10 14l2 2 4-4" />
+          </svg>
           <span class="link-text">Leave Portal</span>
         </a>
 
@@ -267,12 +350,20 @@
     <main class="app-main">
       <div class="connect-main">
         <div class="connect-header">
-          <span class="week-badge">Week 19 Highlights</span>
-          <h1 class="connect-title">Gantec Connect</h1>
+          <!-- <span class="week-badge">Week 19 Highlights</span> -->
+          <h1 class="connect-title">Gantec Weekly Connect</h1>
           <div class="timing-wrap">
             <div class="pulse-dot"></div>
             <span>Every Thursday • 4:00 PM – 4:45 PM</span>
           </div>
+          <button id="create-session-btn" onclick="window.location.href='webpage-creation.html'"
+            style="margin-top:16px; padding:12px 32px; background:var(--primary); color:white; border:none; border-radius:14px; font-weight:800; font-size:0.95rem; cursor:pointer; display:inline-flex; align-items:center; gap:10px; box-shadow:0 4px 15px rgba(29,52,97,0.3); transition:all 0.2s;">
+            <!-- <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg> -->
+            Create
+          </button>
         </div>
 
         <div id="session-output">
@@ -285,55 +376,88 @@
     <div class="modal-overlay" id="resource-modal">
       <div class="modal-card" style="max-width: 460px;">
         <div style="display:flex; align-items:center; gap:16px; margin-bottom:24px;">
-          <div id="res-icon-wrap" style="background:var(--bg-2); padding:12px; border-radius:14px; border:1px solid var(--border); display:flex;"></div>
+          <div id="res-icon-wrap"
+            style="background:var(--bg-2); padding:12px; border-radius:14px; border:1px solid var(--border); display:flex;">
+          </div>
           <div style="flex:1; min-width:0;">
-            <div style="font-size:0.7rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Resource File</div>
-            <div id="res-filename" style="font-weight:700; font-size:1rem; color:var(--primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+            <div
+              style="font-size:0.7rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">
+              Resource File</div>
+            <div id="res-filename"
+              style="font-weight:700; font-size:1rem; color:var(--primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            </div>
           </div>
         </div>
-        <p style="color:var(--text-secondary); font-size:0.875rem; margin-bottom:28px; line-height:1.6;">How would you like to access this resource?</p>
+        <p style="color:var(--text-secondary); font-size:0.875rem; margin-bottom:28px; line-height:1.6;">How would you
+          like to access this resource?</p>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
-          <button id="res-open-btn" style="padding:13px; border-radius:12px; border:1.5px solid var(--primary); background:white; color:var(--primary); font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
-            <svg viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='currentColor' stroke-width='2.5'><path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/><polyline points='15 3 21 3 21 9'/><line x1='10' y1='14' x2='21' y2='3'/></svg>
+          <button id="res-open-btn"
+            style="padding:13px; border-radius:12px; border:1.5px solid var(--primary); background:white; color:var(--primary); font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <svg viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='currentColor' stroke-width='2.5'>
+              <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' />
+              <polyline points='15 3 21 3 21 9' />
+              <line x1='10' y1='14' x2='21' y2='3' />
+            </svg>
             See / Open
           </button>
-          <button id="res-download-btn" style="padding:13px; border-radius:12px; border:none; background:var(--primary); color:white; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
-            <svg viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='currentColor' stroke-width='2.5'><path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/><polyline points='7 10 12 15 17 10'/><line x1='12' y1='15' x2='12' y2='3'/></svg>
+          <button id="res-download-btn"
+            style="padding:13px; border-radius:12px; border:none; background:var(--primary); color:white; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <svg viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='currentColor' stroke-width='2.5'>
+              <path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' />
+              <polyline points='7 10 12 15 17 10' />
+              <line x1='12' y1='15' x2='12' y2='3' />
+            </svg>
             Download
           </button>
         </div>
-        <button onclick="document.getElementById('resource-modal').classList.remove('active')" style="width:100%; padding:11px; background:none; border:none; color:var(--text-muted); font-weight:700; cursor:pointer;">Cancel</button>
+        <button onclick="document.getElementById('resource-modal').classList.remove('active')"
+          style="width:100%; padding:11px; background:none; border:none; color:var(--text-muted); font-weight:700; cursor:pointer;">Cancel</button>
       </div>
     </div>
 
     <!-- Enhanced Document Viewer Modal -->
     <div class="modal-overlay" id="pdf-modal" style="z-index: 3000;">
-      <div class="modal-card" style="width: 95%; max-width: 1400px; height: 90vh; padding: 0; display: flex; flex-direction: column; overflow: hidden; background: #000;">
-        <div style="background: white; padding: 12px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
-           <div style="display:flex; align-items:center; gap:12px;">
-              <div id="viewer-icon" style="display:flex;"></div>
-              <h3 id="viewer-filename" style="margin:0; font-size:1rem; font-weight:700; color:var(--primary); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Resource Preview</h3>
-           </div>
-           <div style="display:flex; gap:12px;">
-              <a id="viewer-download" href="#" download class="btn-post" style="padding: 8px 16px; text-decoration:none; display:flex; align-items:center; gap:8px; font-size:0.85rem;">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
-                Download
-              </a>
-              <button onclick="closeViewer()" style="background:#f1f5f9; border:none; color:var(--text-secondary); width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              </button>
-           </div>
+      <div class="modal-card"
+        style="width: 95%; max-width: 1400px; height: 90vh; padding: 0; display: flex; flex-direction: column; overflow: hidden; background: #000;">
+        <div
+          style="background: white; padding: 12px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div id="viewer-icon" style="display:flex;"></div>
+            <h3 id="viewer-filename"
+              style="margin:0; font-size:1rem; font-weight:700; color:var(--primary); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              Resource Preview</h3>
+          </div>
+          <div style="display:flex; gap:12px;">
+            <a id="viewer-download" href="#" download class="btn-post"
+              style="padding: 8px 16px; text-decoration:none; display:flex; align-items:center; gap:8px; font-size:0.85rem;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path>
+              </svg>
+              Download
+            </a>
+            <button onclick="closeViewer()"
+              style="background:#f1f5f9; border:none; color:var(--text-secondary); width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
         </div>
         <div style="flex:1; position:relative; background:#1e293b;">
-           <iframe id="viewer-iframe" style="width:100%; height:100%; border:none; background:white;" class="hidden"></iframe>
-           <div id="viewer-fallback" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;" class="hidden">
-              <div style="text-align:center; color:white; padding:40px;">
-                 <div id="fallback-icon-large" style="font-size:4rem; margin-bottom:20px;">📂</div>
-                 <h2 id="fallback-title">Cannot preview this file type</h2>
-                 <p style="opacity:0.7; margin-bottom:24px;">Please download the file to view it on your device.</p>
-                 <a id="fallback-dl-btn" href="#" download style="display:inline-block; background:var(--primary); color:white; padding:12px 24px; border-radius:12px; text-decoration:none; font-weight:700;">Download File</a>
-              </div>
-           </div>
+          <iframe id="viewer-iframe" style="width:100%; height:100%; border:none; background:white;"
+            class="hidden"></iframe>
+          <div id="viewer-fallback"
+            style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;" class="hidden">
+            <div style="text-align:center; color:white; padding:40px;">
+              <div id="fallback-icon-large" style="font-size:4rem; margin-bottom:20px;">📂</div>
+              <h2 id="fallback-title">Cannot preview this file type</h2>
+              <p style="opacity:0.7; margin-bottom:24px;">Please download the file to view it on your device.</p>
+              <a id="fallback-dl-btn" href="#" download
+                style="display:inline-block; background:var(--primary); color:white; padding:12px 24px; border-radius:12px; text-decoration:none; font-weight:700;">Download
+                File</a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -341,16 +465,21 @@
     <!-- Custom Delete Modal -->
     <div class="modal-overlay" id="delete-modal">
       <div class="modal-card" style="max-width: 400px; text-align: center;">
-        <div style="background: #fee2e2; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+        <div
+          style="background: #fee2e2; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
           <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#ef4444" stroke-width="2.5">
             <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
           </svg>
         </div>
         <h2 style="margin: 0 0 12px; font-weight: 800;">Are you sure?</h2>
-        <p style="color: var(--text-secondary); margin-bottom: 30px;">This will permanently remove this session card. This action cannot be undone.</p>
+        <p style="color: var(--text-secondary); margin-bottom: 30px;">This will permanently remove this session card.
+          This action cannot be undone.</p>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-          <button id="cancel-delete-btn" style="padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: white; font-weight: 700; cursor: pointer;">Cancel</button>
-          <button id="confirm-delete-btn" style="padding: 12px; border-radius: 12px; border: none; background: #ef4444; color: white; font-weight: 700; cursor: pointer;">Delete Now</button>
+          <button id="cancel-delete-btn"
+            style="padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: white; font-weight: 700; cursor: pointer;">Cancel</button>
+          <button id="confirm-delete-btn"
+            style="padding: 12px; border-radius: 12px; border: none; background: #ef4444; color: white; font-weight: 700; cursor: pointer;">Delete
+            Now</button>
         </div>
       </div>
     </div>
@@ -404,8 +533,9 @@
               <input type="text" id="w3" class="input" placeholder="3rd" required>
             </div>
           </div>
-          <button type="submit" class="btn-post">Generate & Post Card</button>
-          <button type="button" onclick="document.getElementById('post-modal').classList.remove('active')" style="width:100%; margin-top:12px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-weight:700;">Cancel</button>
+          <button type="submit" class="btn-post">Weekly Connect Card</button>
+          <button type="button" onclick="document.getElementById('post-modal').classList.remove('active')"
+            style="width:100%; margin-top:12px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-weight:700;">Cancel</button>
         </form>
       </div>
     </div>
@@ -452,10 +582,10 @@
           showToast('Upload failed, using current link', 'warning');
         }
       } else if (editId) {
-          // If editing and no new file, keep the existing filename if it was set
-          const history = await fetchSessions();
-          const existing = history.find(s => s.id === parseInt(editId));
-          if (existing) originalFilename = existing.filename;
+        // If editing and no new file, keep the existing filename if it was set
+        const history = await fetchSessions();
+        const existing = history.find(s => s.id === parseInt(editId));
+        if (existing) originalFilename = existing.filename;
       }
 
       const session = {
@@ -477,18 +607,18 @@
       try {
         const method = editId ? 'PUT' : 'POST';
         const url = editId ? `/api/weekly-sessions/${editId}` : '/api/weekly-sessions';
-        
+
         const res = await fetch(url, {
           method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(session)
         });
-        
+
         if (!res.ok) throw new Error('Failed to save session');
-        
+
         const sessions = await fetchSessions();
         render(sessions);
-        
+
         postModal.classList.remove('active');
         postForm.reset();
         document.getElementById('edit-id').value = '';
@@ -602,24 +732,24 @@
     const pdfModal = document.getElementById('pdf-modal');
     const viewerIframe = document.getElementById('viewer-iframe');
     const viewerFallback = document.getElementById('viewer-fallback');
-    
+
     window.openResource = (url, filename) => {
       document.getElementById('res-filename').textContent = filename || 'Resource';
       document.getElementById('res-icon-wrap').innerHTML = getFileIconHtml(filename || 'file.txt', 36);
-      
+
       // Reset Actions
       document.getElementById('res-open-btn').onclick = () => {
         resourceModal.classList.remove('active');
         openInViewer(url, filename);
       };
-      
+
       document.getElementById('res-download-btn').onclick = () => {
         const a = document.createElement('a');
         a.href = url;
         a.download = filename || 'resource';
         a.click();
       };
-      
+
       resourceModal.classList.add('active');
     };
 
@@ -629,11 +759,13 @@
       document.getElementById('viewer-icon').innerHTML = getFileIconHtml(filename, 20);
       document.getElementById('viewer-download').href = url;
       document.getElementById('viewer-download').download = filename;
-      
+
       viewerIframe.src = '';
       viewerIframe.classList.add('hidden');
       viewerFallback.classList.add('hidden');
-      
+      viewerFallback.style.display = 'flex';
+      viewerFallback.style.position = 'relative';
+
       if (ext === 'pdf' || ext === 'txt' || ext === 'html') {
         viewerIframe.src = url;
         viewerIframe.classList.remove('hidden');
@@ -678,7 +810,7 @@
           </div>
         `;
       }
-      
+
       pdfModal.classList.add('active');
       document.body.style.overflow = 'hidden';
     };
@@ -688,14 +820,27 @@
         const response = await fetch(url);
         const arrayBuffer = await response.arrayBuffer();
         const result = await mammoth.convertToHtml({ arrayBuffer });
+
+        // Setup viewerFallback as a forced absolute scroll container
+        viewerFallback.style.display = 'block';
+        viewerFallback.style.position = 'absolute';
+        viewerFallback.style.top = '0';
+        viewerFallback.style.left = '0';
+        viewerFallback.style.right = '0';
+        viewerFallback.style.bottom = '0';
+        viewerFallback.style.overflowY = 'auto';
+        viewerFallback.style.background = '#1e293b';
+        viewerFallback.style.padding = '40px 20px';
+
         viewerFallback.innerHTML = `
-          <div style="width:100%; height:100%; overflow-y:auto; padding:40px; background:white; text-align:left;">
-            <div style="max-width:800px; margin:0 auto; box-shadow:0 0 20px rgba(0,0,0,0.1); padding:60px; line-height:1.6; color:#333; font-family:'Inter', sans-serif; background:white;">
-              ${result.value}
-            </div>
+          <div style="max-width:850px; margin:0 auto; padding:60px; line-height:1.7; color:#333; font-family:'Inter', sans-serif; background:white; border-radius:4px; box-shadow:0 10px 30px rgba(0,0,0,0.5); min-height:100%; box-sizing: border-box;">
+            ${result.value}
           </div>
         `;
       } catch (err) {
+        viewerFallback.style.display = 'flex';
+        viewerFallback.style.position = 'relative';
+        viewerFallback.style.overflowY = 'hidden';
         viewerFallback.innerHTML = `<div style="color:white; padding:40px; text-align:center;"><h3>Failed to render document</h3><p>${err.message}</p></div>`;
       }
     };
@@ -733,7 +878,7 @@
         try {
           const res = await fetch(`/api/weekly-sessions/${sessionToDelete}`, { method: 'DELETE' });
           if (!res.ok) throw new Error('Failed to delete session');
-          
+
           const sessions = await fetchSessions();
           render(sessions);
           deleteModal.classList.remove('active');
@@ -780,6 +925,15 @@
       navTraining.addEventListener('click', (e) => {
         e.preventDefault();
         const dropdown = navTraining.closest('.sidebar-dropdown');
+        if (dropdown) dropdown.classList.toggle('open');
+      });
+    }
+
+    const navCertifications = document.getElementById('nav-certifications');
+    if (navCertifications) {
+      navCertifications.addEventListener('click', (e) => {
+        e.preventDefault();
+        const dropdown = navCertifications.closest('.sidebar-dropdown');
         if (dropdown) dropdown.classList.toggle('open');
       });
     }

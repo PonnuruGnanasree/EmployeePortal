@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Webpage Builder | Gantec</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1d3461;
+      --accent: #e05a2b;
+      --success: #10b981;
+      --bg: #f0f4f8;
+      --card-bg: rgba(255, 255, 255, 0.8);
+      --border: rgba(29, 52, 97, 0.1);
+      --transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--primary);
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    /* --- Animations --- */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+    .view { display: none; min-height: 100vh; width: 100%; }
+    .view.active { display: flex; flex-direction: column; animation: fadeIn 0.6s ease-out; }
+
+    /* --- Builder UI --- */
+    #builder-view {
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+      padding: 40px;
+    }
+
+    .builder-container {
+      max-width: 900px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .builder-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid white;
+      border-radius: 32px;
+      padding: 60px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
+    }
+
+    .main-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 3rem;
+      font-weight: 900;
+      margin-bottom: 40px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 40px;
+    }
+
+    .btn-main {
+      padding: 18px 40px;
+      border-radius: 20px;
+      border: none;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-welcome { background: white; color: var(--primary); border: 1px solid var(--border); }
+    .btn-home { background: var(--primary); color: white; }
+    
+    .btn-main:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1); }
+    .btn-main:active { transform: scale(0.95); }
+
+    .btn-generate {
+      background: var(--success);
+      color: white;
+      font-size: 1.4rem;
+      padding: 22px 60px;
+      margin-top: 20px;
+      display: none;
+      animation: pulse 2s infinite;
+    }
+
+    /* --- Modals & Forms --- */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(29, 52, 97, 0.4);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal-content {
+      background: white;
+      width: 100%;
+      max-width: 650px;
+      max-height: 90vh;
+      border-radius: 28px;
+      padding: 40px;
+      overflow-y: auto;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
+    }
+
+    .form-group { margin-bottom: 24px; text-align: left; }
+    .form-group label { display: block; font-weight: 700; margin-bottom: 8px; font-size: 0.9rem; color: #64748b; }
+    .form-input {
+      width: 100%;
+      padding: 14px 20px;
+      border-radius: 14px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      font-family: inherit;
+      font-size: 1rem;
+      box-sizing: border-box;
+      transition: all 0.2s;
+    }
+    .form-input:focus { outline: none; border-color: var(--primary); background: white; box-shadow: 0 0 0 4px rgba(29, 52, 97, 0.05); }
+
+    .dynamic-fields { margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+    .qa-pair { 
+      background: #f8fafc; 
+      padding: 20px; 
+      border-radius: 16px; 
+      margin-bottom: 16px; 
+      border: 1px solid #e2e8f0;
+      animation: fadeIn 0.4s ease-out;
+    }
+    .qa-header { font-weight: 800; color: var(--primary); margin-bottom: 12px; font-size: 0.85rem; text-transform: uppercase; }
+
+    .modal-footer { display: flex; gap: 16px; margin-top: 32px; }
+    .btn-save { flex: 2; background: var(--primary); color: white; border: none; padding: 16px; border-radius: 14px; font-weight: 700; cursor: pointer; }
+    .btn-cancel { flex: 1; background: #f1f5f9; color: #64748b; border: none; padding: 16px; border-radius: 14px; font-weight: 700; cursor: pointer; }
+
+    /* --- Generated Website Styles --- */
+    #generated-view { background-size: cover; background-position: center; position: relative; }
+    .overlay-glass { 
+      position: absolute; inset: 0; 
+      background: rgba(0, 0, 0, 0.4); 
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+
+    .welcome-screen, .nav-screen, .quiz-screen, .completion-screen {
+      max-width: 800px; width: 100%; text-align: center; color: white;
+      animation: fadeIn 0.8s ease-out;
+      display: none;
+    }
+
+    .welcome-screen.active, .nav-screen.active, .quiz-screen.active, .completion-screen.active { display: block; }
+
+    .gen-title { font-family: 'Outfit', sans-serif; font-size: 4rem; font-weight: 900; margin-bottom: 16px; }
+    .gen-subtitle { font-size: 1.5rem; opacity: 0.9; margin-bottom: 24px; }
+    .gen-desc { font-size: 1.2rem; line-height: 1.6; opacity: 0.8; margin-bottom: 40px; }
+    
+    .btn-gen {
+      padding: 20px 50px; border-radius: 100px; border: none; 
+      background: var(--accent); color: white; font-weight: 800; font-size: 1.2rem; 
+      cursor: pointer; transition: var(--transition);
+    }
+
+    .timer-container {
+      position: relative; width: 100px; height: 100px; margin: 0 auto 30px;
+    }
+    .timer-svg { transform: rotate(-90deg); width: 100px; height: 100px; }
+    .timer-circle {
+      fill: none; stroke-width: 8; stroke: white; opacity: 0.2;
+    }
+    .timer-progress {
+      fill: none; stroke-width: 8; stroke: var(--accent);
+      stroke-dasharray: 283; stroke-dashoffset: 0;
+      stroke-linecap: round; transition: stroke-dashoffset 1s linear;
+    }
+    .timer-text {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; font-weight: 800;
+    }
+
+    .quiz-card {
+      background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 32px; padding: 60px; margin-top: 40px;
+    }
+    .q-num { color: var(--accent); font-weight: 900; text-transform: uppercase; margin-bottom: 10px; display: block; }
+    .q-text { font-size: 2.2rem; font-weight: 700; margin-bottom: 40px; }
+    .answer-box { 
+      background: var(--success); color: white; padding: 30px; border-radius: 20px; 
+      font-size: 1.5rem; font-weight: 700; margin-top: 20px; display: none;
+      animation: slideIn 0.5s ease-out;
+    }
+
+    /* --- Dropdown --- */
+    .dropdown { position: relative; }
+    .dropdown-menu {
+      position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+      background: white; border-radius: 16px; box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+      width: 200px; display: none; flex-direction: column; overflow: hidden; z-index: 100;
+    }
+    .dropdown-menu.active { display: flex; }
+    .dropdown-item {
+      padding: 14px 20px; font-weight: 700; cursor: pointer; transition: 0.2s; text-align: center;
+    }
+    .dropdown-item:hover { background: #f1f5f9; color: var(--accent); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .main-title { font-size: 2rem; }
+      .btn-group { flex-direction: column; }
+      .gen-title { font-size: 2.5rem; }
+      .quiz-card { padding: 30px; }
+      .q-text { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- VIEW 1: THE BUILDER -->
+  <div id="builder-view" class="view active">
+    <div class="builder-container">
+      <div class="builder-card">
+        <div class="badge">No-Code Website Engine</div>
+        <h1 class="main-title">Interactive Website Builder</h1>
+        
+        <div class="btn-group">
+          <button class="btn-main btn-welcome" onclick="openModal('welcome')">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            </svg>
+            Welcome Page
+          </button>
+          
+          <div class="dropdown">
+            <button class="btn-main btn-home" id="home-btn" onclick="toggleDropdown()">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <path d="M3 9h18M9 21V9"></path>
+              </svg>
+              Home Page
+            </button>
+            <div class="dropdown-menu" id="home-dropdown">
+              <div class="dropdown-item" onclick="openModal('tech')">Tech Section</div>
+              <div class="dropdown-item" onclick="openModal('fun')">Fun Activity</div>
+            </div>
+          </div>
+        </div>
+
+        <button id="btn-generate-main" class="btn-main btn-generate" onclick="generateWebsite()">
+          Generate Website 🚀
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW 2: THE GENERATED WEBSITE -->
+  <div id="generated-view" class="view">
+    <div class="overlay-glass">
+      
+      <!-- Welcome Screen -->
+      <div id="screen-welcome" class="screen welcome-screen active">
+        <h1 id="gen-welcome-title" class="gen-title"></h1>
+        <h2 id="gen-welcome-subtitle" class="gen-subtitle"></h2>
+        <p id="gen-welcome-desc" class="gen-desc"></p>
+        <button id="gen-welcome-btn" class="btn-gen" onclick="nextScreen('nav')">Start Experience</button>
+      </div>
+
+      <!-- Navigation Screen -->
+      <div id="screen-nav" class="screen nav-screen">
+        <h1 class="gen-title">Choose Your Path</h1>
+        <div class="btn-group" style="margin-top: 40px;">
+          <button class="btn-gen" style="background:var(--primary)" onclick="startQuiz('tech')">Tech Mastery</button>
+          <button class="btn-gen" onclick="startQuiz('fun')">Fun Zone</button>
+        </div>
+      </div>
+
+      <!-- Quiz Screen -->
+      <div id="screen-quiz" class="screen quiz-screen">
+        <div class="timer-container">
+          <svg class="timer-svg">
+            <circle class="timer-circle" cx="50" cy="50" r="45"></circle>
+            <circle id="timer-progress" class="timer-progress" cx="50" cy="50" r="45"></circle>
+          </svg>
+          <div id="timer-text" class="timer-text">20</div>
+        </div>
+        
+        <div class="quiz-card">
+          <span id="quiz-num" class="q-num">Question 1</span>
+          <h2 id="quiz-text" class="q-text">Loading question...</h2>
+          
+          <div id="answer-box" class="answer-box">
+            The answer is: <span id="answer-text"></span>
+          </div>
+
+          <div style="margin-top: 40px; display: flex; gap: 20px; justify-content: center;">
+            <button id="btn-show-answer" class="btn-gen" style="background:var(--primary); display:none;" onclick="showAnswer()">Show Answer</button>
+            <button id="btn-next-q" class="btn-gen" style="display:none;" onclick="nextQuestion()">Next Question</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Completion Screen -->
+      <div id="screen-completion" class="screen completion-screen">
+        <h1 class="gen-title">🎉 Success!</h1>
+        <p class="gen-desc">All Questions Completed Successfully</p>
+        <button class="btn-gen" onclick="restartBuilder()">Return to Welcome Page</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODALS -->
+  <!-- Welcome Page Modal -->
+  <div id="modal-welcome" class="modal-overlay">
+    <div class="modal-content">
+      <h2 class="main-title" style="font-size: 2rem;">Welcome Page Details</h2>
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="w-title" class="form-input" placeholder="e.g. Welcome to the Grand Quiz">
+      </div>
+      <div class="form-group">
+        <label>Subtitle</label>
+        <input type="text" id="w-subtitle" class="form-input" placeholder="e.g. Test your knowledge in style">
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="w-desc" class="form-input" style="height: 100px;" placeholder="What is this event about?"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Background Image URL</label>
+        <input type="text" id="w-bg" class="form-input" placeholder="https://source.unsplash.com/random/1920x1080?nature">
+      </div>
+      <div class="form-group">
+        <label>Button Text</label>
+        <input type="text" id="w-btn" class="form-input" placeholder="e.g. Get Started">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-save" onclick="saveWelcome()">Save Details</button>
+        <button class="btn-cancel" onclick="closeModals()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tech/Fun Modal -->
+  <div id="modal-content" class="modal-overlay">
+    <div class="modal-content">
+      <h2 id="content-modal-title" class="main-title" style="font-size: 2rem;">Section Setup</h2>
+      <div class="form-group">
+        <label>Section Title</label>
+        <input type="text" id="c-title" class="form-input" placeholder="e.g. Technology Trends">
+      </div>
+      <div class="form-group">
+        <label>Background Image URL</label>
+        <input type="text" id="c-bg" class="form-input" placeholder="https://source.unsplash.com/random/1920x1080?tech">
+      </div>
+      <div class="form-group">
+        <label>Number of Questions</label>
+        <input type="number" id="c-count" class="form-input" min="0" oninput="generateQAFields(this.value)" placeholder="Enter question count">
+      </div>
+      
+      <div id="dynamic-qa-fields" class="dynamic-fields">
+        <!-- Dynamic fields appear here -->
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-save" onclick="saveContent()">Save Section</button>
+        <button class="btn-cancel" onclick="closeModals()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- STATE MANAGEMENT ---
+    let builderData = {
+      welcome: null,
+      tech: null,
+      fun: null
+    };
+
+    let activeSectionType = ''; // 'tech' or 'fun'
+    let currentQuiz = {
+      type: '',
+      questions: [],
+      index: 0,
+      timer: null,
+      timeLeft: 20
+    };
+
+    // Load from local storage if exists
+    const saved = localStorage.getItem('gantec_builder_data');
+    if (saved) {
+      builderData = JSON.parse(saved);
+      checkReadyToGenerate();
+    }
+
+    // --- BUILDER LOGIC ---
+    function openModal(type) {
+      closeModals();
+      if (type === 'welcome') {
+        const modal = document.getElementById('modal-welcome');
+        modal.classList.add('active');
+        if (builderData.welcome) {
+          document.getElementById('w-title').value = builderData.welcome.title;
+          document.getElementById('w-subtitle').value = builderData.welcome.subtitle;
+          document.getElementById('w-desc').value = builderData.welcome.desc;
+          document.getElementById('w-bg').value = builderData.welcome.bg;
+          document.getElementById('w-btn').value = builderData.welcome.btn;
+        }
+      } else {
+        activeSectionType = type;
+        const modal = document.getElementById('modal-content');
+        document.getElementById('content-modal-title').textContent = type === 'tech' ? 'Tech Section Setup' : 'Fun Activity Setup';
+        modal.classList.add('active');
+        
+        const data = builderData[type];
+        if (data) {
+          document.getElementById('c-title').value = data.title;
+          document.getElementById('c-bg').value = data.bg;
+          document.getElementById('c-count').value = data.questions.length;
+          generateQAFields(data.questions.length, data.questions);
+        } else {
+          document.getElementById('c-title').value = '';
+          document.getElementById('c-bg').value = '';
+          document.getElementById('c-count').value = '';
+          document.getElementById('dynamic-qa-fields').innerHTML = '';
+        }
+      }
+    }
+
+    function closeModals() {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+      document.getElementById('home-dropdown').classList.remove('active');
+    }
+
+    function toggleDropdown() {
+      document.getElementById('home-dropdown').classList.toggle('active');
+    }
+
+    function generateQAFields(count, existingData = []) {
+      const container = document.getElementById('dynamic-qa-fields');
+      container.innerHTML = '';
+      count = parseInt(count);
+      if (isNaN(count) || count < 0) return;
+
+      for (let i = 1; i <= count; i++) {
+        const qVal = existingData[i-1] ? existingData[i-1].q : '';
+        const aVal = existingData[i-1] ? existingData[i-1].a : '';
+        
+        const div = document.createElement('div');
+        div.className = 'qa-pair';
+        div.innerHTML = `
+          <div class="qa-header">Section ${i}</div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Question ${i}</label>
+            <input type="text" class="form-input q-input" value="${qVal}" placeholder="Enter question">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Answer ${i}</label>
+            <input type="text" class="form-input a-input" value="${aVal}" placeholder="Enter correct answer">
+          </div>
+        `;
+        container.appendChild(div);
+      }
+    }
+
+    function saveWelcome() {
+      builderData.welcome = {
+        title: document.getElementById('w-title').value || 'Gantec Interactive Portal',
+        subtitle: document.getElementById('w-subtitle').value || 'The ultimate employee experience',
+        desc: document.getElementById('w-desc').value || 'Join us for a journey of learning and fun.',
+        bg: document.getElementById('w-bg').value || 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1920&q=80',
+        btn: document.getElementById('w-btn').value || 'Start Now'
+      };
+      persist();
+      closeModals();
+    }
+
+    function saveContent() {
+      const qInputs = document.querySelectorAll('.q-input');
+      const aInputs = document.querySelectorAll('.a-input');
+      const questions = [];
+
+      qInputs.forEach((q, index) => {
+        questions.push({
+          q: q.value,
+          a: aInputs[index].value
+        });
+      });
+
+      builderData[activeSectionType] = {
+        title: document.getElementById('c-title').value || 'Interactive Quiz',
+        bg: document.getElementById('c-bg').value || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1920&q=80',
+        questions: questions
+      };
+      persist();
+      closeModals();
+    }
+
+    function persist() {
+      localStorage.setItem('gantec_builder_data', JSON.stringify(builderData));
+      checkReadyToGenerate();
+    }
+
+    function checkReadyToGenerate() {
+      if (builderData.welcome && builderData.tech && builderData.fun) {
+        document.getElementById('btn-generate-main').style.display = 'flex';
+      }
+    }
+
+    // --- GENERATION ENGINE ---
+    function generateWebsite() {
+      document.getElementById('builder-view').classList.remove('active');
+      document.getElementById('generated-view').classList.add('active');
+      
+      // Init Welcome Screen
+      const w = builderData.welcome;
+      document.getElementById('gen-welcome-title').textContent = w.title;
+      document.getElementById('gen-welcome-subtitle').textContent = w.subtitle;
+      document.getElementById('gen-welcome-desc').textContent = w.desc;
+      document.getElementById('gen-welcome-btn').textContent = w.btn;
+      document.getElementById('generated-view').style.backgroundImage = `url('${w.bg}')`;
+    }
+
+    function nextScreen(target) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(`screen-${target}`).classList.add('active');
+      
+      if (target === 'nav') {
+        document.getElementById('generated-view').style.backgroundImage = `url('${builderData.welcome.bg}')`;
+      }
+    }
+
+    function startQuiz(type) {
+      currentQuiz.type = type;
+      currentQuiz.questions = builderData[type].questions;
+      currentQuiz.index = 0;
+      
+      document.getElementById('generated-view').style.backgroundImage = `url('${builderData[type].bg}')`;
+      nextScreen('quiz');
+      showCurrentQuestion();
+    }
+
+    function showCurrentQuestion() {
+      const q = currentQuiz.questions[currentQuiz.index];
+      document.getElementById('quiz-num').textContent = `Question ${currentQuiz.index + 1} of ${currentQuiz.questions.length}`;
+      document.getElementById('quiz-text').textContent = q.q;
+      document.getElementById('answer-text').textContent = q.a;
+      document.getElementById('answer-box').style.display = 'none';
+      document.getElementById('btn-show-answer').style.display = 'none';
+      document.getElementById('btn-next-q').style.display = 'none';
+      
+      startTimer();
+    }
+
+    function startTimer() {
+      clearInterval(currentQuiz.timer);
+      currentQuiz.timeLeft = 20;
+      updateTimerUI();
+      
+      currentQuiz.timer = setInterval(() => {
+        currentQuiz.timeLeft--;
+        updateTimerUI();
+        if (currentQuiz.timeLeft <= 0) {
+          clearInterval(currentQuiz.timer);
+          document.getElementById('btn-show-answer').style.display = 'block';
+        }
+      }, 1000);
+    }
+
+    function updateTimerUI() {
+      document.getElementById('timer-text').textContent = currentQuiz.timeLeft;
+      const progress = document.getElementById('timer-progress');
+      const offset = 283 - (currentQuiz.timeLeft / 20) * 283;
+      progress.style.strokeDashoffset = offset;
+    }
+
+    function showAnswer() {
+      document.getElementById('answer-box').style.display = 'block';
+      document.getElementById('btn-show-answer').style.display = 'none';
+      document.getElementById('btn-next-q').style.display = 'block';
+    }
+
+    function nextQuestion() {
+      currentQuiz.index++;
+      if (currentQuiz.index < currentQuiz.questions.length) {
+        showCurrentQuestion();
+      } else {
+        // Current section finished
+        if (currentQuiz.type === 'tech') {
+          // If we finished tech, maybe go back to nav or automatically go to fun?
+          // The prompt says "After all questions are completed: show success"
+          // Let's assume after ONE section is finished, we go back to nav. 
+          // If BOTH are finished, then success.
+          builderData.tech.completed = true;
+        } else {
+          builderData.fun.completed = true;
+        }
+
+        if (builderData.tech.completed && builderData.fun.completed) {
+          nextScreen('completion');
+        } else {
+          nextScreen('nav');
+        }
+      }
+    }
+
+    function restartBuilder() {
+      // Reset completion status for new run
+      if (builderData.tech) builderData.tech.completed = false;
+      if (builderData.fun) builderData.fun.completed = false;
+      
+      document.getElementById('generated-view').classList.remove('active');
+      document.getElementById('builder-view').classList.add('active');
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen-welcome').classList.add('active');
+    }
+  </script>
+</body>
+</html>
