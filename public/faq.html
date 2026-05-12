@@ -148,6 +148,22 @@
       color: var(--primary);
     }
 
+    .info-card {
+      background: rgba(29, 52, 97, 0.05);
+      padding: 24px;
+      border-radius: 16px;
+      margin: 16px 0;
+      border: 1px solid rgba(29, 52, 97, 0.03);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.01);
+    }
+
+    .info-card h4 {
+      margin-top: 0 !important;
+      font-size: 1.1rem;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+
     .team-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -396,21 +412,38 @@
           <span class="link-text">Document Locker</span>
         </a>
 
-        <a href="certifications.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="8" r="7"></circle>
-            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
-          </svg>
-          <span class="link-text">Certifications</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="certifications.html" class="sidebar-link sidebar-dropdown-trigger" id="nav-certifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="7"></circle>
+              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+            </svg>
+            <span class="link-text">Certifications</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="certifications.html" class="submenu-link">View Certifications</a>
+            <a href="add-certification.html" class="submenu-link">Add Certification</a>
+            <a href="certificate-leaders.html" class="submenu-link">Certificate Leaders</a>
+          </div>
+        </div>
 
         <a href="company-holidays.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
           <span class="link-text">Company Holidays</span>
         </a>
 
-        <a href="https://apps.powerapps.com/play/e/default-ced75afe-4090-4a10-abf8-341ef09ef1cd/a/9ea3498a-fa3c-4c95-b390-5edd3ce97108?tenantId=ced75afe-4090-4a10-abf8-341ef09ef1cd&hint=57114947-a9fc-4feb-8ce4-00a9ea82d511&source=sharebutton&sourcetime=1778565137667" target="_blank" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><path d="M16 2v4M8 2v4M3 10h18" /><path d="M10 14l2 2 4-4" /></svg>
+        <a href="https://apps.powerapps.com/play/e/default-ced75afe-4090-4a10-abf8-341ef09ef1cd/a/9ea3498a-fa3c-4c95-b390-5edd3ce97108?tenantId=ced75afe-4090-4a10-abf8-341ef09ef1cd&hint=57114947-a9fc-4feb-8ce4-00a9ea82d511&source=sharebutton&sourcetime=1778565137667"
+          target="_blank" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <path d="M16 2v4M8 2v4M3 10h18" />
+            <path d="M10 14l2 2 4-4" />
+          </svg>
           <span class="link-text">Leave Portal</span>
         </a>
 
@@ -498,8 +531,10 @@
                     and clarity</div>
                 </div>
 
-                <p style="margin-top: 20px;"><strong>Importance:</strong> This process helps you understand your
-                  strengths, identifies areas to improve, and supports your overall career growth.</p>
+                <div class="info-card">
+                  <strong>Importance:</strong> This process helps you understand your
+                  strengths, identifies areas to improve, and supports your overall career growth.
+                </div>
               </div>
             </div>
           </div>
@@ -520,7 +555,7 @@
                 <p>Weekly Connect is a <strong>fun and interactive session</strong> conducted once a week where everyone
                   comes together for casual conversations, activities, and games.</p>
 
-                <div style="background: rgba(29, 52, 97, 0.05); padding: 16px; border-radius: 12px; margin: 16px 0;">
+                <div class="info-card">
                   📅 <strong>Thursday, 5 March 2026</strong> <br>
                   ⏰ <strong>4:00 PM – 4:45 PM (IST)</strong>
                 </div>
@@ -555,54 +590,22 @@
                 <p>Certifications are <strong>learning programs or courses</strong> assigned to improve your skills.
                   They are essential to enhance your knowledge and boost your career opportunities.</p>
 
-                <h4 style="margin: 20px 0 10px; color: var(--text-primary);">Your Goals:</h4>
-                <ul style="padding-left: 20px; color: var(--text-secondary);">
-                  <li>Complete assigned certifications on time</li>
-                  <li>Focus on understanding concepts</li>
-                  <li>Apply learning in real work scenarios</li>
-                </ul>
+                <div class="info-card">
+                  <h4>Your Goals:</h4>
+                  <ul style="padding-left: 20px; color: var(--text-secondary); margin: 0;">
+                    <li>Complete assigned certifications on time</li>
+                    <li>Focus on understanding concepts</li>
+                    <li>Apply learning in real work scenarios</li>
+                  </ul>
+                </div>
 
                 <a href="certifications.html" class="cert-link">Check certifications tab for updates →</a>
               </div>
             </div>
           </div>
 
-          <!-- Section 4: Common Questions -->
-          <div class="faq-group">
-            <button class="faq-trigger" onclick="toggleFaq(this)">
-              <div class="faq-trigger-content">
-                <div class="faq-icon">❓</div>
-                <span class="faq-question">Common Questions</span>
-              </div>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="faq-arrow">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-            <div class="faq-answer">
-              <div class="answer-inner">
-                <div class="q-and-a">
-                  <div class="qa-block">
-                    <div class="qa-q">Q: Who gives monthly feedback?</div>
-                    <div class="qa-a">👉 Your manager or trainer</div>
-                  </div>
-                  <div class="qa-block">
-                    <div class="qa-q">Q: Can I discuss my feedback?</div>
-                    <div class="qa-a">👉 Yes, during Weekly Connect or directly with your manager</div>
-                  </div>
-                  <div class="qa-block">
-                    <div class="qa-q">Q: Is Weekly Connect mandatory?</div>
-                    <div class="qa-a">👉 Yes, participation is encouraged for team engagement</div>
-                  </div>
-                  <div class="qa-block">
-                    <div class="qa-q">Q: Are certifications compulsory?</div>
-                    <div class="qa-a">👉 Yes, based on your role and learning plan</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <!-- Section 5: Holidays & Leave -->
+          <!-- Section 4: Holidays & Leave -->
           <div class="faq-group">
             <button class="faq-trigger" onclick="toggleFaq(this)">
               <div class="faq-trigger-content">
@@ -616,29 +619,27 @@
             <div class="faq-answer">
               <div class="answer-inner">
                 <p>Gantec provides a comprehensive leave policy to ensure work-life balance.</p>
-                
+
                 <h4 style="margin: 20px 0 10px; color: var(--text-primary);">Annual Entitlements:</h4>
                 <div class="feature-list">
-                  <div class="feature-item">🌴 <strong>PTO/Vacation</strong> – 16 days per year (4 per quarter)</div>
-                  <div class="feature-item">🤒 <strong>Sick Days</strong> – 6 days per year (1.5 per quarter)</div>
-                  <div class="feature-item">👨‍👦 <strong>Paternity Leave</strong> – 5 to 15 days based on tenure</div>
+                  <div class="feature-item"><strong>PTO/Vacation</strong> – 16 days per year (4 per quarter)</div>
+                  <div class="feature-item"><strong>Sick Days</strong> – 6 days per year (1.5 per quarter)</div>
+                  <div class="feature-item"><strong>Paternity Leave</strong> – 5 to 15 days based on tenure</div>
                 </div>
 
                 <h4 style="margin: 20px 0 10px; color: var(--text-primary);">Upcoming Holidays (2026):</h4>
-                <ul style="padding-left: 20px; color: var(--text-secondary); column-count: 2;">
-                  <li>Jan 01: New Year</li>
-                  <li>Jan 15: Pongal</li>
-                  <li>Jan 26: Republic Day</li>
-                  <li>Mar 20: Eid al-Fitr</li>
-                  <li>May 01: Labour Day</li>
-                  <li>Aug 15: Independence Day</li>
-                </ul>
-                <p style="margin-top: 15px; font-size: 0.9rem;">*You can also choose up to <strong>4 Floating Holidays</strong> from the options list.</p>
+                <div class="info-card">
+                  <ul id="faq-holiday-list"
+                    style="padding-left: 20px; color: var(--text-secondary); column-count: 2; list-style-type: none;">
+                    <!-- Dynamically populated -->
+                  </ul>
+                  <p style="margin-top: 10px; font-size: 0.8rem; opacity: 0.8;">*Includes mandatory and floating options</p>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Section 6: Insurance & Healthcare -->
+          <!-- Section 5: Insurance & Healthcare -->
           <div class="faq-group">
             <button class="faq-trigger" onclick="toggleFaq(this)">
               <div class="faq-trigger-content">
@@ -652,7 +653,7 @@
             <div class="faq-answer">
               <div class="answer-inner">
                 <p>Our Group Medicare Policy (Tata AIG) covers you and your family.</p>
-                <div style="background: rgba(29, 52, 97, 0.05); padding: 16px; border-radius: 12px; margin: 16px 0;">
+                <div class="info-card">
                   💰 <strong>Sum Insured:</strong> INR 10,00,000 (Floater) <br>
                   👨‍👩‍👧 <strong>Coverage:</strong> Self, Spouse, 4 Children, and 2 Parents/In-laws.
                 </div>
@@ -666,7 +667,7 @@
             </div>
           </div>
 
-          <!-- Section 7: Benefits & Reimbursements -->
+          <!-- Section 6: Benefits & Reimbursements -->
           <div class="faq-group">
             <button class="faq-trigger" onclick="toggleFaq(this)">
               <div class="faq-trigger-content">
@@ -679,22 +680,65 @@
             </button>
             <div class="faq-answer">
               <div class="answer-inner">
-                <div class="q-and-a">
-                  <div class="qa-block">
-                    <div class="qa-q">🎂 Celebration Reimbursement</div>
-                    <div class="qa-a">Max <strong>INR 5,000</strong> for Birthday OR Anniversary. Claim within 15 days of expense.</div>
+                <div class="info-card">
+                  <div class="q-and-a">
+                    <div class="qa-block">
+                      <div class="qa-q">🎂 Celebration Reimbursement</div>
+                      <div class="qa-a">Max <strong>INR 5,000</strong> for Birthday OR Anniversary. Claim within 15 days
+                        of expense.</div>
+                    </div>
+                    <div class="qa-block">
+                      <div class="qa-q">🎧 Headphone Policy</div>
+                      <div class="qa-a">Reimbursement up to <strong>INR 3,000</strong> for noise-cancelling headphones.
+                      </div>
+                    </div>
+                    <div class="qa-block">
+                      <div class="qa-q">🎓 Rising Stars Scholarship</div>
+                      <div class="qa-a"><strong>INR 75,000</strong> per year for higher education (Min 1 year tenure
+                        required).</div>
+                    </div>
+                    <div class="qa-block">
+                      <div class="qa-q">📜 Certification Reimbursement</div>
+                      <div class="qa-a">Full reimbursement for role-relevant certifications (Requires prior lead
+                        approval).</div>
+                    </div>
                   </div>
-                  <div class="qa-block">
-                    <div class="qa-q">🎧 Headphone Policy</div>
-                    <div class="qa-a">Reimbursement up to <strong>INR 3,000</strong> for noise-cancelling headphones.</div>
-                  </div>
-                  <div class="qa-block">
-                    <div class="qa-q">🎓 Rising Stars Scholarship</div>
-                    <div class="qa-a"><strong>INR 75,000</strong> per year for higher education (Min 1 year tenure required).</div>
-                  </div>
-                  <div class="qa-block">
-                    <div class="qa-q">📜 Certification Reimbursement</div>
-                    <div class="qa-a">Full reimbursement for role-relevant certifications (Requires prior lead approval).</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 7: Common Questions -->
+          <div class="faq-group">
+            <button class="faq-trigger" onclick="toggleFaq(this)">
+              <div class="faq-trigger-content">
+                <div class="faq-icon">❓</div>
+                <span class="faq-question">Common Questions</span>
+              </div>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="faq-arrow">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            <div class="faq-answer">
+              <div class="answer-inner">
+                <div class="info-card">
+                  <div class="q-and-a">
+                    <div class="qa-block">
+                      <div class="qa-q">Q: Who gives monthly feedback?</div>
+                      <div class="qa-a">👉 Your manager or trainer</div>
+                    </div>
+                    <div class="qa-block">
+                      <div class="qa-q">Q: Can I discuss my feedback?</div>
+                      <div class="qa-a">👉 Yes, during Weekly Connect or directly with your manager</div>
+                    </div>
+                    <div class="qa-block">
+                      <div class="qa-q">Q: Is Weekly Connect mandatory?</div>
+                      <div class="qa-a">👉 Yes, participation is encouraged for team engagement</div>
+                    </div>
+                    <div class="qa-block">
+                      <div class="qa-q">Q: Are certifications compulsory?</div>
+                      <div class="qa-a">👉 Yes, based on your role and learning plan</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -826,6 +870,64 @@
     chatInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') handleSend();
     });
+
+    // Dynamic Holiday List Logic (Includes Mandatory & Floating)
+    const holidayData = [
+      { date: "2026-01-01", name: "New Year" },
+      { date: "2026-01-14", name: "Pongal (Floating)" },
+      { date: "2026-01-15", name: "Pongal" },
+      { date: "2026-01-26", name: "Republic Day" },
+      { date: "2026-03-04", name: "Holi (Floating)" },
+      { date: "2026-03-19", name: "Ugadi / Gudi Padava (Floating)" },
+      { date: "2026-03-20", name: "Eid al-Fitr" },
+      { date: "2026-04-03", name: "Good Friday (Floating)" },
+      { date: "2026-04-14", name: "Vaisakhi / Vishu (Floating)" },
+      { date: "2026-05-01", name: "Labour Day" },
+      { date: "2026-05-27", name: "Eid al-Adha (Floating)" },
+      { date: "2026-08-15", name: "Independence Day" },
+      { date: "2026-08-26", name: "Onam (Floating)" },
+      { date: "2026-09-14", name: "Ganesh Chaturthi" },
+      { date: "2026-10-02", name: "Gandhi Jayanti" },
+      { date: "2026-10-20", name: "Dussehra" },
+      { date: "2026-11-09", name: "Deepavali" },
+      { date: "2026-12-24", name: "Christmas Eve (Floating)" },
+      { date: "2026-12-25", name: "Christmas" }
+    ];
+
+    function renderFaqHolidays() {
+      const container = document.getElementById('faq-holiday-list');
+      if (!container) return;
+
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+
+      // Find index of the first holiday that is today or in the future
+      let nextIndex = holidayData.findIndex(h => h.date >= todayStr);
+      if (nextIndex === -1) nextIndex = holidayData.length - 1;
+
+      // Select window: 2 before, 1 next, 2 after
+      let startIndex = Math.max(0, nextIndex - 2);
+      // Adjust if we are near the end
+      if (startIndex + 5 > holidayData.length) {
+        startIndex = Math.max(0, holidayData.length - 5);
+      }
+      
+      const displayHolidays = holidayData.slice(startIndex, startIndex + 5);
+
+      container.innerHTML = displayHolidays.map(h => {
+        const d = new Date(h.date);
+        const month = d.toLocaleString('en-US', { month: 'short' });
+        const day = String(d.getDate()).padStart(2, '0');
+        const isUpcoming = h.date === holidayData[nextIndex].date;
+
+        const itemStyle = isUpcoming ? 'style="color: var(--primary);"' : '';
+        const highlight = isUpcoming ? ' <span style="font-size: 0.7rem; vertical-align: middle;">⭐ NEXT</span>' : '';
+
+        return `<li ${itemStyle}>${month} ${day}: ${h.name}${highlight}</li>`;
+      }).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', renderFaqHolidays);
   </script>
 </body>
 

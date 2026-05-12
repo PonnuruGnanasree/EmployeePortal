@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Company Holidays 2026 | Gantec Employee Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css?v=2" />
   <link rel="stylesheet" href="css/branding.css" />
   <style>
@@ -198,7 +199,7 @@
       align-items: center;
       justify-content: center;
       font-size: 1.75rem;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
       position: absolute;
       bottom: -28px;
     }
@@ -219,8 +220,15 @@
       letter-spacing: 1px;
     }
 
-    .type-company { background: #e0e7ff; color: #4338ca; }
-    .type-floating { background: #fdf2f8; color: #db2777; }
+    .type-company {
+      background: #e0e7ff;
+      color: #4338ca;
+    }
+
+    .type-floating {
+      background: #fdf2f8;
+      color: #db2777;
+    }
 
     .holiday-date-text {
       font-size: 0.95rem;
@@ -296,14 +304,14 @@
       border-radius: 4px;
     }
 
-    .color-mandatory { 
-      background: #e0e7ff; 
-      border: 1.5px solid var(--secondary); 
+    .color-mandatory {
+      background: #e0e7ff;
+      border: 1.5px solid var(--secondary);
     }
-    
-    .color-floating { 
-      background: #fdf2f8; 
-      border: 1.5px solid #db2777; 
+
+    .color-floating {
+      background: #fdf2f8;
+      border: 1.5px solid #db2777;
     }
   </style>
 </head>
@@ -320,13 +328,19 @@
     <aside class="app-sidebar">
       <nav class="sidebar-nav">
         <a href="home.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
           <span class="link-text">Home</span>
         </a>
 
         <div class="sidebar-dropdown">
           <a href="viewer.html" class="sidebar-link sidebar-dropdown-trigger">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
             <span class="link-text">Training Resources</span>
           </a>
           <div class="sidebar-submenu">
@@ -336,42 +350,84 @@
         </div>
 
         <a href="document-locker.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" /><line x1="9" y1="7" x2="15" y2="7" /><line x1="9" y1="11" x2="15" y2="11" /><line x1="9" y1="15" x2="12" y2="15" /></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="2" />
+            <line x1="9" y1="7" x2="15" y2="7" />
+            <line x1="9" y1="11" x2="15" y2="11" />
+            <line x1="9" y1="15" x2="12" y2="15" />
+          </svg>
           <span class="link-text">Document Locker</span>
         </a>
 
-        <a href="certifications.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
-          <span class="link-text">Certifications</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="certifications.html" class="sidebar-link sidebar-dropdown-trigger" id="nav-certifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="7"></circle>
+              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+            </svg>
+            <span class="link-text">Certifications</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="certifications.html" class="submenu-link">View Certifications</a>
+            <a href="add-certification.html" class="submenu-link">Add Certification</a>
+            <a href="certificate-leaders.html" class="submenu-link">Certificate Leaders</a>
+          </div>
+        </div>
 
         <a href="company-holidays.html" class="sidebar-link active">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
           <span class="link-text">Company Holidays</span>
         </a>
 
-        <a href="https://apps.powerapps.com/play/e/default-ced75afe-4090-4a10-abf8-341ef09ef1cd/a/9ea3498a-fa3c-4c95-b390-5edd3ce97108?tenantId=ced75afe-4090-4a10-abf8-341ef09ef1cd&hint=57114947-a9fc-4feb-8ce4-00a9ea82d511&source=sharebutton&sourcetime=1778565137667" target="_blank" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><path d="M16 2v4M8 2v4M3 10h18" /><path d="M10 14l2 2 4-4" /></svg>
+        <a href="https://apps.powerapps.com/play/e/default-ced75afe-4090-4a10-abf8-341ef09ef1cd/a/9ea3498a-fa3c-4c95-b390-5edd3ce97108?tenantId=ced75afe-4090-4a10-abf8-341ef09ef1cd&hint=57114947-a9fc-4feb-8ce4-00a9ea82d511&source=sharebutton&sourcetime=1778565137667"
+          target="_blank" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <path d="M16 2v4M8 2v4M3 10h18" />
+            <path d="M10 14l2 2 4-4" />
+          </svg>
           <span class="link-text">Leave Portal</span>
         </a>
 
         <a href="company-culture.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
           <span class="link-text">Company Culture</span>
         </a>
 
         <a href="faq.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><circle cx="12" cy="17" r="0.5" fill="currentColor"></circle></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <circle cx="12" cy="17" r="0.5" fill="currentColor"></circle>
+          </svg>
           <span class="link-text">FAQ</span>
         </a>
 
         <a href="weekly-connect.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
           <span class="link-text">Weekly Connect</span>
         </a>
 
         <a href="contact-hr.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+            </path>
+          </svg>
           <span class="link-text">Contact HR</span>
         </a>
       </nav>
@@ -382,18 +438,19 @@
         <div class="holiday-header">
           <div class="week-badge">Official Calendar 2026</div>
           <h1 class="connect-title">Company Holidays</h1>
-          <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto;">Effective Period: 01 Jan 2026 to 31 Dec 2026. View all mandatory and floating holiday options for the year.</p>
+          <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto;">Effective Period: 01 Jan 2026 to 31
+            Dec 2026. View all Company holidays and Floating holiday options for the year.</p>
         </div>
 
         <!-- Calendar Legend -->
         <div class="calendar-legend">
           <div class="legend-item">
             <div class="legend-color color-mandatory"></div>
-            <span>Mandatory Company Holiday</span>
+            <span>Company Holiday</span>
           </div>
           <div class="legend-item">
             <div class="legend-color color-floating"></div>
-            <span>Floating Holiday Option</span>
+            <span>Floating Holiday</span>
           </div>
           <div class="legend-item">
             <div class="legend-color" style="background: var(--primary); border: 1.5px solid var(--primary);"></div>
@@ -409,27 +466,32 @@
           <div class="policy-card">
             <div class="policy-icon">🎁</div>
             <h3 class="policy-title">Floating Holidays</h3>
-            <p class="policy-desc">Employees may choose up to <strong>4 Floating Holidays</strong> from the provided list of regional and festival options.</p>
+            <p class="policy-desc">Employees may choose up to <strong>4 Floating Holidays</strong> from the provided
+              list of regional and festival options.</p>
           </div>
           <div class="policy-card">
             <div class="policy-icon">🎂</div>
             <h3 class="policy-title">Celebration Holiday</h3>
-            <p class="policy-desc">Any <strong>one day</strong> for the employee's / spouse's / child's birthday or wedding anniversary.</p>
+            <p class="policy-desc">Any <strong>one day</strong> for the employee's / spouse's / child's birthday or
+              wedding anniversary.</p>
           </div>
           <div class="policy-card">
             <div class="policy-icon">✈️</div>
             <h3 class="policy-title">PTO / Vacation</h3>
-            <p class="policy-desc"><strong>16 days per year</strong>, earned at the rate of 4 days per quarter in a fiscal year.</p>
+            <p class="policy-desc"><strong>16 days per year</strong>, earned at the rate of 4 days per quarter in a
+              fiscal year.</p>
           </div>
           <div class="policy-card">
             <div class="policy-icon">🤒</div>
             <h3 class="policy-title">Sick Days</h3>
-            <p class="policy-desc"><strong>6 days per year</strong>, earned at the rate of 1.5 days per quarter in a fiscal year.</p>
+            <p class="policy-desc"><strong>6 days per year</strong>, earned at the rate of 1.5 days per quarter in a
+              fiscal year.</p>
           </div>
           <div class="policy-card">
-             <div class="policy-icon">🏥</div>
-             <h3 class="policy-title">Leave Without Pay</h3>
-             <p class="policy-desc">Up to <strong>365 days</strong> for medical, education, and child care purposes (subject to approval).</p>
+            <div class="policy-icon">🏥</div>
+            <h3 class="policy-title">Leave Without Pay</h3>
+            <p class="policy-desc">Up to <strong>365 days</strong> for medical, education, and child care purposes
+              (subject to approval).</p>
           </div>
         </div>
       </div>
@@ -439,14 +501,15 @@
     <div class="modal-overlay" id="holiday-modal">
       <div class="modal-card" style="max-width: 420px;">
         <div class="modal-header-gradient">
-           <div class="modal-header-icon" id="modal-icon">🎉</div>
+          <div class="modal-header-icon" id="modal-icon">🎉</div>
         </div>
         <div class="holiday-modal-content">
           <div id="modal-type-badge" class="holiday-type-badge">Company Holiday</div>
           <div id="modal-date" class="holiday-date-text">January 1, 2026</div>
           <h2 id="modal-title" class="holiday-title-text">New Year</h2>
           <div id="modal-note" class="holiday-note"></div>
-          <button class="btn-close-modal" onclick="document.getElementById('holiday-modal').classList.remove('active')">Close</button>
+          <button class="btn-close-modal"
+            onclick="document.getElementById('holiday-modal').classList.remove('active')">Close</button>
         </div>
       </div>
     </div>
@@ -460,7 +523,7 @@
       try {
         const res = await fetch('/api/holidays');
         const data = await res.json();
-        
+
         if (data.success && data.holidays.length > 0) {
           // Convert array to the object format expected by the calendar logic
           const holidayMap = {};
@@ -497,7 +560,7 @@
       } catch (err) {
         console.error('Failed to fetch holidays:', err);
       }
-      
+
       generateCalendar();
     }
 
@@ -511,19 +574,19 @@
         const date = new Date(2026, m, 1);
         const monthCard = document.createElement('div');
         monthCard.className = 'month-card';
-        
+
         let html = `<div class="month-name">${months[m]} 2026</div>`;
         html += `<div class="calendar-grid">`;
-        
+
         // Add day names
         dayNames.forEach(d => html += `<div class="day-name">${d}</div>`);
-        
+
         // Add empty cells for padding
         const firstDay = date.getDay();
         for (let i = 0; i < firstDay; i++) {
           html += `<div class="day empty"></div>`;
         }
-        
+
         // Add days
         const lastDay = new Date(2026, m + 1, 0).getDate();
         const today = new Date();
@@ -532,7 +595,7 @@
         for (let d = 1; d <= lastDay; d++) {
           const dateStr = `2026-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
           const holiday = holidays[dateStr];
-          
+
           let dayClass = 'day';
           if (holiday) {
             dayClass += holiday.type === "Company Holiday" ? " has-holiday" : " has-floating";
@@ -540,10 +603,10 @@
           if (dateStr === todayStr) {
             dayClass += " today";
           }
-          
+
           html += `<div class="${dayClass}" onclick="showHoliday('${dateStr}')">${d}</div>`;
         }
-        
+
         html += `</div>`;
         monthCard.innerHTML = html;
         calendarWrapper.appendChild(monthCard);
@@ -553,22 +616,22 @@
     function showHoliday(dateStr) {
       const holiday = holidays[dateStr];
       if (!holiday) return;
-      
+
       const modal = document.getElementById('holiday-modal');
       const badge = document.getElementById('modal-type-badge');
       const dateEl = document.getElementById('modal-date');
       const titleEl = document.getElementById('modal-title');
       const noteEl = document.getElementById('modal-note');
       const iconEl = document.getElementById('modal-icon');
-      
+
       const d = new Date(dateStr);
       const formattedDate = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-      
+
       badge.textContent = holiday.type;
       badge.className = `holiday-type-badge ${holiday.type === "Company Holiday" ? 'type-company' : 'type-floating'}`;
       dateEl.textContent = formattedDate;
       titleEl.textContent = holiday.name;
-      
+
       if (holiday.type === "Company Holiday") {
         iconEl.textContent = "🏛️";
         noteEl.innerHTML = "This is a <strong>Mandatory Company Holiday</strong>. All offices will be closed, and employees are entitled to a paid day off.";
@@ -576,12 +639,12 @@
         iconEl.textContent = "✨";
         noteEl.innerHTML = "This is a <strong>Floating Holiday Option</strong>. Employees may choose up to 4 such days per year from the options list.";
       }
-      
+
       modal.classList.add('active');
     }
 
     // Close modal when clicking on the overlay background
-    document.getElementById('holiday-modal').addEventListener('click', function(e) {
+    document.getElementById('holiday-modal').addEventListener('click', function (e) {
       if (e.target === this) {
         this.classList.remove('active');
       }
@@ -596,4 +659,5 @@
     });
   </script>
 </body>
+
 </html>

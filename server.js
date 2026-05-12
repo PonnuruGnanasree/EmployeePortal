@@ -118,10 +118,13 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  CREATE TABLE IF NOT EXISTS certifications (
+  CREATE TABLE IF NOT EXISTS certificate_leaders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    category TEXT DEFAULT 'High-Impact',
+    certificate_name TEXT NOT NULL,
+    expiry_date TEXT,
+    certificate_owner TEXT,
+    provider TEXT,
+    notes TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -198,6 +201,33 @@ try { db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'employee'"); } ca
 try { db.exec("ALTER TABLE public_documents ADD COLUMN original_name TEXT"); } catch (e) {}
 // Back‑fill existing rows where original_name is null
 try { db.exec("UPDATE public_documents SET original_name = filename WHERE original_name IS NULL"); } catch (e) {}
+
+// ─── Certifications Table Migration ───────────────────────────────────────────
+// If certifications table has old schema (name, category), migrate to new schema
+try {
+  const certCols = db.prepare("PRAGMA table_info(certifications)").all().map(c => c.name);
+  if (certCols.includes('name') && !certCols.includes('certificate_name')) {
+    console.log('⚠️ Migrating certifications table to new schema...');
+    db.exec(`
+      ALTER TABLE certifications RENAME TO certifications_old;
+      CREATE TABLE certifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        certificate_name TEXT NOT NULL,
+        expiry_date TEXT,
+        certificate_owner TEXT,
+        provider TEXT,
+        notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO certifications (id, certificate_name, created_at)
+      SELECT id, name, created_at FROM certifications_old;
+      DROP TABLE certifications_old;
+    `);
+    console.log('✅ Certifications table migrated.');
+  }
+} catch (e) {
+  console.warn('⚠️ Certifications migration skipped or failed:', e.message);
+}
 
 // ───────────────────────────────────────────────────────────────
 
@@ -2168,23 +2198,7 @@ app.get('/api/holidays', async (req, res) => {
   }
 });
 
-// ─── Certifications API ─────────────────────────────────────────────────────
 
-app.get('/api/certifications', async (req, res) => {
-  try {
-    let certs = [];
-    if (supabase) {
-      const { data, error } = await supabase.from('certifications').select('*').order('name', { ascending: true });
-      if (!error && data && data.length > 0) certs = data;
-    }
-    if (certs.length === 0) {
-      certs = db.prepare('SELECT * FROM certifications ORDER BY name ASC').all();
-    }
-    res.json({ success: true, certifications: certs });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch certifications' });
-  }
-});
 
 // ─── Leave Settings API (Dynamic Link) ──────────────────────────────────────
 
@@ -2210,6 +2224,103 @@ app.get('/api/leave/settings', async (req, res) => {
     res.json({ success: true, power_apps_link: settings ? settings.power_apps_link : null });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch leave settings' });
+  }
+});
+
+// ─── CERTIFICATIONS API ───────────────────────────────────────────────────────
+
+app.get('/api/certifications', async (req, res) => {
+  try {
+    // Try Supabase first (table: certificate_leaders)
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('certificate_leaders')
+        .select('*')
+        .order('created_at', { ascending: true });
+      if (!error && data) {
+        // Normalize: support both old schema (name) and new schema (certificate_name)
+        const normalized = data.map(c => ({
+          id: c.id,
+          certificate_name: c.certificate_name || c.name || '',
+          certificate_owner: c.certificate_owner || '',
+          expiry_date: c.expiry_date || null,
+          provider: c.provider || '',
+          notes: c.notes || '',
+          created_at: c.created_at
+        }));
+        return res.json({ success: true, certifications: normalized });
+      }
+    }
+    // SQLite fallback (table: certificate_leaders)
+    const rows = db.prepare('SELECT * FROM certificate_leaders ORDER BY created_at ASC').all();
+    res.json({ success: true, certifications: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/certifications', async (req, res) => {
+  try {
+    const { certificate_name, expiry_date, certificate_owner, provider, notes } = req.body;
+    if (!certificate_name) return res.status(400).json({ error: 'Certificate name is required' });
+
+    // Try Supabase first
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('certificate_leaders')
+        .insert([{ certificate_name, expiry_date, certificate_owner, provider, notes }])
+        .select()
+        .single();
+      if (!error && data) {
+        return res.json({ success: true, certification: data });
+      }
+      console.warn('Supabase cert insert failed, falling back to SQLite:', error?.message);
+    }
+    // SQLite fallback
+    const stmt = db.prepare(
+      'INSERT INTO certificate_leaders (certificate_name, expiry_date, certificate_owner, provider, notes) VALUES (?, ?, ?, ?, ?)'
+    );
+    const info = stmt.run(certificate_name, expiry_date || null, certificate_owner || null, provider || null, notes || null);
+    const row = db.prepare('SELECT * FROM certificate_leaders WHERE id = ?').get(info.lastInsertRowid);
+    res.json({ success: true, certification: row });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/certifications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (supabase) {
+      const { error } = await supabase.from('certificate_leaders').delete().eq('id', id);
+      if (!error) return res.json({ success: true });
+    }
+    db.prepare('DELETE FROM certificate_leaders WHERE id = ?').run(id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/certifications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { certificate_name, expiry_date, certificate_owner, provider, notes } = req.body;
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('certificate_leaders')
+        .update({ certificate_name, expiry_date, certificate_owner, provider, notes })
+        .eq('id', id)
+        .select()
+        .single();
+      if (!error && data) return res.json({ success: true, certification: data });
+    }
+    db.prepare(
+      'UPDATE certificate_leaders SET certificate_name=?, expiry_date=?, certificate_owner=?, provider=?, notes=? WHERE id=?'
+    ).run(certificate_name, expiry_date, certificate_owner, provider, notes, id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

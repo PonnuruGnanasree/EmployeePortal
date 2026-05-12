@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weekly Connect Agenda | Gantec</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Outfit:wght@400;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-pink: #ec4899;
+      --accent-purple: #a855f7;
+      --accent-yellow: #eab308;
+      --text-white: #f8fafc;
+      --text-muted: #94a3b8;
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(255, 255, 255, 0.08);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-white);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 60px;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3, .section-number {
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .header {
+      margin-bottom: 80px;
+      max-width: 800px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 8px 16px;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 100px;
+      color: var(--accent-blue);
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 24px;
+    }
+
+    .main-title {
+      font-size: 4.5rem;
+      font-weight: 800;
+      margin-bottom: 20px;
+      line-height: 1;
+      letter-spacing: -2px;
+    }
+
+    .subtitle {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .agenda-container {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .agenda-item {
+      display: grid;
+      grid-template-columns: 80px 1fr 300px;
+      gap: 40px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 40px;
+      backdrop-filter: blur(20px);
+      transition: transform 0.3s ease, border-color 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .agenda-item:hover {
+      transform: translateX(10px);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .agenda-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--accent-color, var(--accent-blue));
+    }
+
+    .section-number {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--accent-color, var(--accent-blue));
+      opacity: 0.5;
+    }
+
+    .content-box h3 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .content-box h3 span {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 4px 12px;
+      border-radius: 6px;
+    }
+
+    .details {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      line-height: 1.6;
+    }
+
+    .details ul {
+      list-style: none;
+      margin-top: 12px;
+    }
+
+    .details li {
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .details li::before {
+      content: '•';
+      color: var(--accent-color, var(--accent-blue));
+    }
+
+    .celebration-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 20px;
+    }
+
+    .celeb-box {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+    }
+
+    .celeb-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .celeb-name {
+      font-weight: 700;
+      color: var(--text-white);
+    }
+
+    .placeholder {
+      background: rgba(255, 255, 255, 0.02);
+      border: 2px dashed rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .placeholder svg {
+      width: 40px;
+      height: 40px;
+      margin-bottom: 12px;
+      opacity: 0.3;
+    }
+
+    .sim-tag {
+      display: inline-flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .sim-tag span {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .footer {
+      margin-top: 80px;
+      text-align: center;
+      padding: 40px;
+      border-top: 1px solid var(--card-border);
+    }
+
+    .quote {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-white);
+      opacity: 0.9;
+    }
+
+    .quote span {
+      background: linear-gradient(to right, var(--accent-blue), var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Colors */
+    .item-1 { --accent-color: var(--accent-blue); }
+    .item-2 { --accent-color: var(--accent-pink); }
+    .item-3 { --accent-color: var(--accent-purple); }
+    .item-4 { --accent-color: var(--accent-yellow); }
+
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="badge">Weekly Connect • February 2026</div>
+    <h1 class="main-title">Agenda</h1>
+    <p class="subtitle">Reviewing updates, celebrating milestones, appreciating contributions, and engaging as one team.</p>
+  </header>
+
+  <div class="agenda-container">
+    <!-- 01 Welcome & Celebrations -->
+    <div class="agenda-item item-1">
+      <div class="section-number">01</div>
+      <div class="content-box">
+        <h3>Welcome & Celebrations</h3>
+        <div class="details">
+          <p>Opening remarks and welcoming the team to the new session.</p>
+          <div class="celebration-grid">
+            <div class="celeb-box">
+              <div class="celeb-label">Last Week</div>
+              <div class="celeb-name">Sharmi (Birthday)</div>
+              <div class="celeb-name">Princy (Anniversary)</div>
+            </div>
+            <div class="celeb-box">
+              <div class="celeb-label">This Week</div>
+              <div class="celeb-name">Ramesh Patil (Birthday)</div>
+              <div class="celeb-name">Ramesh Patil (Anniversary)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        <span>Celebration Moments</span>
+      </div>
+    </div>
+
+    <!-- 02 Appreciation -->
+    <div class="agenda-item item-2">
+      <div class="section-number">02</div>
+      <div class="content-box">
+        <h3>Appreciation Segment <span>5 Mins</span></h3>
+        <div class="details">
+          <p>Quick shout-outs and acknowledging support or contributions received from colleagues during the week.</p>
+        </div>
+      </div>
+      <div class="placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+        <span>Team Shout-outs</span>
+      </div>
+    </div>
+
+    <!-- 03 Tech Showcase -->
+    <div class="agenda-item item-3">
+      <div class="section-number">03</div>
+      <div class="content-box">
+        <h3>Tech Showcase <span>25 Mins</span></h3>
+        <div class="details">
+          <p>Focus on key learnings, outcomes, and measurable results using the SIM approach.</p>
+          <div class="sim-tag">
+            <span>S — Situation</span>
+            <span>I — Impact</span>
+            <span>M — Metrics</span>
+          </div>
+        </div>
+      </div>
+      <div class="placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+        <span>Presentation / Demo</span>
+      </div>
+    </div>
+
+    <!-- 04 Fun Activity -->
+    <div class="agenda-item item-4">
+      <div class="section-number">04</div>
+      <div class="content-box">
+        <h3>Fun Activity <span>15 Mins</span></h3>
+        <div class="details">
+          <p>Interactive team activity to encourage collaboration, bonding, and healthy competition.</p>
+        </div>
+      </div>
+      <div class="placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14.5 21l-5-5 5-5 5 5-5 5z"></path>
+          <path d="M2 21l5-5-5-5 5-5-5 5z"></path>
+          <path d="M7 10l5 5 5-5-5-5-5 5z"></path>
+        </svg>
+        <span>Game Screenshots</span>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="quote">“People <span>first</span>, Data <span>always!</span>”</div>
+  </footer>
+
+</body>
+</html>

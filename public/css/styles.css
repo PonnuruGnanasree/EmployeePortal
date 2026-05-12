@@ -1032,13 +1032,15 @@ svg {
 
 .sidebar-dropdown-trigger::after {
   content: '▼';
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   position: absolute;
-  right: 16px;
+  right: 20px;
   top: 50%;
   transform: translateY(-50%) rotate(0deg);
-  transition: transform 0.3s;
-  opacity: 0.5;
+  transition: transform 0.3s ease;
+  opacity: 0.8;
+  color: inherit;
+  pointer-events: none;
 }
 
 .sidebar-dropdown.open .sidebar-dropdown-trigger::after {
