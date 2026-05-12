@@ -96,6 +96,44 @@ db.exec(`
     upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(folder, filename)
   );
+
+  CREATE TABLE IF NOT EXISTS weekly_sessions (
+    id INTEGER PRIMARY KEY,
+    week TEXT NOT NULL,
+    name TEXT NOT NULL,
+    topic TEXT NOT NULL,
+    link TEXT DEFAULT '#',
+    filename TEXT DEFAULT '',
+    updates TEXT DEFAULT '',
+    fun TEXT NOT NULL,
+    winners TEXT NOT NULL DEFAULT '[]',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS holidays (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS certifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    category TEXT DEFAULT 'High-Impact',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS leave_balances (
+    user_email TEXT PRIMARY KEY,
+    pto DECIMAL DEFAULT 12.5,
+    sick DECIMAL DEFAULT 4.5,
+    floating INTEGER DEFAULT 3,
+    celebration INTEGER DEFAULT 1,
+    power_apps_link TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // ─── Schema Migration for UUID Support ────────────────────────────────────────
@@ -1978,6 +2016,200 @@ ${highlights}
   } catch (err) {
     console.error('Summarization fatal error:', err);
     res.status(500).json({ error: 'Failed to generate summary: ' + err.message });
+  }
+});
+
+// ─── Weekly Connect API ─────────────────────────────────────────────────────
+
+// GET /api/weekly-sessions — Fetch all sessions
+app.get('/api/weekly-sessions', async (req, res) => {
+  try {
+    let sessions = [];
+
+    // Try Supabase first
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('weekly_sessions')
+        .select('*')
+        .order('id', { ascending: false });
+      if (!error && data && data.length > 0) {
+        sessions = data.map(s => ({
+          ...s,
+          winners: typeof s.winners === 'string' ? JSON.parse(s.winners) : s.winners
+        }));
+      }
+    }
+
+    // Fallback to SQLite
+    if (sessions.length === 0) {
+      const rows = db.prepare('SELECT * FROM weekly_sessions ORDER BY id DESC').all();
+      sessions = rows.map(s => ({
+        ...s,
+        winners: typeof s.winners === 'string' ? JSON.parse(s.winners) : s.winners
+      }));
+    }
+
+    res.json({ success: true, sessions });
+  } catch (err) {
+    console.error('Weekly sessions fetch error:', err);
+    res.status(500).json({ error: 'Failed to fetch weekly sessions' });
+  }
+});
+
+// POST /api/weekly-sessions — Create a new session
+app.post('/api/weekly-sessions', async (req, res) => {
+  try {
+    const { id, week, name, topic, link, filename, updates, fun, winners } = req.body;
+    if (!week || !name || !topic || !fun) {
+      return res.status(400).json({ error: 'week, name, topic, and fun are required' });
+    }
+
+    const sessionId = id || Date.now();
+    const winnersJson = JSON.stringify(winners || []);
+
+    // Save to SQLite
+    db.prepare(`INSERT OR REPLACE INTO weekly_sessions (id, week, name, topic, link, filename, updates, fun, winners)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(sessionId, week, name, topic, link || '#', filename || '', updates || '', fun, winnersJson);
+
+    // Sync to Supabase
+    if (supabase) {
+      try {
+        await supabase.from('weekly_sessions').upsert([{
+          id: sessionId,
+          week, name, topic,
+          link: link || '#',
+          filename: filename || '',
+          updates: updates || '',
+          fun,
+          winners: winners || []
+        }], { onConflict: 'id' });
+      } catch (e) { console.warn('⚠️ Supabase weekly session sync error:', e.message); }
+    }
+
+    res.json({ success: true, session: { id: sessionId, week, name, topic, link, filename, updates, fun, winners } });
+  } catch (err) {
+    console.error('Weekly session create error:', err);
+    res.status(500).json({ error: 'Failed to create weekly session' });
+  }
+});
+
+// PUT /api/weekly-sessions/:id — Update a session
+app.put('/api/weekly-sessions/:id', async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id);
+    const { week, name, topic, link, filename, updates, fun, winners } = req.body;
+
+    const winnersJson = JSON.stringify(winners || []);
+
+    // Update SQLite
+    db.prepare(`UPDATE weekly_sessions SET week=?, name=?, topic=?, link=?, filename=?, updates=?, fun=?, winners=?
+      WHERE id=?`)
+      .run(week, name, topic, link || '#', filename || '', updates || '', fun, winnersJson, sessionId);
+
+    // Update Supabase
+    if (supabase) {
+      try {
+        await supabase.from('weekly_sessions').update({
+          week, name, topic,
+          link: link || '#',
+          filename: filename || '',
+          updates: updates || '',
+          fun,
+          winners: winners || []
+        }).eq('id', sessionId);
+      } catch (e) { console.warn('⚠️ Supabase weekly session update error:', e.message); }
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Weekly session update error:', err);
+    res.status(500).json({ error: 'Failed to update weekly session' });
+  }
+});
+
+// DELETE /api/weekly-sessions/:id — Delete a session
+app.delete('/api/weekly-sessions/:id', async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id);
+
+    // Delete from SQLite
+    db.prepare('DELETE FROM weekly_sessions WHERE id = ?').run(sessionId);
+
+    // Delete from Supabase
+    if (supabase) {
+      try {
+        await supabase.from('weekly_sessions').delete().eq('id', sessionId);
+      } catch (e) { console.warn('⚠️ Supabase weekly session delete error:', e.message); }
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Weekly session delete error:', err);
+    res.status(500).json({ error: 'Failed to delete weekly session' });
+  }
+});
+
+// ─── Holidays API ───────────────────────────────────────────────────────────
+
+app.get('/api/holidays', async (req, res) => {
+  try {
+    let holidays = [];
+    if (supabase) {
+      const { data, error } = await supabase.from('holidays').select('*').order('date', { ascending: true });
+      if (!error && data && data.length > 0) holidays = data;
+    }
+    if (holidays.length === 0) {
+      holidays = db.prepare('SELECT * FROM holidays ORDER BY date ASC').all();
+    }
+    res.json({ success: true, holidays });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch holidays' });
+  }
+});
+
+// ─── Certifications API ─────────────────────────────────────────────────────
+
+app.get('/api/certifications', async (req, res) => {
+  try {
+    let certs = [];
+    if (supabase) {
+      const { data, error } = await supabase.from('certifications').select('*').order('name', { ascending: true });
+      if (!error && data && data.length > 0) certs = data;
+    }
+    if (certs.length === 0) {
+      certs = db.prepare('SELECT * FROM certifications ORDER BY name ASC').all();
+    }
+    res.json({ success: true, certifications: certs });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch certifications' });
+  }
+});
+
+// ─── Leave Settings API (Dynamic Link) ──────────────────────────────────────
+
+app.get('/api/leave/settings', async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+
+  try {
+    let settings = null;
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('leave_balances')
+        .select('power_apps_link')
+        .eq('user_email', email)
+        .single();
+      if (!error && data) settings = data;
+    }
+    
+    if (!settings) {
+      settings = db.prepare('SELECT power_apps_link FROM leave_balances WHERE user_email = ?').get(email);
+    }
+
+    res.json({ success: true, power_apps_link: settings ? settings.power_apps_link : null });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch leave settings' });
   }
 });
 

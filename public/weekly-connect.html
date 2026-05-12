@@ -220,7 +220,7 @@
           <span class="link-text">Company Holidays</span>
         </a>
 
-        <a href="leave-portal.html" class="sidebar-link">
+        <a href="https://apps.powerapps.com/play/e/default-ced75afe-4090-4a10-abf8-341ef09ef1cd/a/9ea3498a-fa3c-4c95-b390-5edd3ce97108?tenantId=ced75afe-4090-4a10-abf8-341ef09ef1cd&hint=57114947-a9fc-4feb-8ce4-00a9ea82d511&source=sharebutton&sourcetime=1778565137667" target="_blank" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><path d="M16 2v4M8 2v4M3 10h18" /><path d="M10 14l2 2 4-4" /></svg>
           <span class="link-text">Leave Portal</span>
         </a>
@@ -434,6 +434,7 @@
       submitBtn.textContent = editId ? 'Saving Changes...' : 'Uploading & Posting...';
 
       let finalUrl = document.getElementById('techLink').value || '#';
+      let originalFilename = '';
       const fileInput = document.getElementById('techFile');
 
       // Only upload if a new file is chosen
@@ -446,9 +447,15 @@
           const data = await res.json();
           if (!res.ok) throw new Error(data.error);
           finalUrl = getFileUrl('Weekly Connect', data.filename);
+          originalFilename = fileInput.files[0].name;
         } catch (err) {
           showToast('Upload failed, using current link', 'warning');
         }
+      } else if (editId) {
+          // If editing and no new file, keep the existing filename if it was set
+          const history = await fetchSessions();
+          const existing = history.find(s => s.id === parseInt(editId));
+          if (existing) originalFilename = existing.filename;
       }
 
       const session = {
@@ -457,7 +464,7 @@
         name: document.getElementById('connectName').value,
         topic: document.getElementById('techTopic').value,
         link: finalUrl,
-        filename: fileInput.files.length > 0 ? fileInput.files[0].name : (document.getElementById('techLink').value ? 'External Link' : ''),
+        filename: originalFilename || (document.getElementById('techLink').value ? 'External Link' : ''),
         updates: document.getElementById('otherUpdates').value,
         fun: document.getElementById('funName').value,
         winners: [
@@ -467,24 +474,43 @@
         ]
       };
 
-      const history = JSON.parse(localStorage.getItem('gantec_weekly_sessions') || '[]');
-      
-      if (editId) {
-        const index = history.findIndex(s => s.id === parseInt(editId));
-        if (index !== -1) history[index] = session;
-      } else {
-        history.unshift(session);
+      try {
+        const method = editId ? 'PUT' : 'POST';
+        const url = editId ? `/api/weekly-sessions/${editId}` : '/api/weekly-sessions';
+        
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(session)
+        });
+        
+        if (!res.ok) throw new Error('Failed to save session');
+        
+        const sessions = await fetchSessions();
+        render(sessions);
+        
+        postModal.classList.remove('active');
+        postForm.reset();
+        document.getElementById('edit-id').value = '';
+        showToast(editId ? 'Session updated' : 'Session posted', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Generate & Post Card';
       }
-      
-      localStorage.setItem('gantec_weekly_sessions', JSON.stringify(history));
-
-      render(history);
-      postModal.classList.remove('active');
-      postForm.reset();
-      document.getElementById('edit-id').value = '';
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Generate & Post Card';
     });
+
+    async function fetchSessions() {
+      try {
+        const res = await fetch('/api/weekly-sessions');
+        const data = await res.json();
+        return data.sessions || [];
+      } catch (err) {
+        console.error('Fetch error:', err);
+        return [];
+      }
+    }
 
     function render(sessions) {
       if (!sessions || sessions.length === 0) {
@@ -702,20 +728,25 @@
       sessionToDelete = null;
     });
 
-    confirmDeleteBtn.addEventListener('click', () => {
+    confirmDeleteBtn.addEventListener('click', async () => {
       if (sessionToDelete) {
-        const history = JSON.parse(localStorage.getItem('gantec_weekly_sessions') || '[]');
-        const filtered = history.filter(s => s.id !== sessionToDelete);
-        localStorage.setItem('gantec_weekly_sessions', JSON.stringify(filtered));
-        render(filtered);
-        deleteModal.classList.remove('active');
-        sessionToDelete = null;
-        showToast('Session deleted successfully', 'success');
+        try {
+          const res = await fetch(`/api/weekly-sessions/${sessionToDelete}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error('Failed to delete session');
+          
+          const sessions = await fetchSessions();
+          render(sessions);
+          deleteModal.classList.remove('active');
+          sessionToDelete = null;
+          showToast('Session deleted successfully', 'success');
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
       }
     });
 
-    window.editS = (id) => {
-      const history = JSON.parse(localStorage.getItem('gantec_weekly_sessions') || '[]');
+    window.editS = async (id) => {
+      const history = await fetchSessions();
       const session = history.find(s => s.id === id);
       if (!session) return;
 
@@ -754,8 +785,8 @@
     }
 
     // Page Initialization
-    window.addEventListener('DOMContentLoaded', () => {
-      const history = JSON.parse(localStorage.getItem('gantec_weekly_sessions') || '[]');
+    window.addEventListener('DOMContentLoaded', async () => {
+      const history = await fetchSessions();
       render(history);
     });
   </script>

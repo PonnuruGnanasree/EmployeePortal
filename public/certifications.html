@@ -205,7 +205,7 @@
           <span class="link-text">Company Holidays</span>
         </a>
 
-        <a href="leave-portal.html" class="sidebar-link">
+        <a href="https://apps.powerapps.com/play/e/default-ced75afe-4090-4a10-abf8-341ef09ef1cd/a/9ea3498a-fa3c-4c95-b390-5edd3ce97108?tenantId=ced75afe-4090-4a10-abf8-341ef09ef1cd&hint=57114947-a9fc-4feb-8ce4-00a9ea82d511&source=sharebutton&sourcetime=1778565137667" target="_blank" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><path d="M16 2v4M8 2v4M3 10h18" /><path d="M10 14l2 2 4-4" /></svg>
           <span class="link-text">Leave Portal</span>
         </a>
@@ -277,18 +277,41 @@
 
               <div class="cert-list">
                 <h3>High-Impact Certifications</h3>
-                <ul class="cert-items">
-                  <li>Microsoft Azure Solutions Architect Expert</li>
-                  <li>Microsoft Azure Administrator Associate</li>
-                  <li>Power Platform Developer Associate</li>
-                  <li>Power Platform Solutions Architect Expert</li>
-                  <li>Azure Fabric Analytics Engineer Associate</li>
-                  <li>Azure Fabric Data Engineer Associate</li>
-                  <li>Az 900 Azure Fundamentals</li>
-                  <li>Databricks Certifications</li>
-                  <li>ServiceNow Certifications</li>
+                <ul class="cert-items" id="cert-list-wrapper">
+                  <!-- Dynamically populated -->
                 </ul>
               </div>
+
+              <script>
+                async function fetchCertifications() {
+                  const wrapper = document.getElementById('cert-list-wrapper');
+                  try {
+                    const res = await fetch('/api/certifications');
+                    const data = await res.json();
+                    
+                    if (data.success && data.certifications.length > 0) {
+                      wrapper.innerHTML = data.certifications.map(c => `<li>${c.name}</li>`).join('');
+                    } else {
+                      // Fallback seed
+                      const seed = [
+                        "Microsoft Azure Solutions Architect Expert",
+                        "Microsoft Azure Administrator Associate",
+                        "Power Platform Developer Associate",
+                        "Power Platform Solutions Architect Expert",
+                        "Azure Fabric Analytics Engineer Associate",
+                        "Azure Fabric Data Engineer Associate",
+                        "Az 900 Azure Fundamentals",
+                        "Databricks Certifications",
+                        "ServiceNow Certifications"
+                      ];
+                      wrapper.innerHTML = seed.map(c => `<li>${c}</li>`).join('');
+                    }
+                  } catch (err) {
+                    console.error('Failed to fetch certifications:', err);
+                  }
+                }
+                window.addEventListener('DOMContentLoaded', fetchCertifications);
+              </script>
 
               <p>These aren’t just badges, they're <span class="highlight-text">accelerators for your professional
                   journey</span>. Even dedicating a small amount of time each week can make a meaningful difference.

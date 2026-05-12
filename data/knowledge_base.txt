@@ -82,3 +82,10 @@ Floating Holiday Options (Choose up to 4):
 - HR Manager: Hemalatha Malem
 - Website: Gantec.ai
 - Office: 1045, PH Road, Arrumbakkam, Chennai.
+
+--- PORTAL NAVIGATION & FEATURES ---
+- Leave Portal: Accessible via the sidebar; redirects to a personalized Power Apps dashboard for time-off requests.
+- Document Locker: A private, secure space for personal documents. Files are isolated per user and filenames are hashed for security.
+- Company Holidays: An interactive calendar synced with Supabase. HR manages the schedule dynamically in the cloud.
+- Certifications: A dynamic list of role-relevant tracks, fetched directly from the database.
+- Training Resources: Includes an AI-powered document summarizer for PDFs and integrated YouTube learning modules.

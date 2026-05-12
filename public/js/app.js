@@ -767,9 +767,43 @@ function initFolderSidebarToggle() {
   });
 }
 
+async function syncLeavePortalLink() {
+  const email = localStorage.getItem('gantec_user_email');
+  if (!email) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/leave/settings?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+
+    if (data.success && data.power_apps_link) {
+      const userLink = data.power_apps_link;
+      console.log('Syncing Leave Portal link for user:', email);
+
+      // 1. Update Sidebar Links
+      const sidebarLinks = document.querySelectorAll('.sidebar-link, .submenu-link');
+      sidebarLinks.forEach(link => {
+        if (link.textContent.includes('Leave Portal')) {
+          link.href = userLink;
+          link.target = '_blank';
+        }
+      });
+
+      // 2. Update Feature Cards (Home Page)
+      const leaveCard = document.querySelector('.feature-card[data-module="leave"]');
+      if (leaveCard) {
+        // Update onclick to use the user's specific link
+        leaveCard.setAttribute('onclick', `window.open('${userLink}', '_blank')`);
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to sync individual Leave Portal link:', err);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initNavDropdown();
   initUserProfile();
   initSidebarLogic();
   initFolderSidebarToggle();
+  syncLeavePortalLink(); // Initialize dynamic links
 });
