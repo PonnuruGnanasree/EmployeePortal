@@ -445,8 +445,8 @@
     .btn-timer {
       padding: 8px 16px;
       border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.3);
-      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.1);
       color: white;
       font-weight: 600;
       font-size: 0.8rem;
@@ -455,7 +455,7 @@
     }
 
     .btn-timer:hover {
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.2);
     }
 
     /* --- Dropdown --- */
@@ -593,8 +593,8 @@
           <h2 id="quiz-text" class="q-text">Loading question...</h2>
 
           <div style="margin-bottom: 20px; display: flex; justify-content: center;">
-            <button id="btn-show-answer" class="btn-gen" style="background:var(--primary);"
-              onclick="showAnswer()">Show Answer</button>
+            <button id="btn-show-answer" class="btn-gen" style="background:var(--primary);" onclick="showAnswer()">Show
+              Answer</button>
           </div>
 
           <div id="answer-box" class="answer-box">
@@ -857,17 +857,17 @@
       document.getElementById('quiz-num').textContent = `Question ${currentQuiz.index + 1} of ${currentQuiz.questions.length}`;
       document.getElementById('quiz-text').textContent = q.q;
       document.getElementById('answer-text').textContent = q.a;
-      
+
       document.getElementById('answer-box').style.display = 'none';
       document.getElementById('btn-show-answer').style.display = 'block';
       document.getElementById('btn-next-q').style.display = 'none';
-      
+
       resetTimer();
     }
 
     function startTimer() {
       if (currentQuiz.timer) clearInterval(currentQuiz.timer);
-      
+
       currentQuiz.timer = setInterval(() => {
         currentQuiz.timeLeft--;
         updateTimerUI();
