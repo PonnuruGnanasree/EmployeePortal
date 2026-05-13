@@ -538,7 +538,7 @@
 
       sortedPeople.forEach(([name, certs]) => {
         const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-        
+
         const certsHtml = certs.map(cert => `
           <div class="owner-tag">
             <div class="owner-initials" style="background:rgba(79, 70, 229, 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center;">
