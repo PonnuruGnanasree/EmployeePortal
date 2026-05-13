@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team Members | Gantec Connect</title>
+  <link rel="stylesheet" href="css/branding.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1d3461;
+      --accent: #10b981;
+      --secondary: #6366f1;
+      --bg-1: #f8fafc;
+      --bg-2: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --radius-lg: 16px;
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-1);
+      color: var(--text-main);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Styling (Standard) */
+    .sidebar {
+      width: 280px;
+      background: var(--primary);
+      color: white;
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      box-sizing: border-box;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 900;
+      margin-bottom: 40px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: white;
+      text-decoration: none;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      border-radius: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-link:hover, .sidebar-link.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+
+    .sidebar-link svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .sidebar-submenu {
+      margin-left: 32px;
+      margin-bottom: 12px;
+      border-left: 2px solid rgba(255,255,255,0.1);
+      padding-left: 12px;
+    }
+
+    .submenu-link {
+      display: block;
+      padding: 8px 0;
+      color: rgba(255,255,255,0.5);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .submenu-link:hover, .submenu-link.active {
+      color: white;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      padding: 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header-area {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+
+    .page-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin: 0;
+    }
+
+    /* Search & Filter */
+    .search-wrap {
+      background: white;
+      border-radius: 100px;
+      padding: 6px 6px 6px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      width: 400px;
+    }
+
+    .search-input {
+      border: none;
+      background: transparent;
+      outline: none;
+      flex: 1;
+      font-size: 0.95rem;
+      font-family: inherit;
+    }
+
+    .btn-add {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 100px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.2s;
+    }
+
+    .btn-add:hover {
+      transform: translateY(-2px);
+    }
+
+    /* Team Grid */
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .member-card {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      text-align: center;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      transition: all 0.3s ease;
+    }
+
+    .member-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+      border-color: var(--accent);
+    }
+
+    .member-avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: #f1f5f9;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      color: var(--primary);
+      border: 4px solid var(--bg-1);
+    }
+
+    .member-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 800;
+      margin: 0 0 4px 0;
+      color: var(--primary);
+    }
+
+    .member-role {
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    .member-info {
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .info-item svg {
+      width: 14px;
+      height: 14px;
+      color: var(--primary);
+      opacity: 0.7;
+    }
+
+    /* Modal Styling */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: white;
+      width: 100%;
+      max-width: 500px;
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-family: inherit;
+      box-sizing: border-box;
+      outline: none;
+    }
+
+    .form-input:focus {
+      border-color: var(--primary);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="home.html" class="sidebar-logo">
+      <div style="background: white; padding: 6px; border-radius: 10px; display: flex;">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#1d3461" stroke-width="3">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+        </svg>
+      </div>
+      <span>Gantec Portal</span>
+    </a>
+
+    <nav>
+      <a href="home.html" class="sidebar-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        <span class="link-text">Dashboard</span>
+      </a>
+
+      <div class="sidebar-dropdown">
+        <a href="weekly-connect.html" class="sidebar-link active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <span class="link-text">Weekly Connect</span>
+        </a>
+        <div class="sidebar-submenu">
+          <a href="weekly-connect.html" class="submenu-link">Connect Highlights</a>
+          <a href="team-members.html" class="submenu-link active">Team Members</a>
+          <a href="webpage-creation.html" class="submenu-link">Webpage Builder</a>
+        </div>
+      </div>
+
+      <a href="company-holidays.html" class="sidebar-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span class="link-text">Holidays</span>
+      </a>
+      
+      <a href="leave-portal.html" class="sidebar-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <path d="M16 2v4M8 2v4M3 10h18" />
+          <path d="M10 14l2 2 4-4" />
+        </svg>
+        <span class="link-text">Leave Portal</span>
+      </a>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <div class="header-area">
+      <div>
+        <h1 class="page-title">Team Members</h1>
+        <p style="color: var(--text-muted); margin-top: 8px; font-weight: 500;">Meet the amazing people at Gantec Connect</p>
+      </div>
+      
+      <div style="display: flex; gap: 16px;">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--text-muted)" stroke-width="2.5">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" class="search-input" placeholder="Search by name or role..." id="teamSearch">
+        </div>
+        
+        <button class="btn-add" id="openAddModal">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add Member
+        </button>
+      </div>
+    </div>
+
+    <div class="team-grid" id="teamGrid">
+      <!-- Members will be loaded here -->
+    </div>
+  </main>
+
+  <!-- Add Member Modal -->
+  <div class="modal-overlay" id="addModal">
+    <div class="modal-card">
+      <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; margin: 0 0 24px 0; color: var(--primary);">Add New Team Member</h2>
+      
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" class="form-input" id="mName" placeholder="e.g. John Doe">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Job Title / Role</label>
+        <input type="text" class="form-input" id="mRole" placeholder="e.g. Software Engineer">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" class="form-input" id="mEmail" placeholder="john@gantec.com">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Phone Number</label>
+        <input type="text" class="form-input" id="mPhone" placeholder="+1 (555) 000-0000">
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-top: 32px;">
+        <button style="flex: 1; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: #f1f5f9; color: var(--text-muted); font-weight: 700; cursor: pointer;" id="closeAddModal">Cancel</button>
+        <button style="flex: 1; padding: 14px; border-radius: 12px; border: none; background: var(--primary); color: white; font-weight: 700; cursor: pointer;" id="saveMember">Save Member</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const teamGrid = document.getElementById('teamGrid');
+    const teamSearch = document.getElementById('teamSearch');
+    const addModal = document.getElementById('addModal');
+    const openAddModal = document.getElementById('openAddModal');
+    const closeAddModal = document.getElementById('closeAddModal');
+    const saveMemberBtn = document.getElementById('saveMember');
+
+    // Sample Data
+    let members = [
+      { id: 1, name: "Gnana Sree", role: "UI/UX Designer", email: "gnana.sree@gantec.com", phone: "+91 98765 43210", avatar: "👩‍💻" },
+      { id: 2, name: "Vikram Raj", role: "Project Manager", email: "vikram.raj@gantec.com", phone: "+91 98765 43211", avatar: "👨‍💼" },
+      { id: 3, name: "Anita Sharma", role: "QA Engineer", email: "anita.s@gantec.com", phone: "+91 98765 43212", avatar: "👩‍🔬" },
+      { id: 4, name: "Rahul Singh", role: "Backend Developer", email: "rahul.s@gantec.com", phone: "+91 98765 43213", avatar: "👨‍💻" }
+    ];
+
+    function renderTeam(list) {
+      teamGrid.innerHTML = list.map(m => `
+        <div class="member-card">
+          <div class="member-avatar">${m.avatar || '👤'}</div>
+          <h3 class="member-name">${m.name}</h3>
+          <span class="member-role">${m.role}</span>
+          
+          <div class="member-info">
+            <div class="info-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+              ${m.email}
+            </div>
+            <div class="info-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              ${m.phone}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Search functionality
+    teamSearch.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase();
+      const filtered = members.filter(m => 
+        m.name.toLowerCase().includes(term) || 
+        m.role.toLowerCase().includes(term)
+      );
+      renderTeam(filtered);
+    });
+
+    // Modal logic
+    openAddModal.onclick = () => addModal.classList.add('active');
+    closeAddModal.onclick = () => addModal.classList.remove('active');
+
+    saveMemberBtn.onclick = () => {
+      const name = document.getElementById('mName').value;
+      const role = document.getElementById('mRole').value;
+      const email = document.getElementById('mEmail').value;
+      const phone = document.getElementById('mPhone').value;
+
+      if (!name || !role) return alert('Name and Role are required');
+
+      const newMember = {
+        id: Date.now(),
+        name,
+        role,
+        email: email || 'N/A',
+        phone: phone || 'N/A',
+        avatar: Math.random() > 0.5 ? '👨‍💻' : '👩‍💻'
+      };
+
+      members.unshift(newMember);
+      renderTeam(members);
+      addModal.classList.remove('active');
+      
+      // Reset form
+      document.getElementById('mName').value = '';
+      document.getElementById('mRole').value = '';
+      document.getElementById('mEmail').value = '';
+      document.getElementById('mPhone').value = '';
+    };
+
+    // Initial render
+    renderTeam(members);
+  </script>
+</body>
+
+</html>

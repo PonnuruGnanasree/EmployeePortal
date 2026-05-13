@@ -369,14 +369,21 @@
           <span class="link-text">FAQ</span>
         </a>
 
-        <a href="weekly-connect.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-            <line x1="8" y1="21" x2="16" y2="21"></line>
-            <line x1="12" y1="17" x2="12" y2="21"></line>
-          </svg>
-          <span class="link-text">Weekly Connect</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="weekly-connect.html" class="sidebar-link sidebar-dropdown-trigger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span class="link-text">Weekly Connect</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="weekly-connect.html" class="submenu-link">Connect Highlights</a>
+
+            <a href="webpage-creation.html" class="submenu-link">Webpage Builder</a>
+          </div>
+        </div>
 
         <a href="contact-hr.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -416,7 +423,7 @@
 
           <!-- Certificate Popularity Section -->
           <div class="cert-groups-section">
-            <h2 class="section-title">Certificates & Their Holders</h2>
+            <h2 class="section-title">Certified Associates</h2>
             <div id="cert-groups-wrapper" class="cert-groups-grid">
               <!-- Dynamic Certificate Groups -->
             </div>
@@ -474,24 +481,24 @@
     }
 
     function processAndRenderData(certs) {
-      // 1. Group by Certificate Name
-      const certGroups = {};
+      const personCerts = {};
       const personCounts = {};
 
       certs.forEach(c => {
-        const name = c.certificate_name || 'Unnamed Certificate';
-        const owner = c.certificate_owner || 'Unknown Owner';
+        const certName = c.certificate_name || 'Unnamed Certificate';
+        const ownerRaw = c.certificate_owner || 'Unknown Owner';
+        const owner = ownerRaw.trim();
 
-        // Grouping for "Certificates & Holders"
-        if (!certGroups[name]) certGroups[name] = [];
-        if (!certGroups[name].includes(owner)) certGroups[name].push(owner);
+        if (!personCerts[owner]) personCerts[owner] = [];
+        if (!personCerts[owner].includes(certName)) {
+          personCerts[owner].push(certName);
+        }
 
-        // Counting for Leaderboard
         personCounts[owner] = (personCounts[owner] || 0) + 1;
       });
 
       renderPodium(personCounts);
-      renderGroups(certGroups);
+      renderPersonGroups(personCerts);
     }
 
     function renderPodium(counts) {
@@ -520,43 +527,44 @@
       });
     }
 
-    function renderGroups(groups) {
+    function renderPersonGroups(personCerts) {
       const wrapper = document.getElementById('cert-groups-wrapper');
       wrapper.innerHTML = '';
 
-      // Sort groups by popularity (number of owners)
-      const sortedGroups = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+      // Sort people by number of certificates (highest first) and show only top 3
+      const sortedPeople = Object.entries(personCerts)
+        .sort((a, b) => b[1].length - a[1].length)
+        .slice(0, 3);
 
-      sortedGroups.forEach(([name, owners]) => {
+      sortedPeople.forEach(([name, certs]) => {
+        const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        
+        const certsHtml = certs.map(cert => `
+          <div class="owner-tag">
+            <div class="owner-initials" style="background:rgba(79, 70, 229, 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 12px; height: 12px;">
+                <path d="M22 10L12 5L2 10L12 15L22 10Z"></path>
+                <path d="M6 12V18C6 18 9 20 12 20C15 20 18 18 18 18V12"></path>
+              </svg>
+            </div>
+            <span>${cert}</span>
+          </div>
+        `).join('');
+
         const card = document.createElement('div');
         card.className = 'cert-group-card';
-
-        const ownersHtml = owners.map(owner => {
-          const initials = owner.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-          return `
-            <div class="owner-tag">
-              <div class="owner-initials">${initials}</div>
-              <span>${owner}</span>
-            </div>
-          `;
-        }).join('');
-
         card.innerHTML = `
           <div class="cert-group-header">
-            <div class="cert-icon-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 24px; height: 24px;">
-                <path d="M12 15l-2 5l2 -1l2 1l-2 -5"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-                <path d="M3 21v-2a4 4 0 0 1 4 -4h10a4 4 0 0 1 4 4v2"></path>
-              </svg>
+            <div class="cert-icon-box" style="background:var(--primary); color:white; font-weight:800; font-size:1.1rem;">
+              ${initials}
             </div>
             <div class="cert-group-info">
               <h3>${name}</h3>
-              <p>${owners.length} Holder${owners.length > 1 ? 's' : ''}</p>
+              <p>${certs.length} Active Certification${certs.length > 1 ? 's' : ''}</p>
             </div>
           </div>
           <div class="owners-list">
-            ${ownersHtml}
+            ${certsHtml}
           </div>
         `;
         wrapper.appendChild(card);

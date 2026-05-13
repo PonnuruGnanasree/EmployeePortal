@@ -220,13 +220,48 @@
       }
     }
 
-    .loader-spinner {
-      border: 4px solid rgba(255, 255, 255, 0.1);
-      border-top: 4px solid var(--primary);
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
+    /* Question section cards */
+    .q-section {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      animation: fadeInUp 0.3s ease-out;
+    }
+    @keyframes fadeInUp {
+      from { opacity:0; transform:translateY(8px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .q-section-header {
+      font-weight: 800;
+      font-size: 0.8rem;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    .content-type-toggle {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .toggle-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      background: white;
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #64748b;
+    }
+    .toggle-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
     }
   </style>
 </head>
@@ -328,14 +363,21 @@
           <span class="link-text">FAQ</span>
         </a>
 
-        <a href="weekly-connect.html" class="sidebar-link active">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-            <line x1="8" y1="21" x2="16" y2="21"></line>
-            <line x1="12" y1="17" x2="12" y2="21"></line>
-          </svg>
-          <span class="link-text">Weekly Connect</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="weekly-connect.html" class="sidebar-link sidebar-dropdown-trigger active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span class="link-text">Weekly Connect</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="weekly-connect.html" class="submenu-link active">Connect Highlights</a>
+            <a href="team-members.html" class="submenu-link">Team Members</a>
+            <a href="webpage-creation.html" class="submenu-link">Webpage Builder</a>
+          </div>
+        </div>
 
         <a href="contact-hr.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -357,14 +399,14 @@
             <div class="pulse-dot"></div>
             <span>Every Thursday • 4:00 PM – 4:45 PM</span>
           </div>
-          <button id="create-session-btn" onclick="window.location.href='webpage-creation.html'"
+          <!-- <button id="create-session-btn" onclick="window.location.href='webpage-creation.html'"
             style="margin-top:16px; padding:12px 32px; background:var(--primary); color:white; border:none; border-radius:14px; font-weight:800; font-size:0.95rem; cursor:pointer; display:inline-flex; align-items:center; gap:10px; box-shadow:0 4px 15px rgba(29,52,97,0.3); transition:all 0.2s;">
-            <!-- <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg> -->
-            Create
-          </button>
+          <!-- Create
+          </button> -->
         </div>
 
         <div id="session-output">
@@ -495,7 +537,16 @@
     <!-- Modal -->
     <div class="modal-overlay" id="post-modal">
       <div class="modal-card">
-        <h2 style="margin-top:0; font-weight:800; color:var(--primary);">Generate Session Card</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <h2 style="margin: 0; font-weight: 800; color: var(--primary);">Generate Session Card</h2>
+          <button type="button" onclick="document.getElementById('post-modal').classList.remove('active')"
+            style="background: #f1f5f9; border: none; color: var(--text-secondary); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
         <form id="post-form">
           <input type="hidden" id="edit-id">
           <div class="form-group">
@@ -534,28 +585,86 @@
               <input type="text" id="w3" class="input" placeholder="3rd" required>
             </div>
           </div>
-          <button type="submit" class="btn-post">Weekly Connect Card</button>
-          <button type="button" onclick="document.getElementById('post-modal').classList.remove('active')"
-            style="width:100%; margin-top:12px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-weight:700;">Cancel</button>
+          <!-- Number of Questions & Dynamic Q sections -->
+          <div class="form-group">
+            <label class="label">Number of Questions</label>
+            <input type="number" id="numQuestions" class="input" min="0" placeholder="e.g. 3" oninput="generateQuestionFields(this.value)">
+          </div>
+          <div id="dynamic-question-fields" style="margin-top:8px;"></div>
+
+          <button type="submit" class="btn-post">Generate Card</button>
         </form>
+
       </div>
     </div>
   </div>
 
   <script src="js/app.js"></script>
   <script>
+    // --- Generate dynamic question fields with text/image toggle ---
+    function generateQuestionFields(count) {
+      const container = document.getElementById('dynamic-question-fields');
+      container.innerHTML = '';
+      count = parseInt(count);
+      if (isNaN(count) || count <= 0) return;
+
+      for (let i = 1; i <= count; i++) {
+        const div = document.createElement('div');
+        div.className = 'q-section';
+        div.innerHTML = `
+          <div class="q-section-header">Question ${i}</div>
+          <!-- Content type toggle -->
+          <div class="content-type-toggle">
+            <button type="button" class="toggle-btn active" id="q${i}-btn-text"
+              onclick="switchQType(${i}, 'text')">📝 Text</button>
+            <button type="button" class="toggle-btn" id="q${i}-btn-image"
+              onclick="switchQType(${i}, 'image')">🖼️ Image</button>
+          </div>
+          <!-- Text input -->
+          <div id="q${i}-text-group" class="form-group" style="margin-bottom:10px;">
+            <label class="label">Question ${i} (Text)</label>
+            <input type="text" id="q${i}-text" class="input" placeholder="Enter question text">
+          </div>
+          <!-- Image input (hidden) -->
+          <div id="q${i}-image-group" class="form-group" style="display:none; margin-bottom:10px;">
+            <label class="label">Question ${i} (Image URL)</label>
+            <input type="text" id="q${i}-image" class="input" placeholder="https://example.com/image.jpg">
+          </div>
+          <!-- Answer -->
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="label">Answer ${i}</label>
+            <input type="text" id="q${i}-answer" class="input" placeholder="Correct answer">
+          </div>
+        `;
+        container.appendChild(div);
+      }
+    }
+
+    function switchQType(i, type) {
+      const textGroup  = document.getElementById(`q${i}-text-group`);
+      const imageGroup = document.getElementById(`q${i}-image-group`);
+      const btnText    = document.getElementById(`q${i}-btn-text`);
+      const btnImage   = document.getElementById(`q${i}-btn-image`);
+
+      if (type === 'text') {
+        textGroup.style.display  = 'block';
+        imageGroup.style.display = 'none';
+        btnText.classList.add('active');
+        btnImage.classList.remove('active');
+      } else {
+        textGroup.style.display  = 'none';
+        imageGroup.style.display = 'block';
+        btnImage.classList.add('active');
+        btnText.classList.remove('active');
+      }
+    }
+
     const sessionOutput = document.getElementById('session-output');
     const postModal = document.getElementById('post-modal');
     const openModalBtn = document.getElementById('open-post-modal');
     const postForm = document.getElementById('post-form');
 
     openModalBtn.addEventListener('click', () => postModal.classList.add('active'));
-
-    // Dropdown toggle logic
-    document.querySelector('.sidebar-dropdown-trigger').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.target.closest('.sidebar-dropdown').classList.toggle('open');
-    });
 
     postForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -589,6 +698,17 @@
         if (existing) originalFilename = existing.filename;
       }
 
+      const numQuestions = parseInt(document.getElementById('numQuestions').value) || 0;
+      const questions = [];
+      for (let i = 1; i <= numQuestions; i++) {
+        const isText = document.getElementById(`q${i}-btn-text`).classList.contains('active');
+        questions.push({
+          type: isText ? 'text' : 'image',
+          content: isText ? document.getElementById(`q${i}-text`).value : document.getElementById(`q${i}-image`).value,
+          answer: document.getElementById(`q${i}-answer`).value
+        });
+      }
+
       const session = {
         id: editId ? parseInt(editId) : Date.now(),
         week: document.getElementById('weekInfo').value,
@@ -602,7 +722,8 @@
           document.getElementById('w1').value,
           document.getElementById('w2').value,
           document.getElementById('w3').value
-        ]
+        ],
+        questions: questions
       };
 
       try {
@@ -623,12 +744,12 @@
         postModal.classList.remove('active');
         postForm.reset();
         document.getElementById('edit-id').value = '';
-        showToast(editId ? 'Session updated' : 'Session posted', 'success');
+        showToast(editId ? 'Session updated' : 'Card is generated', 'success');
       } catch (err) {
         showToast(err.message, 'error');
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Generate & Post Card';
+        submitBtn.textContent = 'Generate Card';
       }
     });
 
@@ -697,6 +818,8 @@
               </h3>
               <p style="color:var(--text-secondary); font-size:0.95rem; line-height:1.6;">${s.updates || 'No extra announcements for this session.'}</p>
             </div>
+
+
 
             <div class="section-box" style="grid-column: 1 / -1; background:#fff1f2; border-color:#ffe4e6;">
               <h3 style="margin:0 0 16px 0; color:#e11d48; font-weight:800; display:flex; align-items:center; gap:8px;">
@@ -907,6 +1030,25 @@
       document.getElementById('w2').value = session.winners[1];
       document.getElementById('w3').value = session.winners[2];
 
+      // Restore questions
+      const numQInput = document.getElementById('numQuestions');
+      numQInput.value = session.questions ? session.questions.length : 0;
+      generateQuestionFields(numQInput.value);
+      
+      if (session.questions) {
+        session.questions.forEach((q, idx) => {
+          const i = idx + 1;
+          if (q.type === 'image') {
+            switchQType(i, 'image');
+            document.getElementById(`q${i}-image`).value = q.content;
+          } else {
+            switchQType(i, 'text');
+            document.getElementById(`q${i}-text`).value = q.content;
+          }
+          document.getElementById(`q${i}-answer`).value = q.answer;
+        });
+      }
+
       postModal.querySelector('h2').textContent = 'Edit Session Card';
       postModal.querySelector('.btn-post').textContent = 'Save Changes';
       postModal.classList.add('active');
@@ -914,6 +1056,7 @@
 
     openModalBtn.addEventListener('click', () => {
       postForm.reset();
+      document.getElementById('dynamic-question-fields').innerHTML = ''; // Clear dynamic fields
       document.getElementById('edit-id').value = '';
       postModal.querySelector('h2').textContent = 'Generate Session Card';
       postModal.querySelector('.btn-post').textContent = 'Generate & Post Card';

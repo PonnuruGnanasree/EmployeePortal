@@ -118,15 +118,15 @@
       display: flex;
       gap: 20px;
       justify-content: center;
-      margin-bottom: 40px;
+      margin-bottom: 120px;
     }
 
     .btn-main {
-      padding: 18px 40px;
-      border-radius: 20px;
+      padding: 14px 32px;
+      border-radius: 16px;
       border: none;
       font-family: 'Outfit', sans-serif;
-      font-size: 1.1rem;
+      font-size: 0.95rem;
       font-weight: 700;
       cursor: pointer;
       transition: var(--transition);
@@ -160,8 +160,8 @@
     .btn-generate {
       background: var(--success);
       color: white;
-      font-size: 1.4rem;
-      padding: 22px 60px;
+      font-size: 1.1rem;
+      padding: 16px 48px;
       margin-top: 40px;
       margin-left: auto;
       margin-right: auto;
@@ -296,6 +296,9 @@
       background-size: cover;
       background-position: center;
       position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .overlay-glass {
@@ -308,8 +311,37 @@
       padding: 20px;
     }
 
+    .btn-back-gen {
+      position: fixed;
+      top: 30px;
+      left: 30px;
+      background: #1d3461;
+      border: none;
+      color: white;
+      padding: 12px 28px;
+      border-radius: 100px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      transition: all 0.3s ease;
+      z-index: 3000;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 0.85rem;
+      box-shadow: 0 4px 15px rgba(29, 52, 97, 0.4);
+    }
+
+    .btn-back-gen:hover {
+      background: #142a4f;
+      transform: translateX(-4px);
+      box-shadow: 0 6px 20px rgba(29, 52, 97, 0.5);
+    }
+
     .welcome-screen,
     .nav-screen,
+    .quiz-intro-screen,
     .quiz-screen,
     .completion-screen {
       max-width: 800px;
@@ -322,9 +354,14 @@
 
     .welcome-screen.active,
     .nav-screen.active,
+    .quiz-intro-screen.active,
     .quiz-screen.active,
     .completion-screen.active {
-      display: block;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
     }
 
     .gen-title {
@@ -417,18 +454,19 @@
     }
 
     .q-text {
-      font-size: 2.2rem;
+      font-size: 1.2rem;
       font-weight: 700;
       margin-bottom: 40px;
     }
 
     .answer-box {
-      background: var(--success);
-      color: white;
+      background: rgba(16, 185, 129, 0.1);
+      border: 2px solid rgba(16, 185, 129, 0.3);
+      color: var(--primary);
       padding: 30px;
       border-radius: 20px;
-      font-size: 1.5rem;
-      font-weight: 700;
+      font-size: 1.1rem;
+      font-weight: 800;
       margin-top: 20px;
       display: none;
       animation: slideIn 0.5s ease-out;
@@ -552,77 +590,108 @@
 
   <!-- VIEW 2: THE GENERATED WEBSITE -->
   <div id="generated-view" class="view">
-    <div class="overlay-glass">
+    <button class="btn-back-gen" onclick="goBack()">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Back
+    </button>
 
-      <!-- Welcome Screen -->
-      <div id="screen-welcome" class="screen welcome-screen active">
-        <h1 id="gen-welcome-title" class="gen-title"></h1>
-        <h2 id="gen-welcome-subtitle" class="gen-subtitle"></h2>
-        <p id="gen-welcome-desc" class="gen-desc"></p>
-        <button id="gen-welcome-btn" class="btn-gen" onclick="nextScreen('nav')">Start Experience</button>
-      </div>
-
-      <!-- Navigation Screen -->
-      <div id="screen-nav" class="screen nav-screen">
-        <h1 class="gen-title">Choose Your Path</h1>
-        <div class="btn-group" style="margin-top: 40px;">
-          <button class="btn-gen" onclick="startQuiz('fun')">Funactivity</button>
-          <button class="btn-gen" style="background:var(--primary)" onclick="startQuiz('tech')">Technical</button>
-
-        </div>
-      </div>
-
-      <!-- Quiz Screen -->
-      <div id="screen-quiz" class="screen quiz-screen">
-        <div class="timer-container">
-          <svg class="timer-svg">
-            <circle class="timer-circle" cx="50" cy="50" r="45"></circle>
-            <circle id="timer-progress" class="timer-progress" cx="50" cy="50" r="45"></circle>
-          </svg>
-          <div id="timer-text" class="timer-text">20</div>
-        </div>
-
-        <div class="timer-controls">
-          <button class="btn-timer" onclick="startTimer()">Start</button>
-          <button class="btn-timer" onclick="pauseTimer()">Pause</button>
-          <button class="btn-timer" onclick="resetTimer()">Restart</button>
-        </div>
-
-        <div class="quiz-card">
-          <span id="quiz-num" class="q-num">Question 1</span>
-          <h2 id="quiz-text" class="q-text">Loading question...</h2>
-
-          <div style="margin-bottom: 20px; display: flex; justify-content: center;">
-            <button id="btn-show-answer" class="btn-gen" style="background:var(--primary);" onclick="showAnswer()">Show
-              Answer</button>
-          </div>
-
-          <div id="answer-box" class="answer-box">
-            The answer is: <span id="answer-text"></span>
-          </div>
-
-          <div style="margin-top: 20px; display: flex; justify-content: center;">
-            <button id="btn-next-q" class="btn-gen" style="display:none;" onclick="nextQuestion()">Next
-              Question</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Completion Screen -->
-      <div id="screen-completion" class="screen completion-screen">
-        <h1 class="gen-title">🎉 Success!</h1>
-        <p class="gen-desc">All Questions Completed Successfully</p>
-        <button class="btn-gen" onclick="restartBuilder()">Return to Welcome Page</button>
-      </div>
-
+    <!-- Welcome Screen -->
+    <div id="screen-welcome" class="screen welcome-screen active">
+      <h1 id="gen-welcome-title" class="gen-title"></h1>
+      <h2 id="gen-welcome-subtitle" class="gen-subtitle"></h2>
+      <p id="gen-welcome-desc" class="gen-desc"></p>
+      <button id="gen-welcome-btn" class="btn-gen" onclick="nextScreen('nav')">Start Experience</button>
     </div>
+
+    <!-- Navigation Screen -->
+    <div id="screen-nav" class="screen nav-screen">
+      <h1 class="gen-title">Let's Begin</h1>
+      <div class="btn-group" style="margin-top: 40px;">
+        <button class="btn-gen" style="min-width: 130px; text-align: center;" onclick="startQuiz('fun')">Fun
+          Activity</button>
+        <button class="btn-gen" style="background:var(--primary); min-width: 130px; text-align: center;"
+          onclick="startQuiz('tech')">Technical</button>
+
+      </div>
+    </div>
+
+    <!-- Quiz Intro Screen -->
+    <div id="screen-quiz-intro" class="screen quiz-intro-screen">
+      <h1 id="quiz-intro-title" class="gen-title" style="margin-bottom: 40px;"></h1>
+      <div id="quiz-intro-content"
+        style="margin-bottom: 40px; max-width: 600px; font-size: 1.2rem; line-height: 1.6; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; backdrop-filter: blur(10px);">
+        <!-- Dynamic text or image content goes here -->
+      </div>
+      <button class="btn-gen" style="font-size: 1.2rem; padding: 16px 48px; border-radius: 100px;"
+        onclick="proceedToQuiz()">Let's Start</button>
+    </div>
+
+    <!-- Quiz Screen -->
+    <div id="screen-quiz" class="screen quiz-screen">
+      <div class="timer-container">
+        <svg class="timer-svg">
+          <circle class="timer-circle" cx="50" cy="50" r="45"></circle>
+          <circle id="timer-progress" class="timer-progress" cx="50" cy="50" r="45"></circle>
+        </svg>
+        <div id="timer-text" class="timer-text">20</div>
+      </div>
+
+      <div class="timer-controls">
+        <button class="btn-timer" onclick="pauseTimer()">Pause</button>
+        <button class="btn-timer" onclick="resetTimer(); startTimer();">Restart</button>
+      </div>
+
+
+
+      <div class="quiz-card">
+        <span id="quiz-num" class="q-num">Question 1</span>
+        <h2 id="quiz-text" class="q-text">Loading question...</h2>
+
+        <div style="margin-bottom: 20px; display: flex; justify-content: center;">
+          <button id="btn-show-answer" class="btn-gen" style="background:var(--primary);" onclick="showAnswer()">Show
+            Answer</button>
+        </div>
+
+        <div id="answer-box" class="answer-box">
+          The answer is: <span id="answer-text"></span>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; justify-content: center;">
+          <button id="btn-next-q" class="btn-gen" style="display:none;" onclick="nextQuestion()">Next
+            Question</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Completion Screen -->
+    <div id="screen-completion" class="screen completion-screen">
+      <h1 class="gen-title">🎉 Completed!!</h1>
+      <p class="gen-desc">You have successfully finished this section.</p>
+      <div class="btn-group" style="justify-content: center; margin-top: 20px;">
+        <button class="btn-gen" style="background:var(--primary);" onclick="nextScreen('nav')">Back to Menu</button>
+      </div>
+    </div>
+
+  </div>
   </div>
 
   <!-- MODALS -->
   <!-- Welcome Page Modal -->
   <div id="modal-welcome" class="modal-overlay">
     <div class="modal-content">
-      <h2 class="main-title" style="font-size: 2rem;">Welcome Page Details</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+        <h2 class="main-title" style="font-size: 2rem; margin: 0;">Welcome Page Details</h2>
+        <button type="button" onclick="closeModals()"
+          style="background: #f1f5f9; border: none; color: #64748b; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
       <div class="form-group">
         <label>Title</label>
         <input type="text" id="w-title" class="form-input" placeholder="e.g. Welcome to the Grand Quiz">
@@ -637,17 +706,27 @@
           placeholder="What is this event about?"></textarea>
       </div>
       <div class="form-group">
-        <label>Background Image URL</label>
-        <input type="text" id="w-bg" class="form-input"
-          placeholder="https://source.unsplash.com/random/1920x1080?nature">
+        <label>Background Image</label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="text" id="w-bg" class="form-input" placeholder="Background image path will appear here" readonly
+            style="flex:1; background:#f8fafc; font-size: 0.85rem; padding: 8px 12px;">
+          <button type="button"
+            style="padding:8px 18px; border-radius:100px; border:none; background:var(--primary); color:white; font-weight:700; font-size:0.78rem; cursor:pointer; flex-shrink:0; white-space:nowrap;"
+            onclick="triggerUpload(this)">📁 Upload</button>
+          <input type="file" style="display:none;" onchange="handleQAFileUpload(this, 'bg')">
+        </div>
       </div>
       <div class="form-group">
         <label>Button Text</label>
         <input type="text" id="w-btn" class="form-input" placeholder="e.g. Get Started">
       </div>
+      <!-- Text colour picker -->
+      <div class="form-group">
+        <label>Text Colour</label>
+        <input type="color" id="w-color" class="form-input" value="#ffffff" title="Pick text colour">
+      </div>
       <div class="modal-footer">
-        <button class="btn-save" onclick="saveWelcome()">Save Details</button>
-        <button class="btn-cancel" onclick="closeModals()">Cancel</button>
+        <button class="btn-save" style="width: 100%;" onclick="saveWelcome()">Save Details</button>
       </div>
     </div>
   </div>
@@ -655,14 +734,65 @@
   <!-- Tech/Fun Modal -->
   <div id="modal-content" class="modal-overlay">
     <div class="modal-content">
-      <h2 id="content-modal-title" class="main-title" style="font-size: 2rem;">Section Setup</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+        <h2 id="content-modal-title" class="main-title" style="font-size: 2rem; margin: 0;">Section Setup</h2>
+        <button type="button" onclick="closeModals()"
+          style="background: #f1f5f9; border: none; color: #64748b; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
       <div class="form-group">
         <label>Section Title</label>
         <input type="text" id="c-title" class="form-input" placeholder="e.g. Technology Trends">
       </div>
       <div class="form-group">
-        <label>Background Image URL</label>
-        <input type="text" id="c-bg" class="form-input" placeholder="https://source.unsplash.com/random/1920x1080?tech">
+        <label>Sub Title</label>
+        <input type="text" id="c-subtitle" class="form-input" placeholder="e.g. A quick knowledge check">
+      </div>
+      <div class="form-group">
+        <label>Background Image</label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="text" id="c-bg" class="form-input" placeholder="Background image path will appear here" readonly
+            style="flex:1; background:#f8fafc; font-size: 0.85rem; padding: 8px 12px;">
+          <button type="button"
+            style="padding:8px 18px; border-radius:100px; border:none; background:var(--primary); color:white; font-weight:700; font-size:0.78rem; cursor:pointer; flex-shrink:0; white-space:nowrap;"
+            onclick="triggerUpload(this)">📁 Upload</button>
+          <input type="file" style="display:none;" onchange="handleQAFileUpload(this, 'bg')">
+        </div>
+      </div>
+      <!-- Content Type Toggle -->
+      <div class="form-group" style="text-align: center;">
+        <label style="display: block; margin-bottom: 15px; text-align: center;">Content Type</label>
+        <div
+          style="display: inline-flex; background: #f1f5f9; padding: 4px; border-radius: 100px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+          <button type="button" id="c-toggle-text" onclick="setSectionContentType('text')"
+            style="padding: 10px 30px; border-radius: 100px; border: none; font-weight: 700; cursor: pointer; transition: all 0.3s; background: var(--primary); color: white;">
+            Text
+          </button>
+          <button type="button" id="c-toggle-image" onclick="setSectionContentType('image')"
+            style="padding: 10px 30px; border-radius: 100px; border: none; font-weight: 700; cursor: pointer; transition: all 0.3s; background: transparent; color: #64748b;">
+            Image
+          </button>
+        </div>
+        <input type="hidden" name="c-content-type" id="c-type-val" value="text">
+      </div>
+      <!-- Intro Content -->
+      <div id="c-text-group" style="display:none;">
+        <textarea id="c-text" class="form-input" style="height: 60px; margin-bottom: 15px;"
+          placeholder="Optional: Enter section intro text..."></textarea>
+      </div>
+      <div id="c-image-group" style="display:none; margin-bottom:15px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="text" id="c-image" class="form-input" placeholder="Image path will appear here" readonly
+            style="flex:1; background:#f8fafc; font-size: 0.85rem; padding: 8px 12px;">
+          <button type="button"
+            style="padding:8px 18px; border-radius:100px; border:none; background:var(--primary); color:white; font-weight:700; font-size:0.78rem; cursor:pointer; flex-shrink:0; white-space:nowrap;"
+            onclick="triggerUpload(this)">📁 Upload</button>
+          <input type="file" style="display:none;" onchange="handleQAFileUpload(this, 'intro')">
+        </div>
       </div>
       <div class="form-group">
         <label>Number of Questions</label>
@@ -675,8 +805,7 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn-save" onclick="saveContent()">Save Section</button>
-        <button class="btn-cancel" onclick="closeModals()">Cancel</button>
+        <button class="btn-save" style="width: 100%;" onclick="saveContent()">Save Section</button>
       </div>
     </div>
   </div>
@@ -727,14 +856,28 @@
         const data = builderData[type];
         if (data) {
           document.getElementById('c-title').value = data.title;
+          document.getElementById('c-subtitle').value = data.subtitle || '';
           document.getElementById('c-bg').value = data.bg;
-          document.getElementById('c-count').value = data.questions.length;
-          generateQAFields(data.questions.length, data.questions);
+          // Set content type and populate appropriate field
+          setSectionContentType(data.contentType || 'text');
+          if (data.contentType === 'image') {
+            document.getElementById('c-image').value = data.content || '';
+          } else {
+            document.getElementById('c-text').value = data.content || '';
+          }
+          document.getElementById('c-count').value = data.questions ? data.questions.length : '';
+          generateQAFields(data.questions ? data.questions.length : 0, data.questions || []);
         } else {
+          // Reset fields for new section
           document.getElementById('c-title').value = '';
+          document.getElementById('c-subtitle').value = '';
           document.getElementById('c-bg').value = '';
           document.getElementById('c-count').value = '';
           document.getElementById('dynamic-qa-fields').innerHTML = '';
+          // reset content type to text and clear fields
+          setSectionContentType('text');
+          document.getElementById('c-text').value = '';
+          document.getElementById('c-image').value = '';
         }
       }
     }
@@ -754,24 +897,92 @@
       count = parseInt(count);
       if (isNaN(count) || count < 0) return;
 
+      const type = document.getElementById('c-type-val').value;
+
       for (let i = 1; i <= count; i++) {
         const qVal = existingData[i - 1] ? existingData[i - 1].q : '';
         const aVal = existingData[i - 1] ? existingData[i - 1].a : '';
 
         const div = document.createElement('div');
         div.className = 'qa-pair';
+        div.style.background = '#fff';
+        div.style.padding = '12px 16px';
+        div.style.borderRadius = '12px';
+        div.style.border = '1px solid #e2e8f0';
+        div.style.marginBottom = '12px';
+
         div.innerHTML = `
-          <div class="qa-header">Section ${i}</div>
-          <div class="form-group" style="margin-bottom:12px;">
-            <label>Question ${i}</label>
-            <input type="text" class="form-input q-input" value="${qVal}" placeholder="Enter question">
+          <div class="qa-header" style="font-weight:800; color:var(--primary); margin-bottom:10px; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Question ${i}</div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label style="font-size: 0.75rem; margin-bottom: 4px;">${type === 'text' ? 'Question Text' : 'Question Image'}</label>
+            ${type === 'text' ? `
+              <input type="text" class="form-input q-input" value="${qVal}" placeholder="Enter question text" style="padding: 8px 12px; font-size: 0.85rem;">
+            ` : `
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input type="text" class="form-input q-input" value="${qVal}" placeholder="Image path will appear here" readonly style="flex:1; background:#f8fafc; font-size: 0.8rem; padding: 6px 10px;">
+                <button type="button" style="padding:7px 16px; border-radius:100px; border:none; background:var(--primary); color:white; font-weight:700; font-size:0.75rem; cursor:pointer; flex-shrink:0; white-space:nowrap;" onclick="triggerUpload(this)">📁 Upload</button>
+                <input type="file" style="display:none;" onchange="handleQAFileUpload(this, 'q')">
+              </div>
+            `}
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label>Answer ${i}</label>
-            <input type="text" class="form-input a-input" value="${aVal}" placeholder="Enter correct answer">
+            <label style="font-size: 0.75rem; margin-bottom: 4px;">${type === 'text' ? 'Answer Text' : 'Answer Image'}</label>
+            ${type === 'text' ? `
+              <input type="text" class="form-input a-input" value="${aVal}" placeholder="Enter correct answer" style="padding: 8px 12px; font-size: 0.85rem;">
+            ` : `
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input type="text" class="form-input a-input" value="${aVal}" placeholder="Image path will appear here" readonly style="flex:1; background:#f8fafc; font-size: 0.8rem; padding: 6px 10px;">
+                <button type="button" style="padding:7px 16px; border-radius:100px; border:none; background:var(--primary); color:white; font-weight:700; font-size:0.75rem; cursor:pointer; flex-shrink:0; white-space:nowrap;" onclick="triggerUpload(this)">📁 Upload</button>
+                <input type="file" style="display:none;" onchange="handleQAFileUpload(this, 'a')">
+              </div>
+            `}
           </div>
         `;
         container.appendChild(div);
+      }
+    }
+
+    function triggerUpload(btn) {
+      btn.nextElementSibling.click();
+    }
+
+    async function handleQAFileUpload(input, fieldType) {
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      const displayInput = input.parentElement.querySelector('input[type="text"]');
+      const btn = input.parentElement.querySelector('button');
+
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      try {
+        const formData = new FormData();
+        formData.append('folder', 'Webpage Builder');
+        formData.append('file', file);
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+        const fileUrl = getFileUrl('Webpage Builder', data.filename);
+        displayInput.value = fileUrl;
+        btn.textContent = '✅ Done';
+        btn.style.background = '#22c55e';
+      } catch (err) {
+        alert('Upload failed: ' + err.message);
+        btn.textContent = '❌ Failed';
+        btn.style.background = '#ef4444';
+      } finally {
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = originalText;
+          btn.style.background = '';
+        }, 2000);
       }
     }
 
@@ -781,7 +992,8 @@
         subtitle: document.getElementById('w-subtitle').value || 'The ultimate employee experience',
         desc: document.getElementById('w-desc').value || 'Join us for a journey of learning and fun.',
         bg: document.getElementById('w-bg').value || 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1920&q=80',
-        btn: document.getElementById('w-btn').value || 'Start Now'
+        btn: document.getElementById('w-btn').value || 'Start Now',
+        color: document.getElementById('w-color').value || '#ffffff'
       };
       persist();
       closeModals();
@@ -799,9 +1011,21 @@
         });
       });
 
+      // Determine content type and value
+      const contentType = document.getElementById('c-type-val').value;
+      let contentValue = '';
+      if (contentType === 'text') {
+        contentValue = document.getElementById('c-text').value;
+      } else {
+        contentValue = document.getElementById('c-image').value;
+      }
+
       builderData[activeSectionType] = {
         title: document.getElementById('c-title').value || 'Interactive Quiz',
+        subtitle: document.getElementById('c-subtitle').value || '',
         bg: document.getElementById('c-bg').value || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1920&q=80',
+        contentType: contentType,
+        content: contentValue,
         questions: questions
       };
       persist();
@@ -817,6 +1041,45 @@
       if (builderData.welcome && builderData.tech && builderData.fun) {
         document.getElementById('btn-generate-main').style.display = 'flex';
       }
+    }
+
+    // --- GENERATION ENGINE ---
+    function setSectionContentType(type) {
+      const textBtn = document.getElementById('c-toggle-text');
+      const imageBtn = document.getElementById('c-toggle-image');
+      const typeVal = document.getElementById('c-type-val');
+
+      typeVal.value = type;
+
+      if (type === 'text') {
+        textBtn.style.background = 'var(--primary)';
+        textBtn.style.color = 'white';
+        imageBtn.style.background = 'transparent';
+        imageBtn.style.color = '#64748b';
+      } else {
+        imageBtn.style.background = 'var(--primary)';
+        imageBtn.style.color = 'white';
+        textBtn.style.background = 'transparent';
+        textBtn.style.color = '#64748b';
+      }
+
+      // Update existing questions placeholders/labels
+      const count = document.getElementById('c-count').value;
+      if (count) {
+        const qInputs = document.querySelectorAll('.q-input');
+        const aInputs = document.querySelectorAll('.a-input');
+        const existing = [];
+        qInputs.forEach((q, idx) => {
+          existing.push({ q: q.value, a: aInputs[idx].value });
+        });
+        generateQAFields(count, existing);
+      }
+    }
+
+    // Deprecated old toggle function
+    function toggleContentVisibility() {
+      const typeVal = document.getElementById('c-type-val');
+      setSectionContentType(typeVal.value);
     }
 
     // --- GENERATION ENGINE ---
@@ -842,27 +1105,93 @@
       }
     }
 
+    function goBack() {
+      const activeScreen = document.querySelector('.screen.active');
+      if (!activeScreen) return;
+
+      const id = activeScreen.id;
+      if (id === 'screen-welcome') {
+        // Go back to the main portal page (weekly connect)
+        window.location.href = 'weekly-connect.html';
+        return;
+      } else if (id === 'screen-nav') {
+        nextScreen('welcome');
+      } else if (id === 'screen-quiz-intro') {
+        nextScreen('nav');
+      } else if (id === 'screen-quiz') {
+        if (currentQuiz.index > 0) {
+          currentQuiz.index--;
+          showCurrentQuestion();
+        } else {
+          pauseTimer();
+          nextScreen('quiz-intro');
+        }
+      } else if (id === 'screen-completion') {
+        nextScreen('nav');
+      }
+    }
+
     function startQuiz(type) {
+      const data = builderData[type];
       currentQuiz.type = type;
-      currentQuiz.questions = builderData[type].questions;
+      currentQuiz.contentType = data.contentType || 'text'; // Store content type
+      currentQuiz.questions = data.questions;
       currentQuiz.index = 0;
 
-      document.getElementById('generated-view').style.backgroundImage = `url('${builderData[type].bg}')`;
+      document.getElementById('generated-view').style.backgroundImage = `url('${data.bg}')`;
+
+      // Update Intro UI
+      document.getElementById('quiz-intro-title').textContent = `Welcome to ${data.title}`;
+      
+      // Render subtitle — always shown with fallback for both sections
+      let subtitleEl = document.getElementById('quiz-intro-subtitle');
+      if (!subtitleEl) {
+        subtitleEl = document.createElement('p');
+        subtitleEl.id = 'quiz-intro-subtitle';
+        subtitleEl.style.cssText = 'font-size:1.1rem; opacity:0.85; margin:-30px 0 30px 0; text-align:center; font-weight:500; letter-spacing:0.5px;';
+        document.getElementById('quiz-intro-title').insertAdjacentElement('afterend', subtitleEl);
+      }
+      
+      const cleanSubtitle = (data.subtitle || '').trim();
+      subtitleEl.textContent = (cleanSubtitle === 'ghnm,' || cleanSubtitle === '') ? 'Ready for challenge!!' : cleanSubtitle;
+      subtitleEl.style.display = 'block';
+
+      const contentBox = document.getElementById('quiz-intro-content');
+      if (data.contentType === 'image') {
+        contentBox.innerHTML = `<img src="${data.content}" style="max-width: 100%; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">`;
+      } else {
+        const cleanContent = (data.content || '').trim();
+        contentBox.textContent = (cleanContent === 'ghnm,' || cleanContent === '') ? 'Ready for challenge!!' : cleanContent;
+      }
+
+      nextScreen('quiz-intro');
+    }
+
+    function proceedToQuiz() {
       nextScreen('quiz');
       showCurrentQuestion();
     }
 
     function showCurrentQuestion() {
       const q = currentQuiz.questions[currentQuiz.index];
+      const quizText = document.getElementById('quiz-text');
       document.getElementById('quiz-num').textContent = `Question ${currentQuiz.index + 1} of ${currentQuiz.questions.length}`;
-      document.getElementById('quiz-text').textContent = q.q;
-      document.getElementById('answer-text').textContent = q.a;
 
+      if (currentQuiz.contentType === 'image') {
+        quizText.innerHTML = `<img src="${q.q}" style="max-width: 100%; max-height: 300px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">`;
+        document.getElementById('answer-text').innerHTML = `<img src="${q.a}" style="max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 10px; display: block; margin-left: auto; margin-right: auto;">`;
+      } else {
+        quizText.textContent = q.q;
+        document.getElementById('answer-text').textContent = q.a;
+      }
+
+      document.getElementById('quiz-text').style.display = 'block';
       document.getElementById('answer-box').style.display = 'none';
       document.getElementById('btn-show-answer').style.display = 'block';
       document.getElementById('btn-next-q').style.display = 'none';
 
       resetTimer();
+      startTimer();
     }
 
     function startTimer() {
@@ -896,6 +1225,8 @@
     }
 
     function showAnswer() {
+      pauseTimer();
+      document.getElementById('quiz-text').style.display = 'none';
       document.getElementById('answer-box').style.display = 'block';
       document.getElementById('btn-show-answer').style.display = 'none';
       document.getElementById('btn-next-q').style.display = 'block';
@@ -907,29 +1238,17 @@
         showCurrentQuestion();
       } else {
         // Current section finished
-        if (currentQuiz.type === 'tech') {
-          // If we finished tech, maybe go back to nav or automatically go to fun?
-          // The prompt says "After all questions are completed: show success"
-          // Let's assume after ONE section is finished, we go back to nav. 
-          // If BOTH are finished, then success.
-          builderData.tech.completed = true;
-        } else {
-          builderData.fun.completed = true;
-        }
-
-        if (builderData.tech.completed && builderData.fun.completed) {
-          nextScreen('completion');
-        } else {
-          nextScreen('nav');
-        }
+        nextScreen('completion');
       }
     }
 
-    function restartBuilder() {
-      // Reset completion status for new run
-      if (builderData.tech) builderData.tech.completed = false;
-      if (builderData.fun) builderData.fun.completed = false;
+    function returnToWelcome() {
+      document.getElementById('generated-view').style.backgroundImage = `url('${builderData.welcome.bg}')`;
+      nextScreen('welcome');
+    }
 
+    function restartBuilder() {
+      // Takes you back to the admin/builder setup view
       document.getElementById('generated-view').classList.remove('active');
       document.getElementById('builder-view').classList.add('active');
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));

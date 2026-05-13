@@ -714,17 +714,13 @@ function initSidebarLogic() {
             if (parent) parent.classList.add('open');
           }
         } else {
-          // If we click the triangle part specifically (on the right), 
-          // we might just want to toggle the dropdown menu.
-          const rect = link.getBoundingClientRect();
-          const clickX = e.clientX - rect.left;
-          const isTriangleClick = isDropdownTrigger && (clickX > rect.width - 45);
-
-          if (isTriangleClick) {
+          // If it's a dropdown trigger, toggle the dropdown regardless of where it's clicked
+          // This makes it much easier for users to open/close submenus.
+          if (isDropdownTrigger) {
             const parent = link.closest('.sidebar-dropdown');
             if (parent) parent.classList.toggle('open');
           } else {
-            // Clicked the text/icon of the active page -> collapse
+            // Clicked the text/icon of a non-dropdown active page -> collapse sidebar
             toggleSidebar();
           }
         }

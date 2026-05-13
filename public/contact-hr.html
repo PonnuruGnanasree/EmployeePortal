@@ -329,14 +329,34 @@
           <span class="link-text">FAQ</span>
         </a>
 
-        <a href="weekly-connect.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-            <line x1="8" y1="21" x2="16" y2="21"></line>
-            <line x1="12" y1="17" x2="12" y2="21"></line>
-          </svg>
-          <span class="link-text">Weekly Connect</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="weekly-connect.html" class="sidebar-link sidebar-dropdown-trigger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span class="link-text">Weekly Connect</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="weekly-connect.html" class="submenu-link">Connect Highlights</a>
+
+          </div>
+        </div>
+
+        <div class="sidebar-dropdown">
+          <a href="webpage-creation.html" class="sidebar-link sidebar-dropdown-trigger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+            <span class="link-text">Own Website</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="webpage-creation.html" class="submenu-link">Webpage Builder</a>
+          </div>
+        </div>
 
         <a href="contact-hr.html" class="sidebar-link active">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -445,7 +465,16 @@
   <!-- Call Request Modal -->
   <div class="modal-overlay" id="call-modal">
     <div class="modal-content">
-      <h3 style="margin-bottom: 20px;">Request a Call</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h3 style="margin: 0;">Request a Call</h3>
+        <button type="button" onclick="closeModal()"
+          style="background: #f1f5f9; border: none; color: #64748b; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
       <form id="call-form" style="display: flex; flex-direction: column; gap: 16px;">
         <div class="form-group">
           <label>Preferred Date</label>
@@ -464,7 +493,6 @@
         </div>
         <div style="display: flex; gap: 10px; margin-top: 10px;">
           <button type="submit" class="btn btn-primary" style="flex:1; justify-content: center;">Submit Request</button>
-          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
         </div>
       </form>
     </div>

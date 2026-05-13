@@ -201,7 +201,7 @@
             <span class="link-text">Certifications</span>
           </a>
           <div class="sidebar-submenu">
-            <a href="certifications.html" class="submenu-link active">View Certifications</a>
+            <a href="certifications.html" class="submenu-link active">Certifications Campaign</a>
             <a href="add-certification.html" class="submenu-link">Add Certification</a>
             <a href="certificate-leaders.html" class="submenu-link">Certificate Leaders</a>
           </div>
@@ -246,14 +246,21 @@
           <span class="link-text">FAQ</span>
         </a>
 
-        <a href="weekly-connect.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-            <line x1="8" y1="21" x2="16" y2="21"></line>
-            <line x1="12" y1="17" x2="12" y2="21"></line>
-          </svg>
-          <span class="link-text">Weekly Connect</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="weekly-connect.html" class="sidebar-link sidebar-dropdown-trigger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span class="link-text">Weekly Connect</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="weekly-connect.html" class="submenu-link">Connect Highlights</a>
+
+            <a href="webpage-creation.html" class="submenu-link">Webpage Builder</a>
+          </div>
+        </div>
 
         <a href="contact-hr.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -320,8 +327,8 @@
                 career and elevate our team’s capabilities. Each certification you pursue adds new depth to your
                 expertise and positions us collectively for bigger and more strategic opportunities.</p>
 
-              <div class="cert-list">
-                <h3>Certification Records</h3>
+              <!-- <div class="cert-list"> -->
+              <!-- <h3>Certification Records</h3>
                 <div class="table-container" style="margin-top: 20px; overflow-x: auto;">
                   <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
                     <thead>
@@ -332,45 +339,23 @@
                         <th style="padding: 12px; color: var(--text-secondary);">Expiry Date</th>
                       </tr>
                     </thead>
-                    <tbody id="cert-table-body">
-                      <!-- Dynamically populated -->
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                    <tbody id="cert-table-body"> -->
+              <!-- Dynamically populated -->
+              <!-- </tbody>
+                </table> -->
+              <!-- </div> -->
+            </div>
 
-              <script>
-                // Sidebar Dropdown Initialization
-                document.addEventListener('DOMContentLoaded', () => {
-                  const navTraining = document.getElementById('nav-training');
-                  if (navTraining) {
-                    navTraining.addEventListener('click', (e) => {
-                      e.preventDefault();
-                      const dropdown = navTraining.closest('.sidebar-dropdown');
-                      if (dropdown) dropdown.classList.toggle('open');
-                    });
-                  }
+            <script>
+              async function fetchCertifications() {
+                const tbody = document.getElementById('cert-table-body');
+                try {
+                  const res = await fetch('/api/certifications');
+                  const apiData = await res.json();
 
-                  const navCertifications = document.getElementById('nav-certifications');
-                  if (navCertifications) {
-                    navCertifications.addEventListener('click', (e) => {
-                      e.preventDefault();
-                      const dropdown = navCertifications.closest('.sidebar-dropdown');
-                      if (dropdown) dropdown.classList.toggle('open');
-                    });
-                    navCertifications.closest('.sidebar-dropdown').classList.add('open');
-                  }
-                });
-
-                async function fetchCertifications() {
-                  const tbody = document.getElementById('cert-table-body');
-                  try {
-                    const res = await fetch('/api/certifications');
-                    const apiData = await res.json();
-
-                    if (apiData.success && apiData.certifications && apiData.certifications.length > 0) {
-                      tbody.innerHTML = apiData.certifications
-                        .map(c => `
+                  if (apiData.success && apiData.certifications && apiData.certifications.length > 0) {
+                    tbody.innerHTML = apiData.certifications
+                      .map(c => `
                           <tr style="border-bottom: 1px solid var(--border);">
                             <td style="padding: 12px; font-weight: 600;">${c.certificate_name}</td>
                             <td style="padding: 12px;">${c.certificate_owner || '—'}</td>
@@ -378,37 +363,37 @@
                             <td style="padding: 12px;">${c.expiry_date || '—'}</td>
                           </tr>
                         `)
-                        .join('');
-                    } else {
-                      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-muted);">No records found.</td></tr>';
-                    }
-                  } catch (err) {
-                    console.error('Failed to fetch certifications:', err);
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--danger);">Failed to load data.</td></tr>';
+                      .join('');
+                  } else {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-muted);">No records found.</td></tr>';
                   }
+                } catch (err) {
+                  console.error('Failed to fetch certifications:', err);
+                  tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--danger);">Failed to load data.</td></tr>';
                 }
+              }
 
-                document.addEventListener('DOMContentLoaded', () => {
-                  fetchCertifications();
-                });
-              </script>
+              document.addEventListener('DOMContentLoaded', () => {
+                fetchCertifications();
+              });
+            </script>
 
-              <p>These aren’t just badges, they're <span class="highlight-text">accelerators for your professional
-                  journey</span>. Even dedicating a small amount of time each week can make a meaningful difference.
-                We’ll support you with the resources, learning paths, and flexibility needed to help you succeed.</p>
+            <p>These aren’t just badges, they're <span class="highlight-text">accelerators for your professional
+                journey</span>. Even dedicating a small amount of time each week can make a meaningful difference.
+              We’ll support you with the resources, learning paths, and flexibility needed to help you succeed.</p>
 
-              <p>Let’s make this a collective push and celebrate each milestone together. Your growth is our team’s
-                growth, and I’m confident we can achieve this together despite the demanding schedules.</p>
+            <p>Let’s make this a collective push and celebrate each milestone together. Your growth is our team’s
+              growth, and I’m confident we can achieve this together despite the demanding schedules.</p>
 
-              <div class="cert-footer">
-                <p style="font-size: 1.2rem; margin-bottom: 8px;">Let’s raise the bar, again!!</p>
-                <p style="font-size: 1.1rem; color: var(--primary);">You’ve got this. We’ve got this.</p>
-              </div>
+            <div class="cert-footer">
+              <p style="font-size: 1.2rem; margin-bottom: 8px;">Let’s raise the bar, again!!</p>
+              <p style="font-size: 1.1rem; color: var(--primary);">You’ve got this. We’ve got this.</p>
             </div>
           </div>
         </div>
-      </main>
     </div>
+    </main>
+  </div>
   </div>
 
   <script src="js/app.js"></script>
