@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monthly Feedback Rubric | Gantec</title>
+  <link rel="stylesheet" href="css/branding.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --user-color: #4f46e5;
+      --admin-color: #f59e0b;
+      --user-bg: rgba(79, 70, 229, 0.1);
+      --admin-bg: rgba(245, 158, 11, 0.1);
+    }
+
+    .rubric-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 40px;
+      padding-bottom: 150px;
+    }
+
+    .app-main {
+      margin-left: 280px;
+      transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .app-main.expanded {
+      margin-left: 72px;
+    }
+
+    /* Responsive adjustments to maintain centering on smaller screens */
+    @media (max-width: 1400px) {
+      .rubric-container {
+        padding-left: 100px;
+        padding-right: 100px;
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .rubric-container {
+        padding-left: 40px;
+        padding-right: 40px;
+      }
+    }
+
+    .philosophy-section {
+      background: white;
+      border-radius: 24px;
+      padding: 40px;
+      margin-bottom: 40px;
+      border-left: 8px solid var(--primary);
+      box-shadow: var(--shadow);
+    }
+
+    .philosophy-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: var(--primary);
+      margin-bottom: 20px;
+    }
+
+    .philosophy-text {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      max-width: 800px;
+    }
+
+    /* Role Switcher (Legend style) */
+    .role-switch-container {
+      display: flex;
+      background: white;
+      padding: 6px;
+      border-radius: 100px;
+      width: fit-content;
+      margin: 0 auto 30px auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border: 1px solid var(--border);
+      gap: 4px;
+    }
+
+    .role-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 24px;
+      border-radius: 100px;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+    }
+
+    .role-item svg {
+      width: 18px;
+      height: 18px;
+      transition: all 0.3s;
+    }
+
+    /* Active States */
+    .role-item.user.active {
+      background: var(--user-color);
+      color: white;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    .role-item.admin.active {
+      background: var(--admin-color);
+      color: white;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+
+    /* Non-active colors */
+    .role-item.user:not(.active) { color: var(--user-color); }
+    .role-item.admin:not(.active) { color: var(--admin-color); }
+
+    .role-item:hover:not(.active) {
+      background: #f8fafc;
+    }
+
+    /* Header Controls (Period + Role Switch) */
+    .header-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    .custom-period-selector {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      background: white;
+      padding: 6px 15px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .month-select, .year-input {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      outline: none;
+      padding: 5px;
+    }
+
+    .month-select {
+      cursor: pointer;
+      border-right: 1px solid var(--border);
+      padding-right: 15px;
+    }
+
+    .year-input {
+      width: 80px;
+      text-align: center;
+      -moz-appearance: textfield;
+    }
+    
+    .year-input::-webkit-inner-spin-button,
+    .year-input::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .header-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+    
+    .role-switch-container {
+      margin: 0;
+    }
+
+    /* Rubric Table Styling */
+    .section-header {
+      margin: 60px 0 30px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--primary);
+      white-space: nowrap;
+    }
+
+    .section-line {
+      flex: 1;
+      height: 2px;
+      background: linear-gradient(to right, var(--border), transparent);
+    }
+
+    .rubric-table-wrapper {
+      background: white;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      margin-bottom: 40px;
+    }
+
+    .rubric-sub-header {
+      background: var(--bg-2);
+      padding: 24px 30px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sub-title {
+      font-weight: 900;
+      font-size: 1.2rem;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+
+    .sub-focus {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .rubric-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .rubric-table th {
+      background: #f8fafc;
+      padding: 15px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .rubric-table td {
+      border: 1px solid var(--border);
+      padding: 0;
+      vertical-align: top;
+      position: relative;
+    }
+
+    .category-label-cell {
+      background: #f8fafc;
+      width: 150px;
+      padding: 20px !important;
+      font-weight: 800;
+      color: var(--primary);
+      font-size: 0.9rem;
+      text-align: left;
+    }
+
+    .rubric-cell {
+      width: 100%;
+      height: 100%;
+      min-height: 120px;
+      padding: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      background: transparent;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .cell-title {
+      font-weight: 800;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+    }
+
+    .cell-desc {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    /* Selection States */
+    .rubric-cell.user-selected {
+      background: var(--user-bg);
+      box-shadow: inset 0 0 0 2px var(--user-color);
+    }
+
+    .rubric-cell.admin-selected {
+      background: var(--admin-bg);
+      box-shadow: inset 0 0 0 2px var(--admin-color);
+    }
+
+    .rubric-cell.both-selected {
+      background: linear-gradient(135deg, var(--user-bg) 0%, var(--admin-bg) 100%);
+      box-shadow: inset 0 0 0 2px var(--primary);
+    }
+
+    .selection-indicator {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      display: flex;
+      gap: 4px;
+    }
+
+    .indicator-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .dot-user {
+      background: var(--user-color);
+    }
+
+    .dot-admin {
+      background: var(--admin-color);
+    }
+
+    /* Action Bar */
+    .action-bar {
+      position: sticky;
+      bottom: 30px;
+      margin: 40px auto 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      padding: 16px 36px;
+      border-radius: 100px;
+      display: flex;
+      gap: 20px;
+      width: fit-content;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+      border: 1px solid var(--border);
+      z-index: 1000;
+      animation: slideUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .action-btn {
+      padding: 12px 30px;
+      border-radius: 100px;
+      font-weight: 800;
+      font-family: 'Outfit', sans-serif;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-save {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+    }
+
+    .btn-submit {
+      background: var(--primary);
+      color: white;
+      border: none;
+    }
+
+    .btn-edit {
+      background: transparent;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+    }
+
+    .action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .action-btn:active {
+      transform: translateY(0);
+    }
+
+    .role-tag {
+      font-size: 0.7rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      display: inline-block;
+    }
+
+    .tag-user {
+      background: var(--user-color);
+      color: white;
+    }
+
+    .tag-admin {
+      background: var(--admin-color);
+      color: white;
+    }
+
+    [data-role="admin"] .btn-submit {
+      background: var(--admin-color);
+    }
+
+    [data-role="admin"] .btn-edit {
+      color: var(--admin-color);
+      border-color: var(--admin-color);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /* Overlay for non-editable state */
+    .locked-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.1);
+      cursor: not-allowed;
+      z-index: 5;
+    }
+
+    /* Custom Confirm Modal */
+    .custom-confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      animation: fadeIn 0.2s ease;
+    }
+    .custom-confirm-box {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+      animation: scaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .confirm-icon {
+      font-size: 40px;
+      margin-bottom: 15px;
+    }
+    .confirm-message {
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      margin-bottom: 25px;
+      line-height: 1.5;
+    }
+    .confirm-actions {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+    .confirm-btn {
+      padding: 10px 24px;
+      border-radius: 100px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .confirm-btn.cancel {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    .confirm-btn.ok {
+      background: var(--primary);
+      color: white;
+    }
+    .confirm-btn:hover {
+      transform: translateY(-2px);
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes scaleUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .custom-confirm-overlay.fade-out { animation: fadeOut 0.2s ease forwards; }
+    @keyframes fadeOut { to { opacity: 0; } }
+  </style>
+</head>
+
+<body>
+  <div class="app-layout">
+    <header class="app-header">
+      <a href="home.html" class="header-brand">
+        <span class="gantec-logo-text">GANTEC <span class="gantec-logo-gradient">EMPLOYEE PORTAL</span></span>
+      </a>
+      <div id="user-profile-section"></div>
+    </header>
+
+    <aside class="app-sidebar">
+      <nav class="sidebar-nav">
+        <a href="home.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <span class="link-text">Home</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="viewer.html" class="sidebar-link sidebar-dropdown-trigger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span class="link-text">Training Resources</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="viewer.html" class="submenu-link">View and Upload Resources</a>
+            <a href="content-leader.html" class="submenu-link">Content Leaders</a>
+          </div>
+        </div>
+
+        <a href="document-locker.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="2" />
+            <line x1="9" y1="7" x2="15" y2="7" />
+            <line x1="9" y1="11" x2="15" y2="11" />
+            <line x1="9" y1="15" x2="12" y2="15" />
+          </svg>
+          <span class="link-text">Document Locker</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="certifications.html" class="sidebar-link sidebar-dropdown-trigger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="7"></circle>
+              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+            </svg>
+            <span class="link-text">Certifications</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="certifications.html" class="submenu-link">View Certifications</a>
+            <a href="add-certification.html" class="submenu-link">Add Certification</a>
+            <a href="certificate-leaders.html" class="submenu-link">Certificate Leaders</a>
+          </div>
+        </div>
+
+        <a href="monthly-feedback.html" class="sidebar-link active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+          </svg>
+          <span class="link-text">Monthly Feedback</span>
+        </a>
+
+        <a href="company-holidays.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span class="link-text">Company Holidays</span>
+        </a>
+
+        <a href="https://apps.powerapps.com/play/e/default-ced75afe-4090-4a10-abf8-341ef09ef1cd/a/9ea3498a-fa3c-4c95-b390-5edd3ce97108?tenantId=ced75afe-4090-4a10-abf8-341ef09ef1cd&hint=57114947-a9fc-4feb-8ce4-00a9ea82d511&source=sharebutton&sourcetime=1778565137667"
+          target="_blank" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <path d="M16 2v4M8 2v4M3 10h18" />
+            <path d="M10 14l2 2 4-4" />
+          </svg>
+          <span class="link-text">Leave Portal</span>
+        </a>
+
+        <a href="company-culture.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span class="link-text">Company Culture</span>
+        </a>
+
+        <a href="faq.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <circle cx="12" cy="17" r="0.5" fill="currentColor"></circle>
+          </svg>
+          <span class="link-text">FAQ</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="weekly-connect.html" class="sidebar-link sidebar-dropdown-trigger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span class="link-text">Weekly Connect</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="weekly-connect.html" class="submenu-link">Connect Highlights</a>
+            <a href="team-members.html" class="submenu-link">Team Members</a>
+            <a href="webpage-creation.html" class="submenu-link">Webpage Builder</a>
+          </div>
+        </div>
+
+        <a href="contact-hr.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+            </path>
+          </svg>
+          <span class="link-text">Contact HR</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="app-main">
+      <div class="rubric-container">
+        <!-- <div class="philosophy-section">
+          <h1 class="philosophy-title">The "Data Always" Philosophy</h1>
+          <p class="philosophy-text">
+            This rubric provides a common language for our growth. Whether you are a Junior, Mid, or Senior, you have a clear definition of what "Exceptional" looks like for your role. This allows us to have objective, honest, and supportive conversations about your future here.
+            <br><br>
+            <strong>In short:</strong> We want to be the best place for talent to grow, and that starts with giving you the data you need to win.
+          </p>
+        </div> -->
+
+        <div class="header-controls">
+          <div class="custom-period-selector">
+            <select id="monthSelect" class="month-select" onchange="updatePeriodFromUI()">
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+            <input type="number" id="yearInput" class="year-input" value="2026" min="2026" max="2099" oninput="updatePeriodFromUI()">
+          </div>
+          
+          <div class="role-switch-container">
+            <button class="role-item user active" onclick="switchRole('user')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              Self-Assessment (User)
+            </button>
+            <button class="role-item admin" onclick="switchRole('admin')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              Manager Review (Admin)
+            </button>
+          </div>
+        </div>
+
+        <div id="rubric-content">
+          <!-- Dynamic content will be injected here -->
+        </div>
+
+        <div class="action-bar" id="actionBar">
+          <button class="action-btn btn-save" onclick="handleAction('save')">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            Save Progress
+          </button>
+          <button class="action-btn btn-submit" onclick="handleAction('submit')">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Final Submit
+          </button>
+          <button class="action-btn btn-edit hidden" id="editBtn" onclick="handleAction('edit')">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            Edit Assessment
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    const rubricData = {
+      categories: [
+        {
+          name: "Hard Skills Categories (The \"What\" - 60% Weight)",
+          subsections: [
+            {
+              name: "Technical Delivery",
+              focus: "Output, Velocity, and Quality",
+              description: "Measuring the ability to build and iterate at speed",
+              levels: ["Stagnant", "Fluctuating", "Steady", "Proactive", "High-Perf", "Multiplier", "Engine"],
+              rows: [
+                {
+                  id: "output_volume",
+                  name: "Output Volume",
+                  cells: [
+                    { title: "Static", desc: "Produces only when directly prompted." },
+                    { title: "Variable", desc: "Yield is inconsistent; below team average." },
+                    { title: "Reliable", desc: "Consistently clears assigned backlog." },
+                    { title: "Ambitious", desc: "Takes on extra tasks to help team capacity." },
+                    { title: "Elite", desc: "Consistently in the top 10% of team volume." },
+                    { title: "Massive", desc: "Accomplishes the work of 2+ people." },
+                    { title: "Catalyst", desc: "Drives the entire team's throughput." }
+                  ]
+                },
+                {
+                  id: "accuracy_quality",
+                  name: "Accuracy/Quality",
+                  cells: [
+                    { title: "Symptomatic", desc: "High rework; frequent regressions." },
+                    { title: "Manual", desc: "Needs heavy QA/Supervision to pass." },
+                    { title: "Solid", desc: "\"Right first time\" focus; clean, vetted code." },
+                    { title: "Polished", desc: "Self-vetted; rarely returns from QA." },
+                    { title: "Benchmark", desc: "Quality used as a team example." },
+                    { title: "Superior", desc: "Zero-defect delivery on high complexity." },
+                    { title: "Standard", desc: "Defines the company's quality bar." }
+                  ]
+                },
+                {
+                  id: "speed_velocity",
+                  name: "Speed (Velocity)",
+                  cells: [
+                    { title: "Lethargic", desc: "High cycle time; tasks often stall." },
+                    { title: "Drifting", desc: "Pacing is inconsistent; turn is slow." },
+                    { title: "Reliable", desc: "Consistent speed from Start to Done." },
+                    { title: "Rapid", desc: "Quick turnaround on complex features." },
+                    { title: "Elite", desc: "Fast-paced iteration and delivery speed." },
+                    { title: "Instant", desc: "Zero-friction delivery; \"real-time\" speed." },
+                    { title: "Accelerator", desc: "Speeds up the entire product roadmap." }
+                  ]
+                },
+                {
+                  id: "process_adherence",
+                  name: "Process Adherence",
+                  cells: [
+                    { title: "Resistant", desc: "Ignores workflows, Jira, or SOPs." },
+                    { title: "Casual", desc: "Needs frequent reminders on process." },
+                    { title: "Disciplined", desc: "Follows all team SDLC/SOP steps." },
+                    { title: "Vigilant", desc: "Catches process gaps in their own flow." },
+                    { title: "Model", desc: "Teaches and reinforces process to others." },
+                    { title: "Optimizer", desc: "Actively improves team-wide workflows." },
+                    { title: "Architect", desc: "Designs the company's operational SOPs." }
+                  ]
+                }
+              ]
+            },
+            {
+              name: "Solutioning Depth",
+              focus: "Engineering Rigor and Vision",
+              description: "Engineering for a long-term product life cycle, not just a one-off project.",
+              levels: ["Surface", "Guided", "Independent", "Pattern", "Strategic", "Visionary", "Institutional"],
+              rows: [
+                {
+                  id: "root_cause",
+                  name: "Root Cause (RCA)",
+                  cells: [
+                    { title: "Reactive", desc: "Fixes symptoms, bug likely returns." },
+                    { title: "Dependent", desc: "Needs help to find the \"Why\"." },
+                    { title: "Investigative", desc: "Finds cause and provides solid fix." },
+                    { title: "Systemic", desc: "Identifies recurring system-wide flaws." },
+                    { title: "Preventative", desc: "Redesigns systems to be anti-fragile." },
+                    { title: "Architectural", desc: "Defines RCA standards for the org." },
+                    { title: "Authority", desc: "Global standards for the org." }
+                  ]
+                },
+                {
+                  id: "scalability",
+                  name: "Scalability",
+                  cells: [
+                    { title: "Rigid", desc: "Hard-coded; breaks under minor load." },
+                    { title: "Narrow", desc: "Minimal foresight for product growth." },
+                    { title: "Resilient", desc: "Handles current scale & basic growth." },
+                    { title: "Modular", desc: "Design is easy to refactor or extend." },
+                    { title: "Future-Proof", desc: "Designs for 1yr+ scaling needs." },
+                    { title: "Visionary", desc: "Designs for massive/international scale." },
+                    { title: "Strategist", desc: "Technical visionary for the platform." }
+                  ]
+                },
+                {
+                  id: "edge_cases",
+                  name: "Edge-Cases",
+                  cells: [
+                    { title: "Basic", desc: "\"Happy path\" only; fails on errors." },
+                    { title: "Simple", desc: "Handles common errors with help." },
+                    { title: "Rigorous", desc: "Independent edge-case handling." },
+                    { title: "Anticipatory", desc: "Stress-tests designs proactively." },
+                    { title: "Bulletproof", desc: "Predicts unknown-unknown failures." },
+                    { title: "Hardened", desc: "Designs are impenetrable to errors." },
+                    { title: "Standard", desc: "Engineering rigor standard-bearer." }
+                  ]
+                },
+                {
+                  id: "maintainability",
+                  name: "Maintainability",
+                  cells: [
+                    { title: "Messy", desc: "Opaque code; zero documentation." },
+                    { title: "Opaque", desc: "Hard for others to read/understand." },
+                    { title: "Clean", desc: "Readable; standard-compliant code." },
+                    { title: "Elegant", desc: "Simplifies complex logic for peers." },
+                    { title: "Refined", desc: "Highly reusable and easy to refactor." },
+                    { title: "Exemplary", desc: "Code serves as a team learning tool." },
+                    { title: "Legendary", desc: "Defines \"Clean Code\" for the company." }
+                  ]
+                }
+              ]
+            },
+            {
+              name: "Reliability",
+              focus: "Trust and Predictability",
+              description: "Develop and Maintain Trust that allows Autonomy",
+              levels: ["Ghost", "Passive", "Professional", "Transparent", "Reliable", "Anchor", "Omnipresent"],
+              rows: [
+                {
+                  id: "availability",
+                  name: "Availability",
+                  cells: [
+                    { title: "Offline", desc: "Hard to reach, often unavailable." },
+                    { title: "Inconsistent", desc: "Slow to reply; unpredictable." },
+                    { title: "Responsive", desc: "Highly available during core hours." },
+                    { title: "Proactive", desc: "Clear about \"Away\" status/coverage." },
+                    { title: "Stable", desc: "Always present during critical windows." },
+                    { title: "Central", desc: "The go-to person in high-pressure." },
+                    { title: "Pillar", desc: "The \"Always-On\" team foundation." }
+                  ]
+                },
+                {
+                  id: "follow_through",
+                  name: "Follow-Through",
+                  cells: [
+                    { title: "Fragile", desc: "Drops tasks; needs constant pokes." },
+                    { title: "Supervised", desc: "Needs weekly check-ins to finish." },
+                    { title: "Autonomous", desc: "\"Set and forget\" on all tasks." },
+                    { title: "Predictable", desc: "Provides status before being asked." },
+                    { title: "Accountable", desc: "Operates as a lead for their module." },
+                    { title: "Guarantor", desc: "Proactively handles team-level risks." },
+                    { title: "Authority", desc: "Trusted with high-stakes results." }
+                  ]
+                },
+                {
+                  id: "crisis_response",
+                  name: "Crisis Response",
+                  cells: [
+                    { title: "Frozen", desc: "Panics or disappears under stress." },
+                    { title: "Reactive", desc: "Slow to act; needs direction." },
+                    { title: "Calm", desc: "Follows recovery steps effectively." },
+                    { title: "Coherent", desc: "Communicates clearly during stress." },
+                    { title: "Lead", desc: "Heads recovery; fixes under pressure." },
+                    { title: "Unshakeable", desc: "Calmly steers team through disaster." },
+                    { title: "Shield", desc: "Anticipates and prevents crises early." }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          name: "Soft Skills Categories (The \"How\" - 40% Weight)",
+          subsections: [
+            {
+              name: "Growth",
+              focus: "Learning and Adaptability",
+              description: "Evolution from a task-follower to a product innovator.",
+              levels: ["Static", "Complacent", "Adaptive", "Experimental", "Independent", "Scholar", "Pioneer"],
+              rows: [
+                {
+                  id: "self_learning",
+                  name: "Self-Learning",
+                  cells: [
+                    { title: "Closed", desc: "No effort to learn new skills." },
+                    { title: "Obligatory", desc: "Only learns if specifically told." },
+                    { title: "Professional", desc: "Learns at expected market pace." },
+                    { title: "Enthusiast", desc: "Fast learner; seeks out new tech." },
+                    { title: "Specialist", desc: "Masters \"next-gen\" tech alone." },
+                    { title: "Master", desc: "Expert level; teaches new tech." },
+                    { title: "Visionary", desc: "Defines the future tech roadmap." }
+                  ]
+                },
+                {
+                  id: "feedback_loop",
+                  name: "Feedback Loop",
+                  cells: [
+                    { title: "Resistant", desc: "Defensive; ignores all input." },
+                    { title: "Passive", desc: "Listens but shows no change." },
+                    { title: "Responsive", desc: "Actively applies feedback to work." },
+                    { title: "Seeker", desc: "Proactively asks for \"the hard truths.\"" },
+                    { title: "Obsessed", desc: "Relentless focus on self-improvement." },
+                    { title: "Coach", desc: "Helps others process/use feedback." },
+                    { title: "Philosopher", desc: "Drives \"Radical Honesty\" culture." }
+                  ]
+                },
+                {
+                  id: "new_pocs",
+                  name: "New POCs",
+                  cells: [
+                    { title: "Averse", desc: "Avoids R&D or experimentation." },
+                    { title: "Assigned", desc: "Experiments only when directed." },
+                    { title: "Active", desc: "Proactively builds useful test POCs." },
+                    { title: "Prototyper", desc: "Proves new ideas via prototyping." },
+                    { title: "Strategic", desc: "Proves ROI of tech via POCs." },
+                    { title: "Innovator", desc: "Uses POCs to overturn old methods." },
+                    { title: "Pacesetter", desc: "Leads company-wide R&D strategy." }
+                  ]
+                }
+              ]
+            },
+            {
+              name: "Presence",
+              focus: "Communication and Influence",
+              description: "Evolution from a participant to a thought leader.",
+              levels: ["Invisible", "Silent", "Clear", "Persuasive", "Leader", "Advisor", "Icon"],
+              rows: [
+                {
+                  id: "articulation",
+                  name: "Articulation",
+                  cells: [
+                    { title: "Muddled", desc: "Unclear or confusing in talk." },
+                    { title: "Hesitant", desc: "Speaks only when directly asked." },
+                    { title: "Structured", desc: "Clear and pro[mpt]." },
+                    { title: "Compelling", desc: "Adapts style to gain team buy-in." },
+                    { title: "Authoritative", desc: "Commands the technical narrative." },
+                    { title: "Expert", desc: "High-level storytelling and vision." },
+                    { title: "Inspiring", desc: "Commands the entire organization." }
+                  ]
+                },
+                {
+                  id: "stakeholder_interaction",
+                  name: "Stakeholder Interaction",
+                  cells: [
+                    { title: "Friction", desc: "Creates client or peer mistrust." },
+                    { title: "Passive", desc: "Observes but doesn't build trust." },
+                    { title: "Professional", desc: "Builds baseline trust/clarity." },
+                    { title: "Consultant", desc: "Trusted advisor to client/leads." },
+                    { title: "Influencer", desc: "Shapes roadmap via trust/data." },
+                    { title: "Master", desc: "High-level relationship strategist." },
+                    { title: "Partner", desc: "Strategic partner to C-suite/Clients." }
+                  ]
+                },
+                {
+                  id: "discussion_energy",
+                  name: "Discussion Energy",
+                  cells: [
+                    { title: "Draining", desc: "Passive or negative energy." },
+                    { title: "Neutral", desc: "Attends but minimal engagement." },
+                    { title: "Positive", desc: "Active and constructive energy." },
+                    { title: "Catalyst", desc: "Drives consensus and group focus." },
+                    { title: "Elevator", desc: "Raises the room tone and morale." },
+                    { title: "Anchor", desc: "Mentors the team's presence/vibe." },
+                    { title: "Spirit", desc: "Defines the company's \"soul.\"" }
+                  ]
+                }
+              ]
+            },
+            {
+              name: "Assist",
+              focus: "Team Multiplier and Mentorship",
+              description: "Measuring how much one amplifies the people around them.",
+              levels: ["Reactive", "Supportive", "Active", "Standard", "Coach", "Strategist", "Legacy"],
+              rows: [
+                {
+                  id: "mentorship",
+                  name: "Mentorship",
+                  cells: [
+                    { title: "Withdrawn", desc: "Only helps if specifically asked." },
+                    { title: "Helpful", desc: "Answers basic Slack/chat questions." },
+                    { title: "Proactive", desc: "Checks in on Juniors unprompted." },
+                    { title: "Mentor", desc: "Conducts high-quality PR reviews." },
+                    { title: "Instructor", desc: "Teaches the \"Why\" behind a fix." },
+                    { title: "Developer", desc: "Builds growth plans for others." },
+                    { title: "Successor", desc: "Builds the next generation of Leads." }
+                  ]
+                },
+                {
+                  id: "knowledge_sharing",
+                  name: "Knowledge Sharing",
+                  cells: [
+                    { title: "Hoarder", desc: "No notes; knowledge stays in head." },
+                    { title: "Private", desc: "Basic notes for self-use only." },
+                    { title: "Contributor", desc: "Updates existing Jira/Wiki pages." },
+                    { title: "Author", desc: "Writes new \"How To\" technical guides." },
+                    { title: "Librarian", desc: "Organizes the team's Wiki/Docs." },
+                    { title: "Teacher", desc: "Leads \"Lunch & Learns\"/Webinars." },
+                    { title: "Thought-Lead", desc: "Institutionalizes team wisdom." }
+                  ]
+                },
+                {
+                  id: "collaboration",
+                  name: "Collaboration",
+                  cells: [
+                    { title: "Isolated", desc: "Works in silo; hard to partner." },
+                    { title: "Cooperative", desc: "Supportive and easy to work with." },
+                    { title: "Unblocker", desc: "Active team-player; unblocks peers." },
+                    { title: "Bridge", desc: "Connects gaps between team silos." },
+                    { title: "Connector", desc: "Improves overall team flow/logic." },
+                    { title: "Mediator", desc: "Resolves conflicts and sets tone." },
+                    { title: "Culture-Lead", desc: "Defines the team's way of working." }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    let currentRole = 'user';
+    let currentUserName = '';
+    let selections = { user: {}, admin: {} };
+    let locked = { user: false, admin: false };
+
+    // Current period = YYYY-MM
+    let period = new Date().toISOString().slice(0, 7);
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function getSupabase() {
+      return new Promise((resolve) => {
+        if (window.supabaseClient) return resolve(window.supabaseClient);
+        const check = setInterval(() => {
+          if (window.supabaseClient) { clearInterval(check); resolve(window.supabaseClient); }
+        }, 100);
+      });
+    }
+
+    function getCurrentEmail() {
+      return localStorage.getItem('gantec_user_email') || '';
+    }
+
+    function showConfirmModal(message) {
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'custom-confirm-overlay';
+        overlay.innerHTML = `
+          <div class="custom-confirm-box">
+            <div class="confirm-icon">⚠️</div>
+            <div class="confirm-message">${message}</div>
+            <div class="confirm-actions">
+              <button class="confirm-btn cancel">Cancel</button>
+              <button class="confirm-btn ok">OK</button>
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const close = (result) => {
+          overlay.classList.add('fade-out');
+          setTimeout(() => {
+            overlay.remove();
+            resolve(result);
+          }, 200);
+        };
+
+        overlay.querySelector('.cancel').addEventListener('click', () => close(false));
+        overlay.querySelector('.ok').addEventListener('click', () => close(true));
+      });
+    }
+
+    // ── Boot ─────────────────────────────────────────────────────────────────
+    async function init() {
+      // CLEANUP: Remove old non-scoped keys from previous version
+      localStorage.removeItem('gantec_rubric_selections');
+      localStorage.removeItem('gantec_rubric_locked');
+
+      // Set initial values in UI
+      const [y, m] = period.split('-');
+      document.getElementById('monthSelect').value = m;
+      document.getElementById('yearInput').value = y;
+
+      // Determine Role from Supabase session
+      try {
+        const sb = await getSupabase();
+        const { data: { session } } = await sb.auth.getSession();
+        if (session && session.user) {
+          const sessionUser = session.user;
+          currentUserName = sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name || sessionUser.email.split('@')[0];
+          
+          const userRole = sessionUser.user_metadata?.role || 'user';
+          currentRole = (userRole === 'admin' || userRole === 'manager') ? 'admin' : 'user';
+        }
+      } catch (e) {
+        console.warn('Role detection failed, defaulting to user');
+      }
+
+      await loadFromSupabase();
+
+      renderRubric();
+      updateActionBar();
+    }
+
+    async function loadFromSupabase() {
+      // RESET state to prevent bleed-over from previous user or month
+      selections = { user: {}, admin: {} };
+      locked = { user: false, admin: false };
+
+      try {
+        const sb = await getSupabase();
+        const email = getCurrentEmail();
+        if (!email) return;
+
+        const { data, error } = await sb
+          .from('monthly_feedback')
+          .select('role, selections, is_submitted')
+          .eq('user_email', email)
+          .eq('period', period);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          data.forEach(row => {
+            selections[row.role] = row.selections || {};
+            locked[row.role] = row.is_submitted === true;
+          });
+          // Cache it scoped by email
+          localStorage.setItem(`gantec_rubric_selections_${email}`, JSON.stringify(selections));
+          localStorage.setItem(`gantec_rubric_locked_${email}`, JSON.stringify(locked));
+        } else {
+          // No DB record - check email-scoped local storage ONLY for current month
+          const currentMonth = new Date().toISOString().slice(0, 7);
+          if (period === currentMonth) {
+            _loadFromLocalStorage(email);
+          }
+        }
+      } catch (e) {
+        console.warn('Supabase load failed:', e.message);
+        const email = getCurrentEmail();
+        if (email) _loadFromLocalStorage(email);
+      }
+      
+      renderRubric();
+      updateActionBar();
+    }
+
+    function _loadFromLocalStorage(email) {
+      if (!email) return;
+      const saved = localStorage.getItem(`gantec_rubric_selections_${email}`);
+      if (saved) selections = JSON.parse(saved);
+      const savedLocked = localStorage.getItem(`gantec_rubric_locked_${email}`);
+      if (savedLocked) locked = JSON.parse(savedLocked);
+    }
+
+    // ── Role & Period switchers ──────────────────────────────────────────────
+    function switchRole(role) {
+      currentRole = role;
+      document.querySelectorAll('.role-item').forEach(btn => btn.classList.remove('active'));
+      document.querySelector(`.role-item.${role}`).classList.add('active');
+      renderRubric();
+      updateActionBar();
+    }
+
+    async function updatePeriodFromUI() {
+      const month = document.getElementById('monthSelect').value;
+      const year = document.getElementById('yearInput').value;
+      if (!month || !year || year.length < 4) return;
+      
+      const newPeriod = `${year}-${month}`;
+      if (newPeriod === period) return;
+      
+      period = newPeriod;
+      
+      // Reset state for new period
+      selections = { user: {}, admin: {} };
+      locked = { user: false, admin: false };
+      
+      renderRubric(); // clear UI immediately
+      
+      const email = getCurrentEmail();
+      if (email) {
+        // Fetch new month's data
+        await loadFromSupabase();
+      }
+    }
+
+    // ── Render ───────────────────────────────────────────────────────────────
+    function renderRubric() {
+      const container = document.getElementById('rubric-content');
+      container.innerHTML = '';
+
+      rubricData.categories.forEach(cat => {
+        const catHeader = document.createElement('div');
+        catHeader.className = 'section-header';
+        catHeader.innerHTML = `
+          <h2 class="section-title">${cat.name}</h2>
+          <div class="section-line"></div>
+        `;
+        container.appendChild(catHeader);
+
+        cat.subsections.forEach(sub => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'rubric-table-wrapper';
+
+          let subHtml = `
+            <div class="rubric-sub-header">
+              <div class="sub-title">${sub.name}</div>
+              <div class="sub-focus">${sub.focus}</div>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">${sub.description}</p>
+            </div>
+            <table class="rubric-table">
+              <thead>
+                <tr>
+                  <th style="width: 150px;">Sub-Category</th>
+                  ${sub.levels.map(l => `<th>${l}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          sub.rows.forEach(row => {
+            subHtml += `<tr><td class="category-label-cell">${row.name}</td>`;
+            row.cells.forEach((cell, idx) => {
+              const isUser = selections.user[row.id] === idx;
+              const isAdmin = selections.admin[row.id] === idx;
+
+              let cellClass = 'rubric-cell';
+              if (isUser && isAdmin) cellClass += ' both-selected';
+              else if (isUser) cellClass += ' user-selected';
+              else if (isAdmin) cellClass += ' admin-selected';
+
+              subHtml += `
+                <td>
+                  ${locked[currentRole] ? '<div class="locked-overlay"></div>' : ''}
+                  <button class="${cellClass}" onclick="selectCell('${row.id}', ${idx})">
+                    <div class="selection-indicator">
+                      ${isUser ? '<div class="indicator-dot dot-user"></div>' : ''}
+                      ${isAdmin ? '<div class="indicator-dot dot-admin"></div>' : ''}
+                    </div>
+                    <div class="cell-title">${cell.title}</div>
+                    <div class="cell-desc">${cell.desc}</div>
+                  </button>
+                </td>
+              `;
+            });
+            subHtml += `</tr>`;
+          });
+
+          subHtml += `</tbody></table>`;
+          wrapper.innerHTML = subHtml;
+          container.appendChild(wrapper);
+        });
+      });
+    }
+
+    // ── Select a cell ────────────────────────────────────────────────────────
+    function selectCell(rowId, index) {
+      if (locked[currentRole]) return;
+      if (selections[currentRole][rowId] === index) {
+        delete selections[currentRole][rowId];
+      } else {
+        selections[currentRole][rowId] = index;
+      }
+      renderRubric();
+    }
+
+    // ── Save / Submit / Edit ─────────────────────────────────────────────────
+    async function handleAction(action) {
+      const email = getCurrentEmail();
+      if (!email) {
+        showToast('Could not identify user. Please log in again.', 'error');
+        return;
+      }
+
+      if (action === 'save') {
+        await saveToSupabase(email, currentRole, false);
+
+      } else if (action === 'submit') {
+        const confirmed = await showConfirmModal('Final submission will permanently lock your assessment for this month. Continue?');
+        if (!confirmed) return;
+        await saveToSupabase(email, currentRole, true);
+        locked[currentRole] = true;
+        localStorage.setItem(`gantec_rubric_locked_${email}`, JSON.stringify(locked));
+        renderRubric();
+        updateActionBar();
+
+      } else if (action === 'edit') {
+        // Only allow edit if NOT submitted in DB
+        try {
+          const sb = await getSupabase();
+          const { data } = await sb
+            .from('monthly_feedback')
+            .select('is_submitted')
+            .eq('user_email', email)
+            .eq('role', currentRole)
+            .eq('period', period)
+            .single();
+
+          if (data && data.is_submitted) {
+            showToast('This assessment has been permanently submitted and cannot be edited.', 'error');
+            return;
+          }
+        } catch (_) { /* no record = editable */ }
+
+        locked[currentRole] = false;
+        localStorage.setItem(`gantec_rubric_locked_${email}`, JSON.stringify(locked));
+        showToast('Editing re-enabled', 'info');
+        renderRubric();
+        updateActionBar();
+      }
+    }
+
+    async function saveToSupabase(email, role, isSubmit) {
+      // Save to email-scoped localStorage cache first
+      localStorage.setItem(`gantec_rubric_selections_${email}`, JSON.stringify(selections));
+      localStorage.setItem(`gantec_rubric_locked_${email}`, JSON.stringify(locked));
+
+      try {
+        const sb = await getSupabase();
+
+        const payload = {
+          user_email: email,
+          user_name: currentUserName,
+          role: role,
+          period: period,
+          selections: selections[role],
+          is_submitted: isSubmit,
+          updated_at: new Date().toISOString()
+        };
+
+        // Upsert: insert or update based on (user_email, role, period) unique constraint
+        const { error } = await sb
+          .from('monthly_feedback')
+          .upsert(payload, { onConflict: 'user_email,role,period' });
+
+        if (error) throw error;
+
+        if (isSubmit) {
+          showToast('Assessment permanently submitted! 🎉', 'success');
+        } else {
+          showToast('saved your progress', 'success');
+        }
+      } catch (e) {
+        console.error('Supabase save failed:', e);
+        showToast('saved your progress', 'warning');
+      }
+    }
+
+    // ── Action bar visibility ────────────────────────────────────────────────
+    function updateActionBar() {
+      const actionBar = document.getElementById('actionBar');
+      const submitBtn = document.querySelector('.btn-submit');
+      const saveBtn = document.querySelector('.btn-save');
+      const editBtn = document.getElementById('editBtn');
+
+      if (locked[currentRole]) {
+        actionBar.classList.add('hidden');
+      } else {
+        actionBar.classList.remove('hidden');
+        submitBtn.classList.remove('hidden');
+        saveBtn.classList.remove('hidden');
+        editBtn.classList.add('hidden');
+      }
+    }
+
+    init();
+  </script>
+</body>
+
+</html>
