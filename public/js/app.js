@@ -1,4 +1,8 @@
 const API_BASE = '/api';
+window.getSupabase = () => {
+  if (window.supabaseClient) return Promise.resolve(window.supabaseClient);
+  return new Promise(resolve => { window._sbResolve = resolve; });
+};
 
 // ─── API Helpers ──────────────────────────────────────────────────────────────
 
@@ -207,6 +211,14 @@ function initNavDropdown() {
 
 function initUserProfile() {
   const userSection = document.getElementById('user-profile-section');
+  
+  // Immediate render from localStorage for speed if we have data
+  const cachedAuth = localStorage.getItem('gantec_auth');
+  const cachedName = localStorage.getItem('gantec_user_name');
+  const cachedEmail = localStorage.getItem('gantec_user_email');
+  if (cachedAuth === 'true' && cachedName && cachedEmail && userSection) {
+     renderUserProfileUI(userSection, cachedName, cachedEmail);
+  }
 
   // We inject the Supabase SDK dynamically so it's available on all 15+ pages
   // without having to edit every single HTML file.
@@ -218,6 +230,8 @@ function initUserProfile() {
       const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiaWNnaHNtZWpxbG5rc2R0anpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NjM2MjEsImV4cCI6MjA5MjIzOTYyMX0.sI38ou9HZHK7vjLF8dTaEtvBvmMNx6u8LxBvOKFlwew';
       window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       
+      if (window._sbResolve) window._sbResolve(window.supabaseClient);
+
       // Native Supabase Session Management
       window.supabaseClient.auth.onAuthStateChange((event, session) => {
         console.log('Supabase Auth Event:', event);
@@ -228,12 +242,15 @@ function initUserProfile() {
           localStorage.setItem('gantec_user_name', fullName);
           localStorage.setItem('gantec_user_email', user.email);
           
-          // Fetch additional profile info (like role) from our backend
+          // Fetch additional profile info (like role and image) from our backend
           fetch(`/api/auth/profile?email=${encodeURIComponent(user.email)}`)
             .then(r => r.json())
             .then(data => {
               if (data.success && data.user) {
                 localStorage.setItem('gantec_user_role', data.user.role || 'employee');
+                if (data.user.profile_image) {
+                  localStorage.setItem('gantec_user_profile', data.user.profile_image);
+                }
                 if (userSection) renderUserProfileUI(userSection, data.user.fullname, data.user.email);
               }
             }).catch(err => {
@@ -241,8 +258,9 @@ function initUserProfile() {
               if (userSection) renderUserProfileUI(userSection, fullName, user.email);
             });
         } else {
-          localStorage.removeItem('gantec_auth');
-          localStorage.removeItem('gantec_user_role');
+          // User signed out — wipe ALL user data from localStorage
+          ['gantec_auth', 'gantec_user_name', 'gantec_user_email',
+           'gantec_user_profile', 'gantec_user_role'].forEach(k => localStorage.removeItem(k));
           if (userSection) renderGuestUI(userSection);
         }
       });
@@ -284,16 +302,16 @@ function renderUserProfileUI(userSection, userName, userEmail) {
           <span class="user-email" style="font-size: 0.7rem; color: var(--text-muted); opacity: 0.8;">${userEmail}</span>
         </div>
         
-        <div class="dropdown-menu profile-menu right" style="min-width: 135px; width: max-content;">
+        <div class="dropdown-menu profile-menu right" style="min-width: 160px; width: max-content;">
           <a href="#" class="dropdown-item" id="view-profile-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             View Profile
           </a>
           <a href="#" class="dropdown-item" id="edit-profile-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit Profile
           </a>
-          <a href="#" class="dropdown-item" id="logout-profile-btn" style="color: var(--danger); border-top: 1px solid var(--border); margin-top: 8px; padding-top: 12px;">
+          <a href="#" class="dropdown-item" id="logout-profile-btn" style="color: var(--danger); border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             Logout
           </a>
@@ -321,7 +339,7 @@ function renderUserProfileUI(userSection, userName, userEmail) {
     viewBtn.addEventListener('click', (e) => {
       e.preventDefault(); e.stopPropagation();
       wrap.classList.remove('open');
-      showProfileModal(profileImgSrc);
+      showProfileModal(userName, userEmail, profileImgSrc);
     });
 
     editBtn.addEventListener('click', (e) => {
@@ -335,9 +353,9 @@ function renderUserProfileUI(userSection, userName, userEmail) {
       if (window.supabaseClient) {
         await window.supabaseClient.auth.signOut();
       }
-      localStorage.removeItem('gantec_auth');
-      localStorage.removeItem('gantec_user_name');
-      localStorage.removeItem('gantec_user_email');
+      // Clear ALL user data to prevent profile bleed to next user
+      ['gantec_auth', 'gantec_user_name', 'gantec_user_email',
+       'gantec_user_profile', 'gantec_user_role'].forEach(k => localStorage.removeItem(k));
       window.location.href = 'login.html';
     });
 }
@@ -411,13 +429,23 @@ function createEditProfileModal(userData, currentImg) {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Current Password <span style="color: var(--text-muted); font-weight: normal;">(required for email/password changes - use your login password)</span></label>
-          <input type="password" id="edit-current-password-input" class="text-input" placeholder="Enter your login password" style="width: 100%;">
+          <label class="form-label">Previous Password <span style="color: var(--text-muted); font-weight: normal;">(required for email/password changes)</span></label>
+          <div style="position: relative;">
+            <input type="password" id="edit-current-password-input" class="text-input" placeholder="Enter your current password" style="width: 100%; padding-right: 40px;">
+            <button type="button" class="password-toggle-btn" data-target="edit-current-password-input" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; padding: 0; cursor: pointer; color: #94a3b8; display: flex; align-items: center; justify-content: center;">
+              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
 
         <div class="form-group">
           <label class="form-label">New Password <span style="color: var(--text-muted); font-weight: normal;">(leave empty to keep current)</span></label>
-          <input type="password" id="edit-new-password-input" class="text-input" placeholder="Enter new password" style="width: 100%;">
+          <div style="position: relative;">
+            <input type="password" id="edit-new-password-input" class="text-input" placeholder="Enter new password" style="width: 100%; padding-right: 40px;">
+            <button type="button" class="password-toggle-btn" data-target="edit-new-password-input" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; padding: 0; cursor: pointer; color: #94a3b8; display: flex; align-items: center; justify-content: center;">
+              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -438,17 +466,26 @@ function createEditProfileModal(userData, currentImg) {
   const cancelBtn = document.getElementById('cancel-edit-btn');
   const preview = document.getElementById('edit-preview-img');
 
-  console.log('Modal elements after creation:', {
-    photoInput: !!photoInput,
-    trigger: !!trigger,
-    nameInput: !!nameInput,
-    emailInput: !!emailInput,
-    currentPasswordInput: !!currentPasswordInput,
-    newPasswordInput: !!newPasswordInput,
-    saveBtn: !!saveBtn,
-    cancelBtn: !!cancelBtn,
-    preview: !!preview
+
+  // Password toggle logic
+  modal.querySelectorAll('.password-toggle-btn').forEach(btn => {
+    btn.onclick = () => {
+      const targetId = btn.getAttribute('data-target');
+      const input = document.getElementById(targetId);
+      const icon = btn.querySelector('.eye-icon');
+      
+      if (input.type === 'password') {
+        input.type = 'text';
+        // Eye-off icon
+        icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+      } else {
+        input.type = 'password';
+        // Eye-on icon
+        icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+      }
+    };
   });
+
 
   trigger.onclick = () => photoInput.click();
 
@@ -463,7 +500,7 @@ function createEditProfileModal(userData, currentImg) {
 
   saveBtn.onclick = async () => {
     const newName = nameInput.value.trim();
-    const newEmail = emailInput.value.trim() || userData.email; // Use current email if new email is empty
+    const newEmail = emailInput.value.trim() || userData.email;
     const currentPassword = currentPasswordInput.value;
     const newPassword = newPasswordInput.value;
 
@@ -472,62 +509,59 @@ function createEditProfileModal(userData, currentImg) {
       return;
     }
 
-    if (newEmail && !newEmail.endsWith('@gantecusa.com')) {
+    if (newEmail && !newEmail.toLowerCase().endsWith('@gantecusa.com')) {
       showToast('Email must be an official @gantecusa.com address.', 'error');
       return;
     }
 
-    // Check if email or password is being changed
-    const originalEmail = userData.email;
-    const isEmailChanged = newEmail !== originalEmail && newEmail !== '';
+    const isEmailChanged = newEmail !== userData.email && newEmail !== '';
     const isPasswordChanged = newPassword && newPassword.length > 0;
 
-    // Require current password for email or password changes
-    if ((isEmailChanged || isPasswordChanged) && (!currentPassword || currentPassword.length < 1)) {
-      showToast('Current password is required to change email or password', 'error');
-      return;
-    }
-
-    // Password Complexity Validation for new password
     if (isPasswordChanged) {
       if (newPassword.length < 8) {
-        showToast('New password must be at least 8 characters long.', 'error');
+        showToast('New password must be at least 8 characters long', 'error');
         return;
       }
       if (!/[A-Z]/.test(newPassword)) {
-        showToast('New password must contain at least one uppercase letter (A-Z).', 'error');
-        return;
-      }
-      if (!/[a-z]/.test(newPassword)) {
-        showToast('New password must contain at least one lowercase letter (a-z).', 'error');
+        showToast('New password must contain at least one uppercase letter', 'error');
         return;
       }
       if (!/[0-9]/.test(newPassword)) {
-        showToast('New password must contain at least one number (0-9).', 'error');
+        showToast('New password must contain at least one number', 'error');
         return;
       }
       if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
-        showToast('New password must contain at least one special character (e.g., @#$%).', 'error');
+        showToast('New password must contain at least one special character', 'error');
         return;
       }
     }
 
+    // 1. Save name, email, photo to localStorage immediately — instant update
+    localStorage.setItem('gantec_user_name', newName);
+    localStorage.setItem('gantec_user_email', newEmail);
+    
+    if (preview.src && !preview.src.includes('default-avatar.png')) {
+      const profileImgs = document.querySelectorAll('#profile-trigger-img, #modal-profile-img, #edit-preview-img');
+      profileImgs.forEach(img => { if (img) img.src = preview.src; });
+      localStorage.setItem('gantec_user_profile', preview.src);
+    }
+
+    // 2. Update UI immediately
+    const nameLabel = document.querySelector('.user-name');
+    const emailLabel = document.querySelector('.user-email');
+    if (nameLabel) nameLabel.textContent = newName;
+    if (emailLabel) emailLabel.textContent = newEmail;
+
+    // 3. Sync to server
     try {
       const updateData = {
-        currentEmail: userData.email, // Use the current email from userData
+        currentEmail: userData.email,
         fullname: newName,
-        email: newEmail
+        email: newEmail,
+        profile_image: (preview.src && !preview.src.includes('default-avatar.png')) ? preview.src : undefined
       };
-
-      // Only include passwords if provided
-      if (currentPassword) {
-        updateData.currentPassword = currentPassword;
-      }
-      if (newPassword) {
-        updateData.newPassword = newPassword;
-      }
-
-      console.log('Making API call to update profile');
+      if (currentPassword) updateData.currentPassword = currentPassword;
+      if (newPassword) updateData.newPassword = newPassword;
 
       const res = await fetch(`${API_BASE}/auth/profile`, {
         method: 'PUT',
@@ -536,31 +570,20 @@ function createEditProfileModal(userData, currentImg) {
       });
 
       const data = await res.json();
-
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to update profile');
+        console.warn('Server sync failed:', data.error);
+        showToast(`Server update failed: ${data.error || 'Unknown error'}`, 'error');
+        // We don't close the modal if it failed
+      } else {
+        showToast('Profile updated on server successfully! ✅', 'success');
+        modal.classList.add('hidden');
       }
-
-      // Update localStorage only after successful API call
-      localStorage.setItem('gantec_user_name', newName);
-      localStorage.setItem('gantec_user_email', newEmail);
-      if (newPassword) {
-        // Note: We don't store the new password in localStorage for security
-        console.log('Password updated on server');
-      }
-      localStorage.setItem('gantec_user_profile', preview.src);
-      
-      // Update UI immediately
-      document.querySelector('.user-name').textContent = newName;
-      document.getElementById('profile-trigger-img').src = preview.src;
-      
-      showToast('Profile updated successfully!', 'success');
-      modal.classList.add('hidden');
     } catch (err) {
-      console.error('Save failed:', err);
-      showToast('Failed to update profile: ' + err.message, 'error');
+      console.warn('Could not sync profile to server:', err.message);
+      showToast('Could not reach server to save changes.', 'warning');
     }
   };
+
 
   cancelBtn.onclick = () => {
     modal.classList.add('hidden');
@@ -576,7 +599,7 @@ function createEditProfileModal(userData, currentImg) {
   modal.classList.remove('hidden');
 }
 
-function showProfileModal(src) {
+function showProfileModal(name, email, src) {
   let modal = document.getElementById('profile-view-modal');
   const isDefault = src.includes('default-avatar.png');
 
@@ -588,39 +611,167 @@ function showProfileModal(src) {
   }
 
   modal.innerHTML = `
-    <div class="glass-card" style="padding: 24px; position: relative; max-width: 400px; width: 90%; display: flex; flex-direction: column; align-items: center; gap: 16px;">
-      <button id="close-profile-modal" style="position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</button>
-      <img src="${src}" id="modal-profile-img" style="width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; border: 1px solid var(--border);">
+    <div class="glass-card" style="padding: 32px; position: relative; max-width: 400px; width: 90%; display: flex; flex-direction: column; align-items: center; gap: 20px; background: white; border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--shadow-lg);">
+      <button id="close-profile-modal" style="position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); line-height: 1;">&times;</button>
       
-      ${!isDefault ? `
-        <button id="remove-profile-pic-btn" class="btn btn-secondary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--danger); border-color: rgba(239, 68, 68, 0.2);">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          Remove Profile Photo
+      <div style="position: relative; width: 140px; height: 140px; margin-bottom: 8px;">
+        <img src="${src}" id="modal-profile-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 4px solid #f0f4f8; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+        <button id="modal-change-photo-btn" style="position: absolute; bottom: 4px; right: 4px; background: var(--primary); color: white; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); border: 2px solid white;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 18px; height: 18px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         </button>
-      ` : ''}
+        <input type="file" id="modal-photo-input" style="display: none;" accept="image/*">
+      </div>
+
+      <div style="text-align: center;">
+        <h3 style="font-size: 1.5rem; font-weight: 800; color: var(--primary); margin: 0;">${name}</h3>
+        <p style="font-size: 0.95rem; color: var(--text-muted); margin: 4px 0 0;">${email}</p>
+      </div>
+
+      <div style="width: 100%; height: 1px; background: #eee; margin: 8px 0;"></div>
+      
+      <div style="width: 100%; display: flex; flex-direction: column; gap: 10px;">
+        <button id="explicit-upload-btn" class="btn btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px; font-weight: 700; background: var(--primary); border: none; color: white; cursor: pointer; transition: all 0.2s;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 20px; height: 20px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload New Photo
+        </button>
+
+        ${!isDefault ? `
+          <button id="remove-profile-pic-btn" class="btn btn-secondary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Remove Current Photo
+          </button>
+        ` : ''}
+      </div>
     </div>
   `;
 
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
   document.getElementById('close-profile-modal').addEventListener('click', () => modal.classList.add('hidden'));
 
+  const photoInput = document.getElementById('modal-photo-input');
+  const changeBtn = document.getElementById('modal-change-photo-btn');
+  const explicitUploadBtn = document.getElementById('explicit-upload-btn');
+  const modalImg = document.getElementById('modal-profile-img');
+
+  changeBtn.onclick = () => photoInput.click();
+  explicitUploadBtn.onclick = () => photoInput.click();
+
+  photoInput.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('Image too large. Please use an image under 2MB.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const base64 = ev.target.result;
+
+      // 1. Save to localStorage immediately — instant update, no server needed
+      localStorage.setItem('gantec_user_profile', base64);
+
+      // 2. Update UI immediately everywhere
+      const profileImgs = document.querySelectorAll('#profile-trigger-img, #modal-profile-img, #edit-preview-img');
+      profileImgs.forEach(img => { if (img) img.src = base64; });
+
+      showToast('Profile photo updated ✅', 'success');
+
+      // 3. Try to sync to server in the background (best-effort)
+      const userEmail = email || localStorage.getItem('gantec_user_email');
+      if (userEmail) {
+        try {
+          const res = await fetch(`${API_BASE}/auth/profile`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currentEmail: userEmail, profile_image: base64 })
+          });
+          if (!res.ok) {
+            console.warn('Background server sync for photo failed — image still saved locally.');
+          }
+        } catch (err) {
+          console.warn('Could not sync photo to server:', err.message);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+
   const removeBtn = document.getElementById('remove-profile-pic-btn');
   if (removeBtn) {
-    removeBtn.addEventListener('click', () => {
-      localStorage.removeItem('gantec_user_profile');
-      const defaultAvatar = 'images/default-avatar.png';
-      
-      // Update UI elements immediately
-      const profileImgs = document.querySelectorAll('#profile-trigger-img, #modal-profile-img');
-      profileImgs.forEach(img => { if (img) img.src = defaultAvatar; });
-      
-      // Update header profile display
-      const currentLabel = document.querySelector('.user-name');
-      if (currentLabel) {
-        showToast('Profile photo removed', 'info');
+    removeBtn.addEventListener('click', async () => {
+      // Create custom confirm modal if it doesn't exist
+      let confirmModal = document.getElementById('custom-confirm-modal');
+      if (!confirmModal) {
+        confirmModal = document.createElement('div');
+        confirmModal.id = 'custom-confirm-modal';
+        confirmModal.className = 'confirm-overlay';
+        confirmModal.style.zIndex = '9999';
+        confirmModal.innerHTML = `
+          <div class="glass-card" style="padding: 24px; max-width: 400px; width: 90%; background: white; border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow-lg); text-align: center;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(239, 68, 68, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 24px; height: 24px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </div>
+            <h3 style="margin-top: 0; color: var(--text-primary); font-size: 1.25rem; font-weight: 700; margin-bottom: 8px;">Remove Profile Photo</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 0.95rem;">Are you sure you want to remove your profile photo? This action cannot be undone.</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+              <button id="confirm-cancel-btn" class="btn btn-secondary" style="flex: 1; text-align: center; justify-content: center;">Cancel</button>
+              <button id="confirm-ok-btn" class="btn btn-primary" style="flex: 1; background: var(--danger); border-color: var(--danger); text-align: center; justify-content: center;">Remove</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(confirmModal);
       }
-      
-      modal.classList.add('hidden');
+      confirmModal.classList.remove('hidden');
+
+      const confirmed = await new Promise((resolve) => {
+        const handleCancel = () => {
+          confirmModal.classList.add('hidden');
+          cleanup();
+          resolve(false);
+        };
+        const handleOk = () => {
+          confirmModal.classList.add('hidden');
+          cleanup();
+          resolve(true);
+        };
+        const cleanup = () => {
+          document.getElementById('confirm-cancel-btn').removeEventListener('click', handleCancel);
+          document.getElementById('confirm-ok-btn').removeEventListener('click', handleOk);
+        };
+        document.getElementById('confirm-cancel-btn').addEventListener('click', handleCancel);
+        document.getElementById('confirm-ok-btn').addEventListener('click', handleOk);
+      });
+
+      if (!confirmed) return;
+
+      try {
+        const email = localStorage.getItem('gantec_user_email');
+        const res = await fetch(`${API_BASE}/auth/profile`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentEmail: email, profile_image: null })
+        });
+
+        if (res.ok) {
+          localStorage.removeItem('gantec_user_profile');
+          const defaultAvatar = 'images/default-avatar.png';
+          
+          // Update UI elements immediately
+          const profileImgs = document.querySelectorAll('#profile-trigger-img, #modal-profile-img, #edit-preview-img');
+          profileImgs.forEach(img => { if (img) img.src = defaultAvatar; });
+          
+          showToast('Profile photo removed', 'success');
+          modal.classList.add('hidden');
+        } else {
+          throw new Error('Failed to remove photo');
+        }
+      } catch (err) {
+        showToast('Error removing photo: ' + err.message, 'error');
+      }
     });
   }
 

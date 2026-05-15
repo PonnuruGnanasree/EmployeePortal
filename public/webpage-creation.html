@@ -27,7 +27,7 @@
       background: var(--bg);
       color: var(--primary);
       height: 100%;
-      overflow-x: hidden;
+      overflow: hidden;
     }
 
     /* --- Animations --- */
@@ -720,10 +720,9 @@
         <label>Button Text</label>
         <input type="text" id="w-btn" class="form-input" placeholder="e.g. Get Started">
       </div>
-      <!-- Text colour picker -->
       <div class="form-group">
-        <label>Text Colour</label>
-        <input type="color" id="w-color" class="form-input" value="#ffffff" title="Pick text colour">
+        <label>Text Colour (Optional)</label>
+        <input type="text" id="w-color" class="form-input" placeholder="e.g. black, #ffffff, red" title="Pick text colour">
       </div>
       <div class="modal-footer">
         <button class="btn-save" style="width: 100%;" onclick="saveWelcome()">Save Details</button>
@@ -846,6 +845,7 @@
           document.getElementById('w-desc').value = builderData.welcome.desc;
           document.getElementById('w-bg').value = builderData.welcome.bg;
           document.getElementById('w-btn').value = builderData.welcome.btn;
+          document.getElementById('w-color').value = builderData.welcome.color || '';
         }
       } else {
         activeSectionType = type;
@@ -1094,6 +1094,85 @@
       document.getElementById('gen-welcome-desc').textContent = w.desc;
       document.getElementById('gen-welcome-btn').textContent = w.btn;
       document.getElementById('generated-view').style.backgroundImage = `url('${w.bg}')`;
+
+      // Apply optional text color with advanced multi-target parsing
+      if (w.color) {
+        const input = w.color.toLowerCase();
+        const ids = {
+          title: 'gen-welcome-title',
+          subtitle: 'gen-welcome-subtitle',
+          description: 'gen-welcome-desc',
+          desc: 'gen-welcome-desc',
+          button: 'gen-welcome-btn',
+          btn: 'gen-welcome-btn'
+        };
+
+        // Split by commas OR the word "and" to handle multiple instructions
+        const instructions = input.split(/,| and /);
+        let anyTargetFound = false;
+
+        // Reset all to default white first to ensure clean state
+        const allIds = ['gen-welcome-title', 'gen-welcome-subtitle', 'gen-welcome-desc', 'gen-welcome-btn'];
+        allIds.forEach(id => {
+          document.getElementById(id).style.color = (id === 'gen-welcome-btn') ? '' : '#ffffff';
+        });
+
+        // Mapping including common typos or shorthand
+        const elementMap = {
+          title: 'gen-welcome-title',
+          tile: 'gen-welcome-title', // Common typo
+          subtitle: 'gen-welcome-subtitle',
+          sub: 'gen-welcome-subtitle',
+          usbtitle: 'gen-welcome-subtitle', // Typo from user
+          description: 'gen-welcome-desc',
+          desc: 'gen-welcome-desc',
+          button: 'gen-welcome-btn',
+          btn: 'gen-welcome-btn'
+        };
+
+        instructions.forEach(instr => {
+          const trimmed = instr.trim();
+          if (!trimmed) return;
+          
+          const words = trimmed.split(/\s+/);
+
+          Object.keys(elementMap).forEach(key => {
+            if (words.some(w => w === key)) {
+              // Extract the color (the word immediately following the keyword or the last word)
+              // This is more robust for "title red and subtitle orange"
+              let color = words[words.length - 1];
+              
+              // If the instruction is "title red and ...", the color is likely the word after "title"
+              const keyIndex = words.indexOf(key);
+              if (words[keyIndex + 1] && !elementMap[words[keyIndex + 1]] && words[keyIndex + 1] !== 'to') {
+                 color = words[keyIndex + 1];
+              } else if (words[keyIndex + 2] && words[keyIndex + 1] === 'to') {
+                 color = words[keyIndex + 2];
+              }
+
+              try {
+                document.getElementById(elementMap[key]).style.color = color;
+                anyTargetFound = true;
+              } catch (e) {}
+            }
+          });
+        });
+
+        // If no specific keyword like "title" or "button" was found,
+        // treat the entire input as a single color for everything.
+        if (!anyTargetFound) {
+          allIds.forEach(id => {
+            document.getElementById(id).style.color = w.color;
+          });
+        }
+      } else {
+        // Reset to default white if empty
+        const els = ['gen-welcome-title', 'gen-welcome-subtitle', 'gen-welcome-desc'];
+        els.forEach(id => {
+          document.getElementById(id).style.color = '#ffffff';
+        });
+        document.getElementById('gen-welcome-btn').style.color = '';
+      }
     }
 
     function nextScreen(target) {

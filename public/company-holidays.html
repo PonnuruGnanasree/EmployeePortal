@@ -336,7 +336,7 @@
         </a>
 
         <div class="sidebar-dropdown">
-          <a href="viewer.html" class="sidebar-link sidebar-dropdown-trigger">
+          <a href="viewer.html" class="sidebar-link sidebar-dropdown-trigger" id="nav-training">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
@@ -374,13 +374,19 @@
           </div>
         </div>
 
-        <a href="monthly-feedback.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-          </svg>
-          <span class="link-text">Monthly Feedback</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="#" class="sidebar-link sidebar-dropdown-trigger" id="nav-feedback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            <span class="link-text">Monthly Feedback</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="monthly-feedback.html" class="submenu-link">Feedback</a>
+            <a href="analysis.html" class="submenu-link">Performance Analysis</a>
+          </div>
+        </div>
 
         <a href="company-holidays.html" class="sidebar-link active">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

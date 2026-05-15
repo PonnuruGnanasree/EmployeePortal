@@ -64,7 +64,8 @@ db.exec(`
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     role TEXT DEFAULT 'employee',
-    points REAL DEFAULT 0
+    points REAL DEFAULT 0,
+    profile_image TEXT
   );
 
   CREATE TABLE IF NOT EXISTS user_folders (
@@ -154,7 +155,8 @@ try {
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         role TEXT DEFAULT 'employee',
-        points REAL DEFAULT 0
+        points REAL DEFAULT 0,
+        profile_image TEXT
       );
       INSERT INTO users (id, fullname, email, password, role, points)
       SELECT CAST(id AS TEXT), fullname, email, password, role, points FROM users_old;
@@ -198,6 +200,7 @@ try {
 
 // Ensure columns exist (for existing databases)
 try { db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'employee'"); } catch (e) {}
+try { db.exec("ALTER TABLE users ADD COLUMN profile_image TEXT"); } catch (e) {}
 try { db.exec("ALTER TABLE public_documents ADD COLUMN original_name TEXT"); } catch (e) {}
 // Back‑fill existing rows where original_name is null
 try { db.exec("UPDATE public_documents SET original_name = filename WHERE original_name IS NULL"); } catch (e) {}
@@ -242,8 +245,12 @@ app.post('/api/auth/signup', async (req, res) => {
   try {
     const { fullname, email, password } = req.body;
 
-    if (!email || !email.endsWith('@gantecusa.com')) {
+    if (!email || !email.toLowerCase().endsWith('@gantecusa.com')) {
       return res.status(400).json({ error: 'Email must be an official @gantecusa.com address.' });
+    }
+
+    if (!fullname || !fullname.trim()) {
+      return res.status(400).json({ error: 'Full name is required.' });
     }
 
     if (!password || password.length < 8) {
@@ -262,52 +269,83 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ error: 'Password must contain at least one special character' });
     }
 
-    // Check if user exists
-    const stmtCheck = db.prepare('SELECT * FROM users WHERE email = ?');
-    const existingUser = stmtCheck.get(email);
+    // Check if user already exists (SQLite)
+    const existingLocal = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+    if (existingLocal) {
+      return res.status(400).json({ error: 'An account with this email already exists.' });
+    }
 
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email already exists' });
+    // Check if user already exists in Supabase
+    if (supabase) {
+      const { data: existingSupabase } = await supabase
+        .from('users').select('id').ilike('email', email).single();
+      if (existingSupabase) {
+        return res.status(400).json({ error: 'An account with this email already exists.' });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert new user in Supabase Auth if enabled
+    // Declare authUser in outer scope so it's accessible after the if block
+    let newUserId = uuidv4();
+
+    // Create in Supabase Auth + DB if enabled
     if (supabase) {
-      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-        email: email,
-        password: password,
-        email_confirm: true,
-        user_metadata: { fullname: fullname }
-      });
+      try {
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email: email,
+          password: password,
+          email_confirm: true,
+          user_metadata: { fullname: fullname.trim() }
+        });
 
-      if (authError) {
-        console.error('Supabase Auth signup error:', authError);
-        return res.status(400).json({ error: authError.message });
-      }
+        if (authError) {
+          console.error('Supabase Auth signup error:', authError.message);
+          return res.status(400).json({ error: authError.message });
+        }
 
-      // Sync with custom users table
-      const { data, error } = await supabase
-        .from('users')
-        .insert([{ id: authUser.user.id, fullname, email, password: hashedPassword, role: 'employee', points: 0 }])
-        .select();
-      
-      if (error) {
-        console.error('Supabase DB sync error:', error);
+        if (authData && authData.user) {
+          newUserId = authData.user.id; // Use Supabase-generated UUID
+
+          // Sync to Supabase public.users table
+          const { error: dbError } = await supabase
+            .from('users')
+            .insert([{
+              id: newUserId,
+              fullname: fullname.trim(),
+              email: email.toLowerCase(),
+              password: hashedPassword,
+              role: 'employee',
+              points: 0,
+              profile_image: null
+            }]);
+
+          if (dbError) console.error('Supabase DB insert error:', dbError.message);
+          else console.log('User created in Supabase Auth + DB:', email);
+        }
+      } catch (supaErr) {
+        console.error('Supabase signup failed:', supaErr.message);
+        return res.status(500).json({ error: 'Failed to create account in Supabase: ' + supaErr.message });
       }
-      console.log('User synced to Supabase Auth and DB');
     }
 
-    // Insert new user in SQLite (always keep local copy for fallback/speed)
-    const stmtInsert = db.prepare('INSERT INTO users (fullname, email, password, role, points) VALUES (?, ?, ?, ?, ?)');
-    stmtInsert.run(fullname, email, hashedPassword, 'employee', 0);
+    // Always insert into local SQLite
+    try {
+      db.prepare('INSERT INTO users (id, fullname, email, password, role, points, profile_image) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(newUserId, fullname.trim(), email.toLowerCase(), hashedPassword, 'employee', 0, null);
+      console.log('User inserted into SQLite:', email);
+    } catch (sqlErr) {
+      // If SQLite insert fails (e.g. duplicate), log but don't fail the signup
+      console.warn('SQLite insert warning:', sqlErr.message);
+    }
 
-    res.json({ success: true, user: { fullname, email } });
+    res.json({ success: true, user: { fullname: fullname.trim(), email: email.toLowerCase() } });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Sign up failed' });
+    console.error('Signup error:', err);
+    res.status(500).json({ error: 'Sign up failed: ' + err.message });
   }
 });
+
 
 
 app.post('/api/auth/login', async (req, res) => {
@@ -424,11 +462,20 @@ app.get('/api/auth/profile', async (req, res) => {
         .eq('email', email)
         .single();
       
-      if (data) user = data;
+      if (data) {
+        user = data;
+        // Auto-heal: If user in Supabase but not in local SQLite, sync them
+        const localCheck = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+        if (!localCheck) {
+          console.log(`Auto-healing: Syncing Supabase user ${email} to local SQLite`);
+          db.prepare('INSERT INTO users (id, fullname, email, password, role, points, profile_image) VALUES (?, ?, ?, ?, ?, ?, ?)')
+            .run(user.id, user.fullname, user.email, user.password || '', user.role || 'employee', user.points || 0, user.profile_image || null);
+        }
+      }
     }
 
     if (!user) {
-      const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
+      const stmt = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)');
       user = stmt.get(email);
     }
 
@@ -436,7 +483,13 @@ app.get('/api/auth/profile', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
  
-    res.json({ success: true, user: { fullname: user.fullname, email: user.email, points: user.points || 0, role: user.role } });
+    res.json({ success: true, user: { 
+      fullname: user.fullname, 
+      email: user.email, 
+      points: user.points || 0, 
+      role: user.role,
+      profile_image: user.profile_image 
+    } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to get profile' });
@@ -447,19 +500,36 @@ app.get('/api/auth/profile', async (req, res) => {
 // PUT /api/auth/profile – Update user profile
 app.put('/api/auth/profile', async (req, res) => {
   try {
-    const { currentEmail, fullname, email, currentPassword, newPassword } = req.body;
+    const { currentEmail, fullname, email, currentPassword, newPassword, profile_image } = req.body;
+    console.log(`Profile update request for: ${currentEmail}`);
 
     if (!currentEmail) return res.status(400).json({ error: 'Current email required' });
 
-    const stmtUser = db.prepare('SELECT * FROM users WHERE email = ?');
-    const user = stmtUser.get(currentEmail);
+    let stmtUser = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)');
+    let user = stmtUser.get(currentEmail);
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    // If not in local SQLite, check Supabase
+    if (!user && supabase) {
+      console.log(`User ${currentEmail} not in SQLite, checking Supabase...`);
+      const { data } = await supabase.from('users').select('*').eq('email', currentEmail).single();
+      if (data) {
+        user = data;
+        // Sync to SQLite for future use
+        console.log(`Syncing user ${currentEmail} from Supabase to SQLite`);
+        db.prepare('INSERT INTO users (id, fullname, email, password, role, points, profile_image) VALUES (?, ?, ?, ?, ?, ?, ?)')
+          .run(user.id, user.fullname, user.email, user.password || '', user.role || 'employee', user.points || 0, user.profile_image || null);
+      }
     }
 
+    if (!user) {
+      console.error(`User update failed: ${currentEmail} not found in SQLite or Supabase`);
+      return res.status(404).json({ error: 'User not found. Please log out and log in again to sync your account.' });
+    }
+
+    const isEmailChanged = email && email !== currentEmail;
+    
     // Validate new email if provided
-    if (email && email !== currentEmail) {
+    if (isEmailChanged) {
       if (!email.endsWith('@gantecusa.com')) {
         return res.status(400).json({ error: 'Email must be an official @gantecusa.com address.' });
       }
@@ -485,17 +555,62 @@ app.put('/api/auth/profile', async (req, res) => {
     }
 
     // Verify current password if changing password or email and password is provided
-    if (currentPassword && (newPassword || email !== currentEmail) && !(await bcrypt.compare(currentPassword, user.password))) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
+    if (currentPassword && (newPassword || isEmailChanged)) {
+      console.log(`Verifying password for ${currentEmail}...`);
+      
+      let isMatch = false;
+      
+      // 1. Try local bcrypt comparison if password exists
+      if (user.password && user.password.length > 10) { // Hashed passwords are long
+        try {
+          isMatch = await bcrypt.compare(currentPassword, user.password);
+        } catch (e) {
+          console.log(`Bcrypt comparison failed for ${currentEmail}`);
+        }
+      }
+
+      // 2. Fallback: Try plain text match (for legacy accounts)
+      if (!isMatch && currentPassword === user.password) {
+        console.log(`Plain text match found for ${currentEmail}`);
+        isMatch = true;
+      }
+
+      // 3. Ultimate Fallback: Verify against Supabase Auth directly
+      // This handles cases where the local DB has a NULL/stale password
+      if (!isMatch && supabase) {
+        console.log(`Local check failed, verifying against Supabase Auth for ${currentEmail}...`);
+        try {
+          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email: currentEmail,
+            password: currentPassword
+          });
+          
+          if (authData && authData.user) {
+            console.log(`Supabase Auth verification successful for ${currentEmail}`);
+            isMatch = true;
+            // Sign out immediately so we don't keep the session on the server
+            await supabase.auth.signOut();
+          } else {
+            console.log(`Supabase Auth verification failed: ${authError ? authError.message : 'Unknown error'}`);
+          }
+        } catch (supaErr) {
+          console.error(`Supabase Auth verification error:`, supaErr.message);
+        }
+      }
+
+      if (!isMatch) {
+        console.log(`Final password mismatch for ${currentEmail}.`);
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      }
     }
 
     // If changing password or email without providing current password, skip the change
-    if ((newPassword || email !== currentEmail) && !currentPassword) {
+    if ((newPassword || isEmailChanged) && !currentPassword) {
       return res.status(400).json({ error: 'Current password is required to change email or password' });
     }
 
     // Check if new email is already taken by another user
-    if (email !== currentEmail) {
+    if (isEmailChanged) {
       const existingEmail = stmtUser.get(email);
       if (existingEmail) {
         return res.status(400).json({ error: 'Email already exists' });
@@ -505,19 +620,46 @@ app.put('/api/auth/profile', async (req, res) => {
     // Update user data
     let newFullname = fullname || user.fullname;
     let newEmailToSet = email || user.email;
+    let newProfileImage = profile_image !== undefined ? profile_image : user.profile_image;
     let newPasswordHashed = user.password;
+
 
     if (newPassword) {
       newPasswordHashed = await bcrypt.hash(newPassword, 10);
     }
 
-    const stmtUpdate = db.prepare('UPDATE users SET fullname = ?, email = ?, password = ? WHERE id = ?');
-    stmtUpdate.run(newFullname, newEmailToSet, newPasswordHashed, user.id);
+    const stmtUpdate = db.prepare('UPDATE users SET fullname = ?, email = ?, password = ?, profile_image = ? WHERE id = ?');
+    stmtUpdate.run(newFullname, newEmailToSet, newPasswordHashed, newProfileImage, user.id);
 
-    res.json({ success: true, user: { fullname: newFullname, email: newEmailToSet } });
+    // Sync to Supabase if enabled
+    if (supabase) {
+      try {
+        const updatePayload = {
+          fullname: newFullname,
+          email: newEmailToSet,
+          password: newPasswordHashed,
+          profile_image: newProfileImage
+        };
+        
+        await supabase.from('users').update(updatePayload).eq('id', user.id);
+        
+        // Also update Supabase Auth email/password if changed
+        if (email && email !== currentEmail) {
+          await supabase.auth.admin.updateUserById(user.id, { email: email });
+        }
+        if (newPassword) {
+          await supabase.auth.admin.updateUserById(user.id, { password: newPassword });
+        }
+      } catch (supaErr) {
+        console.error('Supabase profile sync failed:', supaErr.message);
+      }
+    }
+
+    console.log(`Profile updated successfully for: ${currentEmail}`);
+    res.json({ success: true, user: { fullname: newFullname, email: newEmailToSet, profile_image: newProfileImage } });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update profile' });
+    console.error('Profile update error:', err);
+    res.status(500).json({ error: 'Failed to update profile: ' + err.message });
   }
 });
 

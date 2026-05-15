@@ -324,13 +324,19 @@
           </div>
         </div>
 
-        <a href="monthly-feedback.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-          </svg>
-          <span class="link-text">Monthly Feedback</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="#" class="sidebar-link sidebar-dropdown-trigger" id="nav-feedback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            <span class="link-text">Monthly Feedback</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="monthly-feedback.html" class="submenu-link">Feedback</a>
+            <a href="analysis.html" class="submenu-link">Performance Analysis</a>
+          </div>
+        </div>
 
         <a href="company-holidays.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -397,7 +403,6 @@
         </a>
       </nav>
     </aside>
-
     <main class="app-main">
       <div class="connect-main">
         <div class="connect-header">
@@ -581,6 +586,46 @@
             <label class="label">Other Updates</label>
             <textarea id="otherUpdates" class="input" rows="3" placeholder="General announcements..."></textarea>
           </div>
+
+          <!-- Fun Activity fields (visible only when creating new session) -->
+          <div id="create-fun-fields">
+            <div style="height:1px; background:var(--border); margin:24px 0;"></div>
+            <h3 style="margin:0 0 16px 0; color:#e11d48; font-size:1rem; font-weight:800;">🎉 Fun Activity Details</h3>
+            <div class="form-group">
+              <label class="label">Fun Activity Name</label>
+              <input type="text" id="postFunName" class="input" placeholder="Activity name">
+            </div>
+            <div class="form-group">
+              <label class="label">Winners (1st, 2nd, 3rd)</label>
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                <input type="text" id="pw1" class="input" placeholder="1st">
+                <input type="text" id="pw2" class="input" placeholder="2nd">
+                <input type="text" id="pw3" class="input" placeholder="3rd">
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-post">Generate Card</button>
+        </form>
+
+      </div>
+    </div>
+
+    <!-- Fun Activity Modal -->
+    <div class="modal-overlay" id="fun-modal">
+      <div class="modal-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <h2 style="margin: 0; font-weight: 800; color: #e11d48;">Edit Fun Activity</h2>
+          <button type="button" onclick="document.getElementById('fun-modal').classList.remove('active')"
+            style="background: #f1f5f9; border: none; color: var(--text-secondary); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <form id="fun-form">
+          <input type="hidden" id="fun-edit-id">
           <div class="form-group">
             <label class="label">Fun Activity</label>
             <input type="text" id="funName" class="input" placeholder="Activity name" required>
@@ -593,16 +638,8 @@
               <input type="text" id="w3" class="input" placeholder="3rd" required>
             </div>
           </div>
-          <!-- Number of Questions & Dynamic Q sections -->
-          <div class="form-group">
-            <label class="label">Number of Questions</label>
-            <input type="number" id="numQuestions" class="input" min="0" placeholder="e.g. 3" oninput="generateQuestionFields(this.value)">
-          </div>
-          <div id="dynamic-question-fields" style="margin-top:8px;"></div>
-
-          <button type="submit" class="btn-post">Generate Card</button>
+          <button type="submit" class="btn-post" style="background:#e11d48; width: auto; min-width: 160px; margin-top: 12px;">Save Fun Activity</button>
         </form>
-
       </div>
     </div>
   </div>
@@ -706,15 +743,10 @@
         if (existing) originalFilename = existing.filename;
       }
 
-      const numQuestions = parseInt(document.getElementById('numQuestions').value) || 0;
-      const questions = [];
-      for (let i = 1; i <= numQuestions; i++) {
-        const isText = document.getElementById(`q${i}-btn-text`).classList.contains('active');
-        questions.push({
-          type: isText ? 'text' : 'image',
-          content: isText ? document.getElementById(`q${i}-text`).value : document.getElementById(`q${i}-image`).value,
-          answer: document.getElementById(`q${i}-answer`).value
-        });
+      let existingSession = null;
+      if (editId) {
+        const history = await fetchSessions();
+        existingSession = history.find(s => s.id === parseInt(editId));
       }
 
       const session = {
@@ -725,13 +757,13 @@
         link: finalUrl,
         filename: originalFilename || (document.getElementById('techLink').value ? 'External Link' : ''),
         updates: document.getElementById('otherUpdates').value,
-        fun: document.getElementById('funName').value,
-        winners: [
-          document.getElementById('w1').value,
-          document.getElementById('w2').value,
-          document.getElementById('w3').value
+        fun: editId ? (existingSession ? existingSession.fun : '') : document.getElementById('postFunName').value,
+        winners: editId ? (existingSession ? existingSession.winners : ['', '', '']) : [
+          document.getElementById('pw1').value,
+          document.getElementById('pw2').value,
+          document.getElementById('pw3').value
         ],
-        questions: questions
+        questions: existingSession ? existingSession.questions : []
       };
 
       try {
@@ -758,6 +790,54 @@
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Generate Card';
+      }
+    });
+
+    const funModal = document.getElementById('fun-modal');
+    const funForm = document.getElementById('fun-form');
+
+    funForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = funForm.querySelector('.btn-post');
+      const editId = document.getElementById('fun-edit-id').value;
+      if (!editId) return;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
+
+      try {
+        const history = await fetchSessions();
+        const existingSession = history.find(s => s.id === parseInt(editId));
+        if (!existingSession) throw new Error('Session not found');
+
+        const updatedSession = {
+          ...existingSession,
+          fun: document.getElementById('funName').value,
+          winners: [
+            document.getElementById('w1').value,
+            document.getElementById('w2').value,
+            document.getElementById('w3').value
+          ]
+        };
+
+        const res = await fetch(`/api/weekly-sessions/${editId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedSession)
+        });
+
+        if (!res.ok) throw new Error('Failed to update fun activity');
+
+        const sessions = await fetchSessions();
+        render(sessions);
+
+        funModal.classList.remove('active');
+        showToast('Fun Activity updated', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Fun Activity';
       }
     });
 
@@ -830,8 +910,11 @@
 
 
             <div class="section-box" style="grid-column: 1 / -1; background:#fff1f2; border-color:#ffe4e6;">
-              <h3 style="margin:0 0 16px 0; color:#e11d48; font-weight:800; display:flex; align-items:center; gap:8px;">
-                <span style="font-size:1.2rem;">🎉</span> Fun Activity & Winners
+              <h3 style="margin:0 0 16px 0; color:#e11d48; font-weight:800; display:flex; align-items:center; justify-content:space-between;">
+                <span style="display:flex; align-items:center; gap:8px;"><span style="font-size:1.2rem;">🎉</span> Fun Activity & Winners</span>
+                <button onclick="editFun(${s.id})" style="background:none; border:none; color:#e11d48; opacity:0.6; cursor:pointer; padding:4px; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Edit Fun Activity">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                </button>
               </h3>
               <div style="display:flex; flex-wrap:wrap; gap:32px; align-items:center;">
                 <div style="flex:1; min-width:200px;">
@@ -1033,39 +1116,36 @@
       document.getElementById('techTopic').value = session.topic;
       document.getElementById('techLink').value = session.link === '#' ? '' : session.link;
       document.getElementById('otherUpdates').value = session.updates;
-      document.getElementById('funName').value = session.fun;
-      document.getElementById('w1').value = session.winners[0];
-      document.getElementById('w2').value = session.winners[1];
-      document.getElementById('w3').value = session.winners[2];
 
-      // Restore questions
-      const numQInput = document.getElementById('numQuestions');
-      numQInput.value = session.questions ? session.questions.length : 0;
-      generateQuestionFields(numQInput.value);
-      
-      if (session.questions) {
-        session.questions.forEach((q, idx) => {
-          const i = idx + 1;
-          if (q.type === 'image') {
-            switchQType(i, 'image');
-            document.getElementById(`q${i}-image`).value = q.content;
-          } else {
-            switchQType(i, 'text');
-            document.getElementById(`q${i}-text`).value = q.content;
-          }
-          document.getElementById(`q${i}-answer`).value = q.answer;
-        });
-      }
+      // Hide fun fields during overall edit
+      document.getElementById('create-fun-fields').style.display = 'none';
 
       postModal.querySelector('h2').textContent = 'Edit Session Card';
       postModal.querySelector('.btn-post').textContent = 'Save Changes';
       postModal.classList.add('active');
     };
 
+    window.editFun = async (id) => {
+      const history = await fetchSessions();
+      const session = history.find(s => s.id === id);
+      if (!session) return;
+
+      document.getElementById('fun-edit-id').value = session.id;
+      document.getElementById('funName').value = session.fun || '';
+      document.getElementById('w1').value = session.winners && session.winners[0] ? session.winners[0] : '';
+      document.getElementById('w2').value = session.winners && session.winners[1] ? session.winners[1] : '';
+      document.getElementById('w3').value = session.winners && session.winners[2] ? session.winners[2] : '';
+
+      funModal.classList.add('active');
+    };
+
     openModalBtn.addEventListener('click', () => {
       postForm.reset();
-      document.getElementById('dynamic-question-fields').innerHTML = ''; // Clear dynamic fields
       document.getElementById('edit-id').value = '';
+      
+      // Show fun fields during creation
+      document.getElementById('create-fun-fields').style.display = 'block';
+
       postModal.querySelector('h2').textContent = 'Generate Session Card';
       postModal.querySelector('.btn-post').textContent = 'Generate & Post Card';
       postModal.classList.add('active');

@@ -11,6 +11,21 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
+    .team-scroll-area::-webkit-scrollbar {
+      width: 6px;
+    }
+    .team-scroll-area::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.02);
+      border-radius: 10px;
+    }
+    .team-scroll-area::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.15);
+      border-radius: 10px;
+    }
+    .team-scroll-area::-webkit-scrollbar-thumb:hover {
+      background: rgba(0,0,0,0.25);
+    }
+
     /* Main Content */
     .team-container {
       max-width: 1200px;
@@ -264,13 +279,19 @@
           </div>
         </div>
 
-        <a href="monthly-feedback.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-          </svg>
-          <span class="link-text">Monthly Feedback</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="#" class="sidebar-link sidebar-dropdown-trigger" id="nav-feedback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            <span class="link-text">Monthly Feedback</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="monthly-feedback.html" class="submenu-link">Feedback</a>
+            <a href="analysis.html" class="submenu-link">Performance Analysis</a>
+          </div>
+        </div>
 
         <a href="company-holidays.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -383,8 +404,8 @@
       </div>
       
       <div class="form-group">
-        <label class="form-label">Job Title / Role</label>
-        <input type="text" class="form-input" id="mRole" placeholder="e.g. Software Engineer">
+        <label class="form-label">Team Name</label>
+        <input type="text" class="form-input" id="mTeam" placeholder="e.g. Engineering Team">
       </div>
       
       <div class="form-group">
@@ -392,14 +413,33 @@
         <input type="email" class="form-input" id="mEmail" placeholder="john@gantec.com">
       </div>
       
-      <div class="form-group">
-        <label class="form-label">Phone Number</label>
-        <input type="text" class="form-input" id="mPhone" placeholder="+1 (555) 000-0000">
-      </div>
+
 
       <div style="display: flex; gap: 12px; margin-top: 32px;">
         <button style="flex: 1; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: #f1f5f9; color: var(--text-muted); font-weight: 700; cursor: pointer;" id="closeAddModal">Cancel</button>
         <button style="flex: 1; padding: 14px; border-radius: 12px; border: none; background: var(--primary); color: white; font-weight: 700; cursor: pointer;" id="saveMember">Save Member</button>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- Confirm Delete Modal -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal-card" style="max-width: 400px; text-align: center;">
+      <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(239, 68, 68, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 32px; height: 32px;">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          <line x1="10" y1="11" x2="10" y2="17"></line>
+          <line x1="14" y1="11" x2="14" y2="17"></line>
+        </svg>
+      </div>
+      <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; margin: 0 0 12px 0; color: var(--primary);">Remove Member</h2>
+      <p style="color: var(--text-muted); margin: 0 0 32px 0; font-size: 0.95rem; line-height: 1.5;">Are you sure you want to remove this team member? This action cannot be undone.</p>
+      
+      <div style="display: flex; gap: 12px;">
+        <button style="flex: 1; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: #f1f5f9; color: var(--text-muted); font-weight: 700; cursor: pointer;" id="cancelDeleteBtn">Cancel</button>
+        <button style="flex: 1; padding: 14px; border-radius: 12px; border: none; background: var(--danger); color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);" id="confirmDeleteBtn">Remove</button>
       </div>
     </div>
   </div>
@@ -415,48 +455,172 @@
 
     // Sample Data
     let members = [
-      { id: 1, name: "Gnana Sree", role: "UI/UX Designer", email: "gnana.sree@gantec.com", phone: "+91 98765 43210", avatar: "👩‍💻" },
-      { id: 2, name: "Vikram Raj", role: "Project Manager", email: "vikram.raj@gantec.com", phone: "+91 98765 43211", avatar: "👨‍💼" },
-      { id: 3, name: "Anita Sharma", role: "QA Engineer", email: "anita.s@gantec.com", phone: "+91 98765 43212", avatar: "👩‍🔬" },
-      { id: 4, name: "Rahul Singh", role: "Backend Developer", email: "rahul.s@gantec.com", phone: "+91 98765 43213", avatar: "👨‍💻" }
+      { id: 1, name: "Gnana Sree", team: "VibeTribe", email: "gnana.sree@gantec.com", phone: "+91 98765 43210", avatar: "👩‍💻" },
+      { id: 2, name: "Vikram Raj", team: "CtrlAltDefeat", email: "vikram.raj@gantec.com", phone: "+91 98765 43211", avatar: "👨‍💼" },
+      { id: 3, name: "Anita Sharma", team: "Titans", email: "anita.s@gantec.com", phone: "+91 98765 43212", avatar: "👩‍🔬" },
+      { id: 4, name: "Rahul Singh", team: "CtrlAltDefeat", email: "rahul.s@gantec.com", phone: "+91 98765 43213", avatar: "👨‍💻" }
     ];
 
     function renderTeam(list) {
       if (!list || list.length === 0) {
-        teamGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted); font-weight: 600;">No members found matching your search.</div>';
+        teamGrid.innerHTML = '<div style="text-align: center; padding: 60px; color: var(--text-muted); font-weight: 600;">No members found matching your search.</div>';
+        teamGrid.style.display = 'block';
         return;
       }
-      teamGrid.innerHTML = list.map(m => `
-        <div class="member-card">
-          <div class="member-avatar">${m.avatar || '👤'}</div>
-          <h3 class="member-name">${m.name}</h3>
-          <span class="member-role">${m.role}</span>
-          
-          <div class="member-info">
-            <div class="info-item">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                <polyline points="22,6 12,13 2,6"></polyline>
-              </svg>
-              ${m.email}
-            </div>
-            <div class="info-item">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-              </svg>
-              ${m.phone}
-            </div>
+      
+      // Grouping by Team
+      const groups = list.reduce((acc, member) => {
+        const teamName = member.team || 'Unassigned Team';
+        if (!acc[teamName]) acc[teamName] = [];
+        acc[teamName].push(member);
+        return acc;
+      }, {});
+
+      teamGrid.style.display = 'flex';
+      teamGrid.style.flexDirection = 'column';
+      teamGrid.style.gap = '40px';
+      teamGrid.style.padding = '20px 0';
+
+      let html = '';
+      for (const [teamName, teamMembers] of Object.entries(groups)) {
+        html += `
+          <div class="team-section">
+            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.75rem; color: var(--primary); margin: 0 0 24px 0; display: flex; align-items: center; gap: 12px; border-bottom: 2px solid var(--border); padding-bottom: 12px;">
+              ${teamName}
+              <span style="font-size: 0.9rem; font-weight: 600; background: var(--bg-2); padding: 4px 12px; border-radius: 100px; color: var(--text-secondary);">${teamMembers.length} Members</span>
+            </h2>
+            
+            <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 16px; overflow: hidden; border: 1px solid var(--border);">
+              <thead>
+                <tr style="background: var(--bg-2); text-align: left;">
+                  <th style="padding: 16px 24px; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; width: 80px;">Profile</th>
+                  <th style="padding: 16px 24px; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Name</th>
+                  <th style="padding: 16px 24px; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Email Address</th>
+                  <th style="padding: 16px 24px; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${teamMembers.map((m, idx) => `
+                  <tr style="border-bottom: ${idx === teamMembers.length - 1 ? 'none' : '1px solid var(--border)'}; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                    <td style="padding: 12px 24px;">
+                      <div style="width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: var(--bg-2); border: 1px solid var(--border); position: relative;">
+                        ${getMemberAvatarHtmlCompact(m)}
+                      </div>
+                    </td>
+                    <td style="padding: 12px 24px; font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--primary); font-size: 1.05rem;">
+                      ${m.name}
+                    </td>
+                    <td style="padding: 12px 24px; color: var(--text-secondary); font-size: 0.95rem;">
+                      <span style="display: flex; align-items: center; gap: 8px;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent);">
+                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                          <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                        ${m.email}
+                      </span>
+                    </td>
+                    <td style="padding: 12px 24px; text-align: right;">
+                      <button onclick="deleteMember(${m.id})" style="background: none; border: none; color: var(--danger); cursor: pointer; opacity: 0.3; transition: opacity 0.2s; padding: 4px;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.3'">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
           </div>
-        </div>
-      `).join('');
+        `;
+      }
+      teamGrid.innerHTML = html;
     }
+
+    function getMemberAvatarHtmlCompact(m) {
+      const initials = m.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+      const storedProfile = localStorage.getItem('gantec_user_profile');
+      let imgSrc = 'default-avatar.png';
+      
+      if (storedProfile && !storedProfile.includes('default-avatar.png')) {
+        imgSrc = storedProfile;
+      } else {
+        const safeName = m.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        imgSrc = `images/${safeName}.png`;
+      }
+
+      return `
+        <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 800; color: var(--text-muted); z-index: 1;">${initials}</div>
+        <img src="${imgSrc}" alt="${m.name}" 
+             style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2;" 
+             onerror="this.style.display='none';" />
+      `;
+    }
+
+    function getMemberAvatarHtml(m) {
+      const initials = m.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+      
+      // Sync with logged-in user image if available
+      const storedProfile = localStorage.getItem('gantec_user_profile');
+      let imgSrc = 'default-avatar.png'; // Fallback
+      
+      if (storedProfile && !storedProfile.includes('default-avatar.png')) {
+        imgSrc = storedProfile;
+      } else {
+        // If no global profile, try per-member images
+        const safeName = m.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        imgSrc = `images/${safeName}.png`;
+      }
+
+      return `
+        <div class="member-avatar" style="width: 80px; height: 80px; font-size: 1.75rem; border-width: 3px; position: relative; overflow: hidden; padding: 0; margin: 0 auto 16px; background: var(--bg-2); border-color: var(--border);">
+          <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 1;">${initials}</div>
+          <img src="${imgSrc}" alt="${m.name}" 
+               style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2;" 
+               onerror="this.style.display='none';" />
+        </div>
+      `;
+    }
+
+    let memberToDelete = null;
+    const confirmModal = document.getElementById('confirmModal');
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+
+    cancelDeleteBtn.onclick = () => {
+      confirmModal.classList.remove('active');
+      memberToDelete = null;
+    };
+
+    confirmDeleteBtn.onclick = () => {
+      if (memberToDelete !== null) {
+        members = members.filter(m => m.id !== memberToDelete);
+        
+        const term = teamSearch.value.toLowerCase();
+        if (term) {
+          const filtered = members.filter(m => m.name.toLowerCase().includes(term) || m.team.toLowerCase().includes(term));
+          renderTeam(filtered);
+        } else {
+          renderTeam(members);
+        }
+        
+        showToast('Team member removed', 'success');
+        confirmModal.classList.remove('active');
+        memberToDelete = null;
+      }
+    };
+
+    window.deleteMember = function(id) {
+      memberToDelete = id;
+      confirmModal.classList.add('active');
+    };
 
     // Search functionality
     teamSearch.addEventListener('input', (e) => {
       const term = e.target.value.toLowerCase();
       const filtered = members.filter(m => 
         m.name.toLowerCase().includes(term) || 
-        m.role.toLowerCase().includes(term)
+        m.team.toLowerCase().includes(term)
       );
       renderTeam(filtered);
     });
@@ -467,32 +631,28 @@
 
     saveMemberBtn.onclick = () => {
       const name = document.getElementById('mName').value;
-      const role = document.getElementById('mRole').value;
+      const team = document.getElementById('mTeam').value;
       const email = document.getElementById('mEmail').value;
-      const phone = document.getElementById('mPhone').value;
 
-      if (!name || !role) return showToast('Name and Role are required', 'warning');
+      if (!name || !team) return showToast('Name and Team Name are required', 'warning');
 
       const newMember = {
         id: Date.now(),
         name,
-        role,
-        email: email || 'N/A',
-        phone: phone || 'N/A',
-        avatar: Math.random() > 0.5 ? '👨‍💻' : '👩‍💻'
+        team,
+        email: email || 'N/A'
       };
 
-      members.unshift(newMember);
+      members.push(newMember);
       renderTeam(members);
       addModal.classList.remove('active');
       
       // Reset form
       document.getElementById('mName').value = '';
-      document.getElementById('mRole').value = '';
+      document.getElementById('mTeam').value = '';
       document.getElementById('mEmail').value = '';
-      document.getElementById('mPhone').value = '';
 
-      showToast('New member added to the team', 'success');
+      showToast('New member added to ' + team, 'success');
     };
 
     // Initial render

@@ -124,14 +124,186 @@
     }
 
     /* Non-active colors */
-    .role-item.user:not(.active) { color: var(--user-color); }
-    .role-item.admin:not(.active) { color: var(--admin-color); }
+    .role-item.user:not(.active) {
+      color: var(--user-color);
+    }
+
+    .role-item.admin:not(.active) {
+      color: var(--admin-color);
+    }
 
     .role-item:hover:not(.active) {
       background: #f8fafc;
     }
 
-    /* Header Controls (Period + Role Switch) */
+    /* Accordion Style */
+    .accordion-category {
+      margin-bottom: 24px;
+      background: white;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .accordion-category.open {
+      box-shadow: var(--shadow-lg);
+    }
+
+    .accordion-header {
+      padding: 24px 32px;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+    }
+
+    .accordion-header:hover {
+      background: #f1f5f9;
+    }
+
+    .accordion-category.open .accordion-header {
+      background: white;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .accordion-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin: 0;
+    }
+
+    .accordion-icon {
+      width: 24px;
+      height: 24px;
+      transition: transform 0.3s;
+      color: var(--text-muted);
+    }
+
+    .accordion-category.open .accordion-icon {
+      transform: rotate(180deg);
+    }
+
+    .accordion-content {
+      display: none;
+      padding: 0;
+      /* Padding handled by table-wrapper now */
+    }
+
+    .accordion-category.open .accordion-content {
+      display: block;
+    }
+
+    .main-category-header {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 40px 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .main-category-header span {
+      background: rgba(var(--primary-rgb), 0.1);
+      color: var(--primary);
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sub-category-accordion {
+      margin-bottom: 20px;
+      background: white;
+      border-radius: 20px;
+      border: none;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      transition: all 0.3s ease;
+    }
+
+    .sub-category-accordion:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+    }
+
+    .sub-category-header {
+      padding: 24px 30px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .sub-category-icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f8fafc;
+      color: var(--primary);
+    }
+
+    .sub-category-title-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sub-category-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .sub-category-focus {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .sub-category-chevron {
+      width: 20px;
+      height: 20px;
+      color: #94a3b8;
+      transition: transform 0.3s ease;
+    }
+
+    .sub-category-accordion.open .sub-category-chevron {
+      transform: rotate(180deg);
+    }
+
+    .sub-category-content {
+      display: none;
+      padding: 0 30px 30px;
+    }
+
+    .sub-category-accordion.open .sub-category-content {
+      display: block;
+    }
+
+    .sub-category-desc {
+      font-size: 0.95rem;
+      color: #475569;
+      margin-bottom: 24px;
+      line-height: 1.6;
+      padding-left: 68px;
+    }
+
     .header-controls {
       display: flex;
       flex-direction: column;
@@ -151,7 +323,8 @@
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
     }
 
-    .month-select, .year-input {
+    .month-select,
+    .year-input {
       font-family: 'Outfit', sans-serif;
       font-weight: 700;
       font-size: 1rem;
@@ -173,7 +346,7 @@
       text-align: center;
       -moz-appearance: textfield;
     }
-    
+
     .year-input::-webkit-inner-spin-button,
     .year-input::-webkit-outer-spin-button {
       -webkit-appearance: none;
@@ -187,7 +360,7 @@
       gap: 20px;
       margin-bottom: 40px;
     }
-    
+
     .role-switch-container {
       margin: 0;
     }
@@ -362,8 +535,15 @@
     }
 
     @keyframes slideUp {
-      from { transform: translateY(100px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
+      from {
+        transform: translateY(100px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
     }
 
     .action-btn {
@@ -459,6 +639,7 @@
       z-index: 9999;
       animation: fadeIn 0.2s ease;
     }
+
     .custom-confirm-box {
       background: white;
       padding: 30px;
@@ -466,24 +647,28 @@
       max-width: 400px;
       width: 90%;
       text-align: center;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
       animation: scaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
+
     .confirm-icon {
       font-size: 40px;
       margin-bottom: 15px;
     }
+
     .confirm-message {
       font-size: 1.1rem;
       color: var(--text-primary);
       margin-bottom: 25px;
       line-height: 1.5;
     }
+
     .confirm-actions {
       display: flex;
       gap: 15px;
       justify-content: center;
     }
+
     .confirm-btn {
       padding: 10px 24px;
       border-radius: 100px;
@@ -492,21 +677,52 @@
       border: none;
       transition: all 0.2s;
     }
+
     .confirm-btn.cancel {
       background: #f1f5f9;
       color: #475569;
     }
+
     .confirm-btn.ok {
       background: var(--primary);
       color: white;
     }
+
     .confirm-btn:hover {
       transform: translateY(-2px);
     }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes scaleUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .custom-confirm-overlay.fade-out { animation: fadeOut 0.2s ease forwards; }
-    @keyframes fadeOut { to { opacity: 0; } }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes scaleUp {
+      from {
+        transform: scale(0.9);
+        opacity: 0;
+      }
+
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .custom-confirm-overlay.fade-out {
+      animation: fadeOut 0.2s ease forwards;
+    }
+
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+      }
+    }
   </style>
 </head>
 
@@ -568,13 +784,19 @@
           </div>
         </div>
 
-        <a href="monthly-feedback.html" class="sidebar-link active">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-          </svg>
-          <span class="link-text">Monthly Feedback</span>
-        </a>
+        <div class="sidebar-dropdown open">
+          <a href="#" class="sidebar-link sidebar-dropdown-trigger active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            <span class="link-text">Monthly Feedback</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="monthly-feedback.html" class="submenu-link active">Feedback</a>
+            <a href="analysis.html" class="submenu-link">Performance Analysis</a>
+          </div>
+        </div>
 
         <a href="company-holidays.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -669,9 +891,10 @@
               <option value="11">November</option>
               <option value="12">December</option>
             </select>
-            <input type="number" id="yearInput" class="year-input" value="2026" min="2026" max="2099" oninput="updatePeriodFromUI()">
+            <input type="number" id="yearInput" class="year-input" value="2026" min="2026" max="2099"
+              oninput="updatePeriodFromUI()">
           </div>
-          
+
           <div class="role-switch-container">
             <button class="role-item user active" onclick="switchRole('user')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -720,15 +943,18 @@
     </main>
   </div>
 
+
   <script src="js/app.js"></script>
   <script>
     const rubricData = {
       categories: [
         {
-          name: "Hard Skills Categories (The \"What\" - 60% Weight)",
+          name: "Hard Skills Categories",
+          weight: "60% Weight",
           subsections: [
             {
               name: "Technical Delivery",
+              icon: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
               focus: "Output, Velocity, and Quality",
               description: "Measuring the ability to build and iterate at speed",
               levels: ["Stagnant", "Fluctuating", "Steady", "Proactive", "High-Perf", "Multiplier", "Engine"],
@@ -784,11 +1010,25 @@
                     { title: "Optimizer", desc: "Actively improves team-wide workflows." },
                     { title: "Architect", desc: "Designs the company's operational SOPs." }
                   ]
+                },
+                {
+                  id: "testing_rigor",
+                  name: "Testing Rigor",
+                  cells: [
+                    { title: "None", desc: "No unit tests or manual verification." },
+                    { title: "Basic", desc: "Only checks the 'Happy Path'." },
+                    { title: "Solid", desc: "Consistent unit tests and edge-case checks." },
+                    { title: "Thorough", desc: "High coverage; mocks and integration tests." },
+                    { title: "Exemplary", desc: "TDD approach; zero leakage to QA." },
+                    { title: "Master", desc: "Automates complex end-to-end flows." },
+                    { title: "Pioneer", desc: "Innovates in testing frameworks/tools." }
+                  ]
                 }
               ]
             },
             {
               name: "Solutioning Depth",
+              icon: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>`,
               focus: "Engineering Rigor and Vision",
               description: "Engineering for a long-term product life cycle, not just a one-off project.",
               levels: ["Surface", "Guided", "Independent", "Pattern", "Strategic", "Visionary", "Institutional"],
@@ -844,11 +1084,25 @@
                     { title: "Exemplary", desc: "Code serves as a team learning tool." },
                     { title: "Legendary", desc: "Defines \"Clean Code\" for the company." }
                   ]
+                },
+                {
+                  id: "architectural_design",
+                  name: "Architectural Design",
+                  cells: [
+                    { title: "Ad-hoc", desc: "No structure; spaghetti code logic." },
+                    { title: "Layered", desc: "Separates UI from business logic." },
+                    { title: "Decoupled", desc: "Uses patterns like DI/Observer correctly." },
+                    { title: "Sovereign", desc: "Modular architecture; zero side-effects." },
+                    { title: "Optimized", desc: "High-performance, resource-aware design." },
+                    { title: "Revolutionary", desc: "Creates new patterns for the industry." },
+                    { title: "Standard", desc: "Defines company's core architecture." }
+                  ]
                 }
               ]
             },
             {
               name: "Reliability",
+              icon: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
               focus: "Trust and Predictability",
               description: "Develop and Maintain Trust that allows Autonomy",
               levels: ["Ghost", "Passive", "Professional", "Transparent", "Reliable", "Anchor", "Omnipresent"],
@@ -891,16 +1145,31 @@
                     { title: "Unshakeable", desc: "Calmly steers team through disaster." },
                     { title: "Shield", desc: "Anticipates and prevents crises early." }
                   ]
+                },
+                {
+                  id: "punctuality_attendance",
+                  name: "Punctuality",
+                  cells: [
+                    { title: "Lax", desc: "Frequently late to standups/meetings." },
+                    { title: "Casual", desc: "Punctuality is inconsistent." },
+                    { title: "Professional", desc: "Always on time and prepared." },
+                    { title: "Diligent", desc: "Arrives early; helps setup meetings." },
+                    { title: "Disciplined", desc: "Zero attendance issues for 6+ months." },
+                    { title: "Exemplary", desc: "Model for professional conduct." },
+                    { title: "Iconic", desc: "Sets the company's discipline bar." }
+                  ]
                 }
               ]
             }
           ]
         },
         {
-          name: "Soft Skills Categories (The \"How\" - 40% Weight)",
+          name: "Soft Skills Categories",
+          weight: "40% Weight",
           subsections: [
             {
               name: "Growth",
+              icon: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
               focus: "Learning and Adaptability",
               description: "Evolution from a task-follower to a product innovator.",
               levels: ["Static", "Complacent", "Adaptive", "Experimental", "Independent", "Scholar", "Pioneer"],
@@ -943,11 +1212,25 @@
                     { title: "Innovator", desc: "Uses POCs to overturn old methods." },
                     { title: "Pacesetter", desc: "Leads company-wide R&D strategy." }
                   ]
+                },
+                {
+                  id: "technology_adoption",
+                  name: "Tech Adoption",
+                  cells: [
+                    { title: "Lagging", desc: "Struggles to use new team tools." },
+                    { title: "Slow", desc: "Takes time to adapt to changes." },
+                    { title: "Swift", desc: "Adopts new tools/workflows quickly." },
+                    { title: "Advocate", desc: "Encourages team to adopt better tech." },
+                    { title: "Pioneer", desc: "First to master new stacks/tools." },
+                    { title: "Evangelist", desc: "Drives tech migration across teams." },
+                    { title: "Architect", desc: "Chooses the company's future stack." }
+                  ]
                 }
               ]
             },
             {
               name: "Presence",
+              icon: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
               focus: "Communication and Influence",
               description: "Evolution from a participant to a thought leader.",
               levels: ["Invisible", "Silent", "Clear", "Persuasive", "Leader", "Advisor", "Icon"],
@@ -958,7 +1241,7 @@
                   cells: [
                     { title: "Muddled", desc: "Unclear or confusing in talk." },
                     { title: "Hesitant", desc: "Speaks only when directly asked." },
-                    { title: "Structured", desc: "Clear and pro[mpt]." },
+                    { title: "Structured", desc: "Clear and prompt." },
                     { title: "Compelling", desc: "Adapts style to gain team buy-in." },
                     { title: "Authoritative", desc: "Commands the technical narrative." },
                     { title: "Expert", desc: "High-level storytelling and vision." },
@@ -990,11 +1273,25 @@
                     { title: "Anchor", desc: "Mentors the team's presence/vibe." },
                     { title: "Spirit", desc: "Defines the company's \"soul.\"" }
                   ]
+                },
+                {
+                  id: "reporting_transparency",
+                  name: "Transparency",
+                  cells: [
+                    { title: "Opaque", desc: "Work status is always a mystery." },
+                    { title: "Reactive", desc: "Only reports when questioned." },
+                    { title: "Regular", desc: "Daily standup updates are clear." },
+                    { title: "Proactive", desc: "Flagging blockers before they hit." },
+                    { title: "Strategic", desc: "Clear ROI reporting to stakeholders." },
+                    { title: "Model", desc: "Best-in-class documentation/updates." },
+                    { title: "Standard", desc: "Defines reporting excellence." }
+                  ]
                 }
               ]
             },
             {
               name: "Assist",
+              icon: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
               focus: "Team Multiplier and Mentorship",
               description: "Measuring how much one amplifies the people around them.",
               levels: ["Reactive", "Supportive", "Active", "Standard", "Coach", "Strategist", "Legacy"],
@@ -1037,6 +1334,19 @@
                     { title: "Mediator", desc: "Resolves conflicts and sets tone." },
                     { title: "Culture-Lead", desc: "Defines the team's way of working." }
                   ]
+                },
+                {
+                  id: "onboarding_support",
+                  name: "Onboarding",
+                  cells: [
+                    { title: "Passive", desc: "Avoids new hires; lets them struggle." },
+                    { title: "Polite", desc: "Introduces themselves but no help." },
+                    { title: "Buddy", desc: "Unofficial guide for new team members." },
+                    { title: "Guide", desc: "Official onboarding lead for hires." },
+                    { title: "Architect", desc: "Designs the onboarding curriculum." },
+                    { title: "Director", desc: "Ensures hire success across org." },
+                    { title: "Legend", desc: "Known for building elite hires fast." }
+                  ]
                 }
               ]
             }
@@ -1048,6 +1358,7 @@
     let currentRole = 'user';
     let currentUserName = '';
     let selections = { user: {}, admin: {} };
+    let remarks = { user: {}, admin: {} };
     let locked = { user: false, admin: false };
 
     // Current period = YYYY-MM
@@ -1114,10 +1425,18 @@
         const { data: { session } } = await sb.auth.getSession();
         if (session && session.user) {
           const sessionUser = session.user;
-          currentUserName = sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name || sessionUser.email.split('@')[0];
-          
-          const userRole = sessionUser.user_metadata?.role || 'user';
+          currentUserName = sessionUser.user_metadata?.fullname || sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name || sessionUser.email.split('@')[0];
+
+          const userRole = sessionUser.user_metadata?.role || localStorage.getItem('gantec_user_role') || 'user';
           currentRole = (userRole === 'admin' || userRole === 'manager') ? 'admin' : 'user';
+
+          // Force update of top-right profile just in case app.js missed it or it was delayed
+          const userSection = document.getElementById('user-profile-section');
+          if (userSection && !userSection.innerHTML.includes('user-profile-wrap')) {
+            if (typeof renderUserProfileUI === 'function') {
+              renderUserProfileUI(userSection, currentUserName, sessionUser.email);
+            }
+          }
         }
       } catch (e) {
         console.warn('Role detection failed, defaulting to user');
@@ -1141,7 +1460,7 @@
 
         const { data, error } = await sb
           .from('monthly_feedback')
-          .select('role, selections, is_submitted')
+          .select('role, selections, remarks, is_submitted')
           .eq('user_email', email)
           .eq('period', period);
 
@@ -1150,10 +1469,12 @@
         if (data && data.length > 0) {
           data.forEach(row => {
             selections[row.role] = row.selections || {};
+            remarks[row.role] = row.remarks || {};
             locked[row.role] = row.is_submitted === true;
           });
           // Cache it scoped by email
           localStorage.setItem(`gantec_rubric_selections_${email}`, JSON.stringify(selections));
+          localStorage.setItem(`gantec_rubric_remarks_${email}`, JSON.stringify(remarks));
           localStorage.setItem(`gantec_rubric_locked_${email}`, JSON.stringify(locked));
         } else {
           // No DB record - check email-scoped local storage ONLY for current month
@@ -1167,7 +1488,7 @@
         const email = getCurrentEmail();
         if (email) _loadFromLocalStorage(email);
       }
-      
+
       renderRubric();
       updateActionBar();
     }
@@ -1176,6 +1497,8 @@
       if (!email) return;
       const saved = localStorage.getItem(`gantec_rubric_selections_${email}`);
       if (saved) selections = JSON.parse(saved);
+      const savedRem = localStorage.getItem(`gantec_rubric_remarks_${email}`);
+      if (savedRem) remarks = JSON.parse(savedRem);
       const savedLocked = localStorage.getItem(`gantec_rubric_locked_${email}`);
       if (savedLocked) locked = JSON.parse(savedLocked);
     }
@@ -1193,18 +1516,19 @@
       const month = document.getElementById('monthSelect').value;
       const year = document.getElementById('yearInput').value;
       if (!month || !year || year.length < 4) return;
-      
+
       const newPeriod = `${year}-${month}`;
       if (newPeriod === period) return;
-      
+
       period = newPeriod;
-      
+
       // Reset state for new period
       selections = { user: {}, admin: {} };
+      remarks = { user: {}, admin: {} };
       locked = { user: false, admin: false };
-      
+
       renderRubric(); // clear UI immediately
-      
+
       const email = getCurrentEmail();
       if (email) {
         // Fetch new month's data
@@ -1212,73 +1536,110 @@
       }
     }
 
+    let openAccordions = new Set();
+
     // ── Render ───────────────────────────────────────────────────────────────
     function renderRubric() {
       const container = document.getElementById('rubric-content');
       container.innerHTML = '';
 
-      rubricData.categories.forEach(cat => {
-        const catHeader = document.createElement('div');
-        catHeader.className = 'section-header';
-        catHeader.innerHTML = `
-          <h2 class="section-title">${cat.name}</h2>
-          <div class="section-line"></div>
-        `;
-        container.appendChild(catHeader);
+      rubricData.categories.forEach((mainCat, catIdx) => {
+        // Main Category Title
+        const mainHeader = document.createElement('h1');
+        mainHeader.className = 'main-category-header';
+        mainHeader.innerHTML = `${mainCat.name} <span>${mainCat.weight}</span>`;
+        container.appendChild(mainHeader);
 
-        cat.subsections.forEach(sub => {
-          const wrapper = document.createElement('div');
-          wrapper.className = 'rubric-table-wrapper';
+        // Sub-sections as individual accordions
+        mainCat.subsections.forEach((sub, subIdx) => {
+          const accId = `${catIdx}-${subIdx}`;
+          const subAccordion = document.createElement('div');
+          subAccordion.className = `sub-category-accordion ${openAccordions.has(accId) ? 'open' : ''}`;
 
-          let subHtml = `
-            <div class="rubric-sub-header">
-              <div class="sub-title">${sub.name}</div>
-              <div class="sub-focus">${sub.focus}</div>
-              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">${sub.description}</p>
+          subAccordion.innerHTML = `
+            <div class="sub-category-header" style="cursor: default;">
+              <div class="sub-category-icon-box">
+                ${sub.icon}
+              </div>
+              <div class="sub-category-title-wrap">
+                <span class="sub-category-name">${sub.name}</span>
+                <span class="sub-category-focus">${sub.focus}</span>
+              </div>
+              <div class="sub-category-toggle-trigger" onclick="toggleAccordion('${accId}', this)" style="cursor: pointer; padding: 10px; margin: -10px; display: flex; align-items: center; justify-content: center; transition: transform 0.3s ease;">
+                <svg class="sub-category-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 20px; height: 20px;">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </div>
             </div>
-            <table class="rubric-table">
-              <thead>
-                <tr>
-                  <th style="width: 150px;">Sub-Category</th>
-                  ${sub.levels.map(l => `<th>${l}</th>`).join('')}
-                </tr>
-              </thead>
-              <tbody>
+            <div class="sub-category-content">
+              <p class="sub-category-desc">${sub.description}</p>
+              <div class="rubric-table-wrapper" style="margin-bottom: 0; border: none; box-shadow: none; padding: 0;">
+                <div style="overflow-x: auto;">
+                  <table class="rubric-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 150px;">Sub-Category</th>
+                        ${sub.levels.map(l => `<th>${l}</th>`).join('')}
+                        <th style="width: 200px;">Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${sub.rows.map(row => `
+                        <tr>
+                          <td class="category-label-cell">${row.name}</td>
+                          ${row.cells.map((cell, idx) => {
+            const isUser = selections.user[row.id] === idx;
+            const isAdmin = selections.admin[row.id] === idx;
+            let cellClass = 'rubric-cell';
+            if (isUser && isAdmin) cellClass += ' both-selected';
+            else if (isUser) cellClass += ' user-selected';
+            else if (isAdmin) cellClass += ' admin-selected';
+
+            return `
+                              <td>
+                                ${locked[currentRole] ? '<div class="locked-overlay"></div>' : ''}
+                                <button class="${cellClass}" onclick="selectCell('${row.id}', ${idx})">
+                                  <div class="selection-indicator">
+                                    ${isUser ? '<div class="indicator-dot dot-user"></div>' : ''}
+                                    ${isAdmin ? '<div class="indicator-dot dot-admin"></div>' : ''}
+                                  </div>
+                                  <div class="cell-title">${cell.title}</div>
+                                  <div class="cell-desc">${cell.desc}</div>
+                                </button>
+                              </td>
+                            `;
+          }).join('')}
+                          <td style="padding: 10px;">
+                            <textarea 
+                              class="remarks-input" 
+                              placeholder="Add remarks..." 
+                              oninput="updateRemarks('${row.id}', this.value)"
+                              ${locked[currentRole] ? 'disabled' : ''}
+                              style="width: 100%; min-height: 100px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 0.8rem; resize: vertical; background: transparent; color: var(--text-primary);"
+                            >${remarks[currentRole][row.id] || ''}</textarea>
+                          </td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           `;
-
-          sub.rows.forEach(row => {
-            subHtml += `<tr><td class="category-label-cell">${row.name}</td>`;
-            row.cells.forEach((cell, idx) => {
-              const isUser = selections.user[row.id] === idx;
-              const isAdmin = selections.admin[row.id] === idx;
-
-              let cellClass = 'rubric-cell';
-              if (isUser && isAdmin) cellClass += ' both-selected';
-              else if (isUser) cellClass += ' user-selected';
-              else if (isAdmin) cellClass += ' admin-selected';
-
-              subHtml += `
-                <td>
-                  ${locked[currentRole] ? '<div class="locked-overlay"></div>' : ''}
-                  <button class="${cellClass}" onclick="selectCell('${row.id}', ${idx})">
-                    <div class="selection-indicator">
-                      ${isUser ? '<div class="indicator-dot dot-user"></div>' : ''}
-                      ${isAdmin ? '<div class="indicator-dot dot-admin"></div>' : ''}
-                    </div>
-                    <div class="cell-title">${cell.title}</div>
-                    <div class="cell-desc">${cell.desc}</div>
-                  </button>
-                </td>
-              `;
-            });
-            subHtml += `</tr>`;
-          });
-
-          subHtml += `</tbody></table>`;
-          wrapper.innerHTML = subHtml;
-          container.appendChild(wrapper);
+          container.appendChild(subAccordion);
         });
       });
+    }
+
+    function toggleAccordion(id, el) {
+      const acc = el.closest('.sub-category-accordion');
+      if (openAccordions.has(id)) {
+        openAccordions.delete(id);
+        acc.classList.remove('open');
+      } else {
+        openAccordions.add(id);
+        acc.classList.add('open');
+      }
     }
 
     // ── Select a cell ────────────────────────────────────────────────────────
@@ -1290,6 +1651,11 @@
         selections[currentRole][rowId] = index;
       }
       renderRubric();
+    }
+
+    function updateRemarks(rowId, val) {
+      if (locked[currentRole]) return;
+      remarks[currentRole][rowId] = val;
     }
 
     // ── Save / Submit / Edit ─────────────────────────────────────────────────
@@ -1341,6 +1707,7 @@
     async function saveToSupabase(email, role, isSubmit) {
       // Save to email-scoped localStorage cache first
       localStorage.setItem(`gantec_rubric_selections_${email}`, JSON.stringify(selections));
+      localStorage.setItem(`gantec_rubric_remarks_${email}`, JSON.stringify(remarks));
       localStorage.setItem(`gantec_rubric_locked_${email}`, JSON.stringify(locked));
 
       try {
@@ -1352,6 +1719,7 @@
           role: role,
           period: period,
           selections: selections[role],
+          remarks: remarks[role],
           is_submitted: isSubmit,
           updated_at: new Date().toISOString()
         };

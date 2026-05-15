@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analysis - Gantec Employee Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <link rel="stylesheet" href="css/branding.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .analysis-container {
+      padding: 32px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .analysis-header {
+      margin-bottom: 32px;
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 24px;
+    }
+
+    .analysis-card {
+      background: white;
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-container {
+      width: 100%;
+      height: 300px;
+      margin-top: 20px;
+      position: relative;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      border-radius: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-layout">
+    <aside class="app-sidebar">
+      <nav class="sidebar-nav">
+        <a href="home.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <span class="link-text">Home</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="viewer.html" class="sidebar-link sidebar-dropdown-trigger" id="nav-training">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span class="link-text">Training Resources</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="viewer.html" class="submenu-link">View and Upload Resources</a>
+            <a href="content-leader.html" class="submenu-link">Content Leaders</a>
+          </div>
+        </div>
+
+        <a href="document-locker.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="2" />
+            <line x1="9" y1="7" x2="15" y2="7" />
+            <line x1="9" y1="11" x2="15" y2="11" />
+            <line x1="9" y1="15" x2="12" y2="15" />
+          </svg>
+          <span class="link-text">Document Locker</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="certifications.html" class="sidebar-link sidebar-dropdown-trigger" id="nav-certifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="7"></circle>
+              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+            </svg>
+            <span class="link-text">Certifications</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="certifications.html" class="submenu-link">View Certifications</a>
+            <a href="add-certification.html" class="submenu-link">Add Certification</a>
+            <a href="certificate-leaders.html" class="submenu-link">Certificate Leaders</a>
+          </div>
+        </div>
+
+        <div class="sidebar-dropdown open">
+          <a href="#" class="sidebar-link sidebar-dropdown-trigger active" id="nav-feedback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            <span class="link-text">Monthly Feedback</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="monthly-feedback.html" class="submenu-link">Feedback</a>
+            <a href="analysis.html" class="submenu-link active">Performance Analysis</a>
+          </div>
+        </div>
+
+        <a href="company-holidays.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span class="link-text">Company Holidays</span>
+        </a>
+
+        <a href="https://apps.powerapps.com/play/e/default-ced75afe-4090-4a10-abf8-341ef09ef1cd/a/9ea3498a-fa3c-4c95-b390-5edd3ce97108?tenantId=ced75afe-4090-4a10-abf8-341ef09ef1cd&hint=57114947-a9fc-4feb-8ce4-00a9ea82d511&source=sharebutton&sourcetime=1778565137667"
+          target="_blank" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <path d="M16 2v4M8 2v4M3 10h18" />
+            <path d="M10 14l2 2 4-4" />
+          </svg>
+          <span class="link-text">Leave Portal</span>
+        </a>
+
+        <a href="company-culture.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span class="link-text">Company Culture</span>
+        </a>
+
+        <a href="faq.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <circle cx="12" cy="17" r="0.5" fill="currentColor"></circle>
+          </svg>
+          <span class="link-text">FAQ</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="weekly-connect.html" class="sidebar-link sidebar-dropdown-trigger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span class="link-text">Weekly Connect</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="weekly-connect.html" class="submenu-link">Connect Highlights</a>
+            <a href="team-members.html" class="submenu-link">Team Members</a>
+            <a href="webpage-creation.html" class="submenu-link">Webpage Builder</a>
+          </div>
+        </div>
+
+        <a href="contact-hr.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+            </path>
+          </svg>
+          <span class="link-text">Contact HR</span>
+        </a>
+      </nav>
+    </aside>
+
+    <div class="main-wrapper" style="flex:1;">
+      <header class="app-header">
+        <a href="home.html" class="header-brand">
+          <span class="gantec-logo-text" style="font-size: 1.25rem;">GANTEC <span
+              class="gantec-logo-gradient">Analysis</span></span>
+        </a>
+        <div id="user-profile-section"></div>
+      </header>
+
+      <main class="app-main">
+        <div class="analysis-container">
+          <div class="analysis-header"
+            style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 32px; gap: 20px; flex-wrap: wrap;">
+            <div class="header-text">
+              <h1>Performance <span class="gradient-text">Analysis</span></h1>
+              <p>A data-driven view of your skills and progress based on Admin feedback.</p>
+            </div>
+
+            <div class="analysis-filters" style="display: flex; gap: 16px;">
+              <div class="filter-group">
+                <label
+                  style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Filter
+                  Year</label>
+                <input type="number" id="filter-year" class="text-input" value="2026"
+                  style="width: 100px; padding: 10px 14px; border-radius: 12px; background: #fff; border: 1px solid var(--border);">
+              </div>
+              <div class="filter-group">
+                <label
+                  style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Highlight
+                  Month</label>
+                <select id="filter-month" class="text-input"
+                  style="width: 150px; padding: 10px 14px; border-radius: 12px; background: #fff; border: 1px solid var(--border); cursor: pointer;">
+                  <option value="">All Months</option>
+                  <option value="01">January</option>
+                  <option value="02">February</option>
+                  <option value="03">March</option>
+                  <option value="04">April</option>
+                  <option value="05">May</option>
+                  <option value="06">June</option>
+                  <option value="07">July</option>
+                  <option value="08">August</option>
+                  <option value="09">September</option>
+                  <option value="10">October</option>
+                  <option value="11">November</option>
+                  <option value="12">December</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="analysis-grid" id="charts-grid">
+            <!-- Charts will be injected here -->
+            <div class="analysis-card" style="grid-column: 1 / -1;">
+              <div class="loading-overlay" id="main-loading">
+                <p>Analyzing performance data...</p>
+              </div>
+              <h3>Overall Skill Progression</h3>
+              <div class="chart-container">
+                <canvas id="overallChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Remarks Section -->
+          <div id="remarks-section" class="analysis-card" style="margin-top: 32px; display: none;">
+            <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #6366f1;">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+              Reviewer Remarks
+            </h3>
+            <div id="remarks-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+              <!-- Remarks will be injected here -->
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    let allFeedbackData = [];
+    let charts = {};
+
+    async function initAnalysis() {
+      const email = localStorage.getItem('gantec_user_email');
+      if (!email) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      try {
+        const sb = await getSupabase();
+
+        const { data: feedbackData, error } = await sb
+          .from('monthly_feedback')
+          .select('*')
+          .eq('user_email', email)
+          .order('period', { ascending: true });
+
+        if (error) throw error;
+
+        if (!feedbackData || feedbackData.length === 0) {
+          document.getElementById('main-loading').innerHTML = '<p>No feedback data found yet. Start by filling out your Feedback Rubric!</p>';
+          return;
+        }
+
+        allFeedbackData = feedbackData;
+
+        // Event Listeners for Filters
+        document.getElementById('filter-year').addEventListener('input', updateAnalysis);
+        document.getElementById('filter-month').addEventListener('change', updateAnalysis);
+
+        renderCharts(filterData());
+        document.getElementById('main-loading').classList.add('hidden');
+      } catch (err) {
+        console.error('Failed to load analysis:', err);
+        document.getElementById('main-loading').innerHTML = '<p style="color:red">Failed to load data. Please try again later.</p>';
+      }
+    }
+
+    function filterData() {
+      const year = document.getElementById('filter-year').value;
+      const month = document.getElementById('filter-month').value;
+
+      return allFeedbackData.filter(d => {
+        const [dYear, dMonth] = d.period.split('-');
+        const matchesYear = !year || dYear === year;
+        const matchesMonth = !month || dMonth === month;
+        return matchesYear; // Always show year trend, month can highlight later
+      });
+    }
+
+    function updateAnalysis() {
+      const filtered = filterData();
+
+      // Update data in existing charts instead of re-creating for performance
+      Object.keys(charts).forEach(chartId => {
+        const chart = charts[chartId];
+        const paramId = chartId === 'overallChart' ? null : chartId.replace('chart-', '');
+
+        const labels = filtered.map(d => d.period);
+        const values = filtered.map(d => {
+          const adminSelections = (d.selections && d.selections.admin) || {};
+          if (paramId) {
+            const val = adminSelections[paramId];
+            return val !== undefined ? val + 1 : null;
+          } else {
+            // Overall Average
+            const vals = Object.values(adminSelections);
+            if (vals.length === 0) return 0;
+            return (vals.reduce((a, b) => a + b, 0) / vals.length) + 1;
+          }
+        });
+
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = values;
+
+        // Highlight specific month if selected
+        const selectedMonth = document.getElementById('filter-month').value;
+        const selectedYear = document.getElementById('filter-year').value;
+        const targetPeriod = `${selectedYear}-${selectedMonth}`;
+
+        chart.data.datasets[0].pointRadius = labels.map(l => l === targetPeriod ? 12 : 6);
+        chart.data.datasets[0].pointBackgroundColor = labels.map(l => l === targetPeriod ? '#fff' : '#fff');
+        chart.data.datasets[0].pointBorderWidth = labels.map(l => l === targetPeriod ? 5 : 2);
+
+        chart.update();
+      });
+
+      updateRemarksDisplay(filtered);
+    }
+
+    function updateRemarksDisplay(filtered) {
+      const selectedMonth = document.getElementById('filter-month').value;
+      const selectedYear = document.getElementById('filter-year').value;
+      const targetPeriod = (selectedMonth && selectedYear) ? `${selectedYear}-${selectedMonth}` : null;
+      
+      const remarksSection = document.getElementById('remarks-section');
+      const remarksContainer = document.getElementById('remarks-container');
+      
+      if (!targetPeriod) {
+        remarksSection.style.display = 'none';
+        return;
+      }
+
+      const record = filtered.find(d => d.period === targetPeriod);
+      if (record && record.remarks && Object.keys(record.remarks).length > 0) {
+        remarksSection.style.display = 'block';
+        remarksContainer.innerHTML = '';
+        
+        // Map of ID to human-readable names (can be expanded)
+        const nameMap = {
+          output_volume: 'Output Volume',
+          accuracy_quality: 'Accuracy/Quality',
+          speed_velocity: 'Speed (Velocity)',
+          process_adherence: 'Process Adherence',
+          testing_rigor: 'Testing Rigor',
+          root_cause: 'Root Cause (RCA)',
+          scalability: 'Scalability',
+          edge_cases: 'Edge-Cases',
+          maintainability: 'Maintainability',
+          architectural_design: 'Architectural Design'
+        };
+
+        Object.entries(record.remarks).forEach(([id, text]) => {
+          if (!text || text.trim() === '') return;
+          
+          const box = document.createElement('div');
+          box.style.cssText = 'background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid var(--border);';
+          box.innerHTML = `
+            <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">${nameMap[id] || id.replace(/_/g, ' ')}</div>
+            <div style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.5; font-weight: 500;">${text}</div>
+          `;
+          remarksContainer.appendChild(box);
+        });
+
+        if (remarksContainer.innerHTML === '') {
+          remarksSection.style.display = 'none';
+        }
+      } else {
+        remarksSection.style.display = 'none';
+      }
+    }
+
+    function renderCharts(data) {
+      const labels = data.map(d => d.period);
+
+      const parameters = [
+        { id: 'tech-output', name: 'Technical Delivery (Output)', color: '#4f46e5' },
+        { id: 'sol-arch', name: 'Solutioning (Architecture)', color: '#0ea5e9' },
+        { id: 'eff-time', name: 'Efficiency (Time Management)', color: '#10b981' },
+        { id: 'assist-collab', name: 'Assist (Collaboration)', color: '#f59e0b' }
+      ];
+
+      const grid = document.getElementById('charts-grid');
+
+      // Overall Chart first
+      const overallValues = data.map(d => {
+        const adminSelections = (d.selections && d.selections.admin) || {};
+        const vals = Object.values(adminSelections);
+        if (vals.length === 0) return 0;
+        return (vals.reduce((a, b) => a + b, 0) / vals.length) + 1;
+      });
+
+      charts['overallChart'] = new Chart(document.getElementById('overallChart'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Avg Admin Rating',
+            data: overallValues,
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+            borderWidth: 4,
+            tension: 0.4,
+            fill: true,
+            pointRadius: 8,
+            pointBackgroundColor: '#fff',
+            pointBorderColor: '#6366f1',
+            pointBorderWidth: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { min: 1, max: 7, ticks: { stepSize: 1 } } }
+        }
+      });
+
+      parameters.forEach(param => {
+        const card = document.createElement('div');
+        card.className = 'analysis-card';
+        card.innerHTML = `
+          <h3>${param.name}</h3>
+          <div class="chart-container">
+            <canvas id="chart-${param.id}"></canvas>
+          </div>
+        `;
+        grid.appendChild(card);
+
+        const values = data.map(d => {
+          const adminSelections = (d.selections && d.selections.admin) || {};
+          const val = adminSelections[param.id];
+          return val !== undefined ? val + 1 : null;
+        });
+
+        charts[`chart-${param.id}`] = new Chart(document.getElementById(`chart-${param.id}`), {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Admin Rating (1-7)',
+              data: values,
+              borderColor: param.color,
+              backgroundColor: param.color + '20',
+              borderWidth: 3,
+              tension: 0.3,
+              fill: true,
+              pointRadius: 6,
+              pointBackgroundColor: '#fff',
+              pointBorderColor: param.color,
+              pointBorderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { min: 1, max: 7, ticks: { stepSize: 1 } } },
+            plugins: { legend: { display: false } }
+          }
+        });
+      });
+    }
+
+    initAnalysis();
+  </script>
+</body>
+
+</html>

@@ -306,7 +306,19 @@
           }
         }
 
-        // Redirect handled by app.js onAuthStateChange, but we can force it here
+        // Fetch this user's profile image from server before redirect
+        try {
+          const profileRes = await fetch(`/api/auth/profile?email=${encodeURIComponent(email)}`);
+          const profileData = await profileRes.json();
+          if (profileData.success && profileData.user) {
+            localStorage.setItem('gantec_user_name', profileData.user.fullname || email.split('@')[0]);
+            localStorage.setItem('gantec_user_email', profileData.user.email || email);
+            if (profileData.user.profile_image) {
+              localStorage.setItem('gantec_user_profile', profileData.user.profile_image);
+            }
+          }
+        } catch (_) {}
+
         setTimeout(() => {
           window.location.href = 'welcome.html';
         }, 1200);
@@ -326,8 +338,9 @@
       });
     }
 
-    // Clear any previous session on load
-    localStorage.removeItem('gantec_auth');
+    // Clear ALL previous user session data on load to prevent profile bleed between users
+    ['gantec_auth', 'gantec_user_name', 'gantec_user_email',
+     'gantec_user_profile', 'gantec_user_role'].forEach(k => localStorage.removeItem(k));
   </script>
 </body>
 
