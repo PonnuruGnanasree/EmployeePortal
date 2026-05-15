@@ -255,12 +255,14 @@
           <!-- Remarks Section -->
           <div id="remarks-section" class="analysis-card" style="margin-top: 32px; display: none;">
             <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #6366f1;">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"
+                style="color: #6366f1;">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
               Reviewer Remarks
             </h3>
-            <div id="remarks-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+            <div id="remarks-container"
+              style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
               <!-- Remarks will be injected here -->
             </div>
           </div>
@@ -367,10 +369,10 @@
       const selectedMonth = document.getElementById('filter-month').value;
       const selectedYear = document.getElementById('filter-year').value;
       const targetPeriod = (selectedMonth && selectedYear) ? `${selectedYear}-${selectedMonth}` : null;
-      
+
       const remarksSection = document.getElementById('remarks-section');
       const remarksContainer = document.getElementById('remarks-container');
-      
+
       if (!targetPeriod) {
         remarksSection.style.display = 'none';
         return;
@@ -380,7 +382,7 @@
       if (record && record.remarks && Object.keys(record.remarks).length > 0) {
         remarksSection.style.display = 'block';
         remarksContainer.innerHTML = '';
-        
+
         // Map of ID to human-readable names (can be expanded)
         const nameMap = {
           output_volume: 'Output Volume',
@@ -397,7 +399,7 @@
 
         Object.entries(record.remarks).forEach(([id, text]) => {
           if (!text || text.trim() === '') return;
-          
+
           const box = document.createElement('div');
           box.style.cssText = 'background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid var(--border);';
           box.innerHTML = `
