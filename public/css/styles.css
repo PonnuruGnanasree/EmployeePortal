@@ -380,7 +380,7 @@ svg {
 
 /* Gantec brand logo */
 .gantec-logo-text {
-  font-weight: 850;
+  font-weight: 800;
   letter-spacing: -0.5px;
   color: var(--text-primary);
   display: inline-flex;
@@ -393,6 +393,7 @@ svg {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  font-weight: 800;
 }
 
 /* Top Bar logo shake */

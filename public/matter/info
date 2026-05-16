@@ -1,0 +1,21 @@
+The **Y-Axis (1 to 7)** represents your **Aggregate Performance Score** for that month. Here is exactly how that number is calculated:
+
+### 1. The 1-7 Scale
+Each rating you choose in the feedback portal corresponds to a "Level":
+*   **7**: 🚀 **Engine** (Top Performance)
+*   **6**: **Multiplier**
+*   **5**: **High-Perf**
+*   **4**: **Proactive**
+*   **3**: **Steady**
+*   **2**: **Fluctuating**
+*   **1**: **Stagnant**
+
+### 2. How we "take" the value
+For the **Overall Skill Progression** chart:
+1.  We look at **every single parameter** you rated for that month (all 26 of them).
+2.  We take the **Average** of all those numbers.
+3.  If your average is a "4," your dot on the chart will sit at the "Proactive" line.
+
+**In short:** The Y-axis shows your **"Global Average."** If the line is going up, it means you are improving across most of your skills. If it's flat, you are maintaining a very consistent level of performance.
+
+Does that make sense? Would you like me to add these labels (Engine, Proactive, etc.) directly to the Y-axis so they are easier to read?

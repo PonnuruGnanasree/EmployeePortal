@@ -211,13 +211,17 @@ function initNavDropdown() {
 
 function initUserProfile() {
   const userSection = document.getElementById('user-profile-section');
+  if (!userSection) return;
   
-  // Immediate render from localStorage for speed if we have data
-  const cachedAuth = localStorage.getItem('gantec_auth');
+  // 1. Immediate render from localStorage for zero-latency UI
   const cachedName = localStorage.getItem('gantec_user_name');
   const cachedEmail = localStorage.getItem('gantec_user_email');
-  if (cachedAuth === 'true' && cachedName && cachedEmail && userSection) {
-     renderUserProfileUI(userSection, cachedName, cachedEmail);
+  
+  if (cachedName && cachedEmail) {
+    renderUserProfileUI(userSection, cachedName, cachedEmail);
+  } else {
+    // If no local data, show Guest UI (Sign In button) immediately
+    renderGuestUI(userSection);
   }
 
   // We inject the Supabase SDK dynamically so it's available on all 15+ pages
@@ -242,7 +246,6 @@ function initUserProfile() {
           localStorage.setItem('gantec_user_name', fullName);
           localStorage.setItem('gantec_user_email', user.email);
           
-          // Fetch additional profile info (like role and image) from our backend
           fetch(`/api/auth/profile?email=${encodeURIComponent(user.email)}`)
             .then(r => r.json())
             .then(data => {
@@ -257,10 +260,13 @@ function initUserProfile() {
               console.warn('Failed to fetch role:', err);
               if (userSection) renderUserProfileUI(userSection, fullName, user.email);
             });
-        } else {
-          // User signed out — wipe ALL user data from localStorage
+        } else if (event === 'SIGNED_OUT') {
+          // Only wipe data on explicit SIGNED_OUT event
           ['gantec_auth', 'gantec_user_name', 'gantec_user_email',
            'gantec_user_profile', 'gantec_user_role'].forEach(k => localStorage.removeItem(k));
+          if (userSection) renderGuestUI(userSection);
+        } else if (!localStorage.getItem('gantec_user_name')) {
+          // If no local session AND no cloud session, then show Guest UI
           if (userSection) renderGuestUI(userSection);
         }
       });
@@ -287,6 +293,23 @@ function initUserProfile() {
     };
     document.head.appendChild(script);
   }
+
+  // Sidebar Profile Button Listener
+  const sidebarProfileBtn = document.getElementById('sidebar-profile-btn');
+  if (sidebarProfileBtn) {
+    sidebarProfileBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const name = localStorage.getItem('gantec_user_name');
+      const email = localStorage.getItem('gantec_user_email');
+      const profileImg = localStorage.getItem('gantec_user_profile') || 'images/default-avatar.png';
+      
+      if (name && email) {
+        showProfileModal(name, email, profileImg);
+      } else {
+        window.location.href = 'login.html';
+      }
+    });
+  }
 }
 
 function renderUserProfileUI(userSection, userName, userEmail) {
@@ -296,7 +319,7 @@ function renderUserProfileUI(userSection, userName, userEmail) {
   
   userSection.innerHTML = `
       <div class="user-profile-wrap nav-dropdown" id="profile-dropdown-wrap" style="display: flex; align-items: center; gap: 12px; margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--border); cursor: pointer; position: relative;">
-        <img src="${profileImgSrc}" alt="Profile" id="profile-trigger-img" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-glow);">
+        <img src="${profileImgSrc}" alt="Profile" id="profile-trigger-img" class="header-profile-img" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-glow);">
         <div class="user-info-text" style="display: flex; flex-direction: column; line-height: 1.2;">
           <span class="user-name" style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${userName}</span>
           <span class="user-email" style="font-size: 0.7rem; color: var(--text-muted); opacity: 0.8;">${userEmail}</span>
@@ -339,7 +362,10 @@ function renderUserProfileUI(userSection, userName, userEmail) {
     viewBtn.addEventListener('click', (e) => {
       e.preventDefault(); e.stopPropagation();
       wrap.classList.remove('open');
-      showProfileModal(userName, userEmail, profileImgSrc);
+      const latestName = localStorage.getItem('gantec_user_name') || userName;
+      const latestEmail = localStorage.getItem('gantec_user_email') || userEmail;
+      const latestImg = localStorage.getItem('gantec_user_profile') || 'images/default-avatar.png';
+      showProfileModal(latestName, latestEmail, latestImg);
     });
 
     editBtn.addEventListener('click', (e) => {
@@ -371,11 +397,15 @@ function renderGuestUI(userSection) {
 }
 
 function showEditProfileModal(currentName, currentImg) {
-  // For testing, use dummy data instead of API call
   const userData = {
-    fullname: currentName || 'Test User',
-    email: localStorage.getItem('gantec_user_email') || 'test@example.com'
+    fullname: localStorage.getItem('gantec_user_name') || currentName || '',
+    email: localStorage.getItem('gantec_user_email') || ''
   };
+
+  if (!userData.email) {
+    showToast('Please sign in to edit your profile', 'error');
+    return;
+  }
 
   createEditProfileModal(userData, currentImg);
 }
@@ -419,19 +449,14 @@ function createEditProfileModal(userData, currentImg) {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Current Email</label>
-          <input type="email" id="edit-current-email-display" class="text-input" value="${userData.email}" style="width: 100%; background: #f5f5f5; color: #666;" readonly>
+          <label class="form-label">Email Address <span style="color: var(--text-muted); font-weight: normal;">(used for login)</span></label>
+          <input type="email" id="edit-email-input" class="text-input" value="${userData.email}" style="width: 100%;">
         </div>
 
         <div class="form-group">
-          <label class="form-label">New Email <span style="color: var(--text-muted); font-weight: normal;">(leave empty to keep current)</span></label>
-          <input type="email" id="edit-email-input" class="text-input" placeholder="Enter new email address" style="width: 100%;">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Previous Password <span style="color: var(--text-muted); font-weight: normal;">(required for email/password changes)</span></label>
+          <label class="form-label">Verify Current Password <span style="color: var(--text-muted); font-weight: normal;">(only if changing email/password)</span></label>
           <div style="position: relative;">
-            <input type="password" id="edit-current-password-input" class="text-input" placeholder="Enter your current password" style="width: 100%; padding-right: 40px;">
+            <input type="password" id="edit-current-password-input" class="text-input" placeholder="Enter your current password to verify" style="width: 100%; padding-right: 40px;">
             <button type="button" class="password-toggle-btn" data-target="edit-current-password-input" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; padding: 0; cursor: pointer; color: #94a3b8; display: flex; align-items: center; justify-content: center;">
               <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
@@ -500,64 +525,56 @@ function createEditProfileModal(userData, currentImg) {
 
   saveBtn.onclick = async () => {
     const newName = nameInput.value.trim();
-    const newEmail = emailInput.value.trim() || userData.email;
+    const newEmail = emailInput.value.trim();
     const currentPassword = currentPasswordInput.value;
     const newPassword = newPasswordInput.value;
+
+    const isEmailChanged = newEmail && newEmail !== userData.email;
+    const isPasswordChanged = newPassword && newPassword.length > 0;
 
     if (!newName) {
       showToast('Name is required', 'error');
       return;
     }
 
-    if (newEmail && !newEmail.toLowerCase().endsWith('@gantecusa.com')) {
+    // Security check: If changing sensitive data, we need current password
+    if ((isEmailChanged || isPasswordChanged) && !currentPassword) {
+      showToast('Current password is required to change email or password', 'warning');
+      currentPasswordInput.focus();
+      currentPasswordInput.style.borderColor = 'var(--danger)';
+      return;
+    }
+
+    if (isEmailChanged && !newEmail.toLowerCase().endsWith('@gantecusa.com')) {
       showToast('Email must be an official @gantecusa.com address.', 'error');
       return;
     }
 
-    const isEmailChanged = newEmail !== userData.email && newEmail !== '';
-    const isPasswordChanged = newPassword && newPassword.length > 0;
-
-    if (isPasswordChanged) {
-      if (newPassword.length < 8) {
-        showToast('New password must be at least 8 characters long', 'error');
-        return;
-      }
-      if (!/[A-Z]/.test(newPassword)) {
-        showToast('New password must contain at least one uppercase letter', 'error');
-        return;
-      }
-      if (!/[0-9]/.test(newPassword)) {
-        showToast('New password must contain at least one number', 'error');
-        return;
-      }
-      if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
-        showToast('New password must contain at least one special character', 'error');
-        return;
-      }
-    }
-
-    // 1. Save name, email, photo to localStorage immediately — instant update
+    // 1. Save changes to localStorage immediately for instant UI update
     localStorage.setItem('gantec_user_name', newName);
-    localStorage.setItem('gantec_user_email', newEmail);
-    
+    if (isEmailChanged) localStorage.setItem('gantec_user_email', newEmail);
+
     if (preview.src && !preview.src.includes('default-avatar.png')) {
       const profileImgs = document.querySelectorAll('#profile-trigger-img, #modal-profile-img, #edit-preview-img');
       profileImgs.forEach(img => { if (img) img.src = preview.src; });
       localStorage.setItem('gantec_user_profile', preview.src);
     }
 
-    // 2. Update UI immediately
-    const nameLabel = document.querySelector('.user-name');
-    const emailLabel = document.querySelector('.user-email');
-    if (nameLabel) nameLabel.textContent = newName;
-    if (emailLabel) emailLabel.textContent = newEmail;
+    // Update UI labels immediately
+    const nameLabels = document.querySelectorAll('.user-name');
+    const emailLabels = document.querySelectorAll('.user-email');
+    nameLabels.forEach(el => el.textContent = newName);
+    if (isEmailChanged) emailLabels.forEach(el => el.textContent = newEmail);
 
-    // 3. Sync to server
+    // 2. Sync to server in the background
     try {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
       const updateData = {
         currentEmail: userData.email,
         fullname: newName,
-        email: newEmail,
+        email: isEmailChanged ? newEmail : userData.email,
         profile_image: (preview.src && !preview.src.includes('default-avatar.png')) ? preview.src : undefined
       };
       if (currentPassword) updateData.currentPassword = currentPassword;
@@ -571,11 +588,11 @@ function createEditProfileModal(userData, currentImg) {
 
       const data = await res.json();
       if (!res.ok) {
-        console.warn('Server sync failed:', data.error);
-        showToast(`Server update failed: ${data.error || 'Unknown error'}`, 'error');
-        // We don't close the modal if it failed
+        showToast(data.error || 'Server update failed', 'error');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Changes';
       } else {
-        showToast('Profile updated on server successfully! ✅', 'success');
+        showToast('Profile updated successfully! ✅', 'success');
         modal.classList.add('hidden');
       }
     } catch (err) {
@@ -635,12 +652,10 @@ function showProfileModal(name, email, src) {
           Upload New Photo
         </button>
 
-        ${!isDefault ? `
-          <button id="remove-profile-pic-btn" class="btn btn-secondary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            Remove Current Photo
-          </button>
-        ` : ''}
+        <button id="remove-profile-pic-btn" class="btn btn-secondary" style="width: 100%; display: ${isDefault ? 'none' : 'flex'}; align-items: center; justify-content: center; gap: 10px; color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Remove Current Photo
+        </button>
       </div>
     </div>
   `;
@@ -674,8 +689,23 @@ function showProfileModal(name, email, src) {
       localStorage.setItem('gantec_user_profile', base64);
 
       // 2. Update UI immediately everywhere
-      const profileImgs = document.querySelectorAll('#profile-trigger-img, #modal-profile-img, #edit-preview-img');
-      profileImgs.forEach(img => { if (img) img.src = base64; });
+      // We target all profile images, especially the one in the current modal
+      const profileImgs = document.querySelectorAll('#profile-trigger-img, #modal-profile-img, #edit-preview-img, .header-profile-img');
+      profileImgs.forEach(img => { 
+        if (img) {
+          img.src = base64;
+          // Force a reflow/re-render for some browsers
+          img.style.display = 'none';
+          img.offsetHeight; 
+          img.style.display = 'block';
+        }
+      });
+
+      const removeBtn = document.getElementById('remove-profile-pic-btn');
+      if (removeBtn) {
+        removeBtn.style.display = 'flex';
+        removeBtn.style.opacity = '1';
+      }
 
       showToast('Profile photo updated ✅', 'success');
 
@@ -764,8 +794,12 @@ function showProfileModal(name, email, src) {
           const profileImgs = document.querySelectorAll('#profile-trigger-img, #modal-profile-img, #edit-preview-img');
           profileImgs.forEach(img => { if (img) img.src = defaultAvatar; });
           
+          // Hide remove button dynamically
+          if (removeBtn) removeBtn.style.display = 'none';
+          
           showToast('Profile photo removed', 'success');
-          modal.classList.add('hidden');
+          // Optionally don't close modal so user can see it's removed
+          // modal.classList.add('hidden');
         } else {
           throw new Error('Failed to remove photo');
         }

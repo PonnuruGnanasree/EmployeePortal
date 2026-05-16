@@ -223,26 +223,10 @@
         return;
       }
 
-      // Password Complexity Validation
+      // Password Complexity Validation (Match server: just min length)
       if (isSignUp) {
         if (password.length < 8) {
           showToast('Password must be at least 8 characters long.', 'error');
-          return;
-        }
-        if (!/[A-Z]/.test(password)) {
-          showToast('Password must contain at least one uppercase letter (A-Z).', 'error');
-          return;
-        }
-        if (!/[a-z]/.test(password)) {
-          showToast('Password must contain at least one lowercase letter (a-z).', 'error');
-          return;
-        }
-        if (!/[0-9]/.test(password)) {
-          showToast('Password must contain at least one number (0-9).', 'error');
-          return;
-        }
-        if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-          showToast('Password must contain at least one special character (e.g., @#$%).', 'error');
           return;
         }
       }
@@ -261,7 +245,6 @@
       };
 
       try {
-        const supabase = await getSupabase();
         let result;
 
         if (isSignUp) {
@@ -274,37 +257,29 @@
           result = await response.json();
           if (!response.ok) throw new Error(result.error || 'Signup failed');
 
-          // 2. Log in with Supabase Auth to establish session
-          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-          if (error) throw error;
-          showToast('Account created and signed in!', 'success');
-        } else {
-          // 1. Simple Login via Supabase Auth
-          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-          
-          if (error) {
-            console.warn('Supabase Auth failed, trying legacy fallback/migration...');
-            // 2. Fallback to backend for legacy user check and auto-migration
-            const response = await fetch('/api/auth/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email, password })
-            });
-            
-            if (!response.ok) {
-               const errData = await response.json();
-               throw new Error(errData.error || 'Invalid credentials');
-            }
-
-            // 3. Backend just migrated us! Try signing in with Supabase one more time
-            const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({ email, password });
-            if (retryError) throw retryError;
-            
-            showToast('Legacy account migrated and signed in!', 'success');
-          } else {
-            showToast('Sign in successful!', 'success');
-          }
+          showToast('Account created! Signing in...', 'success');
         }
+
+        // Try to establish Supabase session if client is ready, but don't BLOCK the login
+        const supabase = window.supabaseClient;
+        if (supabase) {
+          await supabase.auth.signInWithPassword({ email, password }).catch(e => console.warn('Supabase session sync skipped:', e.message));
+        }
+
+        // 2. Main Login via backend (handles everything: SQLite, Supabase DB sync, and migration)
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Invalid credentials');
+        }
+
+        const loginData = await response.json();
+        showToast('Sign in successful!', 'success');
 
         // Fetch this user's profile image from server before redirect
         try {

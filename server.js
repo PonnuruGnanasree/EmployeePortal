@@ -138,6 +138,10 @@ db.exec(`
     power_apps_link TEXT,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS admin_emails (
+    email TEXT PRIMARY KEY,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // ─── Schema Migration for UUID Support ────────────────────────────────────────
@@ -232,6 +236,77 @@ try {
   console.warn('⚠️ Certifications migration skipped or failed:', e.message);
 }
 
+// ─── Admin Configuration & Sync ──────────────────────────────────────────────
+const ADMIN_CONFIG_PATH = path.join(__dirname, 'config', 'admins.json');
+
+async function getAdminEmails() {
+  let adminEmails = new Set();
+  
+  // 1. Load from config file
+  try {
+    if (fs.existsSync(ADMIN_CONFIG_PATH)) {
+      const config = await fs.readJson(ADMIN_CONFIG_PATH);
+      if (config.admins && Array.isArray(config.admins)) {
+        config.admins.forEach(email => adminEmails.add(email.toLowerCase().trim()));
+      }
+    }
+  } catch (err) {
+    console.error('Error reading admin config file:', err.message);
+  }
+
+  // 2. Load from Supabase (if available)
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('admin_emails').select('email');
+      if (error) throw error;
+      if (data) {
+        data.forEach(row => adminEmails.add(row.email.toLowerCase().trim()));
+      }
+    } catch (err) {
+      console.warn('Could not fetch admins from Supabase:', err.message);
+    }
+  }
+
+  return Array.from(adminEmails);
+}
+
+async function syncAdminEmails() {
+  console.log('🔄 Syncing admin emails...');
+  const emails = await getAdminEmails();
+  
+  // Clear and Update Local SQLite Cache
+  db.prepare('DELETE FROM admin_emails').run();
+  const insertStmt = db.prepare('INSERT INTO admin_emails (email) VALUES (?)');
+  const transaction = db.transaction((list) => {
+    for (const email of list) insertStmt.run(email);
+  });
+  transaction(emails);
+
+  // Update Supabase
+  if (supabase) {
+    try {
+      // Create table if not exists in Supabase (PostgreSQL)
+      await supabase.rpc('create_admin_emails_table_if_not_exists'); 
+      // Note: If RPC doesn't exist, we'll try a direct query or just assume it exists
+      
+      const payload = emails.map(email => ({ email }));
+      const { error } = await supabase.from('admin_emails').upsert(payload, { onConflict: 'email' });
+      if (error) console.error('Supabase admin sync error:', error.message);
+      else console.log('✅ Supabase admin emails synced.');
+    } catch (err) {
+      console.warn('Supabase admin sync failed (might need table creation):', err.message);
+    }
+  }
+}
+
+// Helper to check if email is admin
+async function checkIsAdmin(email) {
+  if (!email) return false;
+  const normalizedEmail = email.toLowerCase().trim();
+  const admins = await getAdminEmails();
+  return admins.includes(normalizedEmail);
+}
+
 // ───────────────────────────────────────────────────────────────
 
 app.use(cors());
@@ -256,18 +331,6 @@ app.post('/api/auth/signup', async (req, res) => {
     if (!password || password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters long' });
     }
-    if (!/[A-Z]/.test(password)) {
-      return res.status(400).json({ error: 'Password must contain at least one uppercase letter' });
-    }
-    if (!/[a-z]/.test(password)) {
-      return res.status(400).json({ error: 'Password must contain at least one lowercase letter' });
-    }
-    if (!/[0-9]/.test(password)) {
-      return res.status(400).json({ error: 'Password must contain at least one number' });
-    }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      return res.status(400).json({ error: 'Password must contain at least one special character' });
-    }
 
     // Check if user already exists (SQLite)
     const existingLocal = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
@@ -275,21 +338,12 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ error: 'An account with this email already exists.' });
     }
 
-    // Check if user already exists in Supabase
-    if (supabase) {
-      const { data: existingSupabase } = await supabase
-        .from('users').select('id').ilike('email', email).single();
-      if (existingSupabase) {
-        return res.status(400).json({ error: 'An account with this email already exists.' });
-      }
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
+    let userId = uuidv4();
+    const isAdmin = await checkIsAdmin(email);
+    const signupRole = isAdmin ? 'admin' : 'employee';
 
-    // Declare authUser in outer scope so it's accessible after the if block
-    let newUserId = uuidv4();
-
-    // Create in Supabase Auth + DB if enabled
+    // 1. Create in Supabase Auth if enabled (to get the definitive UUID)
     if (supabase) {
       try {
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -299,49 +353,49 @@ app.post('/api/auth/signup', async (req, res) => {
           user_metadata: { fullname: fullname.trim() }
         });
 
-        if (authError) {
-          console.error('Supabase Auth signup error:', authError.message);
-          return res.status(400).json({ error: authError.message });
-        }
-
         if (authData && authData.user) {
-          newUserId = authData.user.id; // Use Supabase-generated UUID
-
-          // Sync to Supabase public.users table
-          const { error: dbError } = await supabase
-            .from('users')
-            .insert([{
-              id: newUserId,
-              fullname: fullname.trim(),
-              email: email.toLowerCase(),
-              password: hashedPassword,
-              role: 'employee',
-              points: 0,
-              profile_image: null
-            }]);
-
-          if (dbError) console.error('Supabase DB insert error:', dbError.message);
-          else console.log('User created in Supabase Auth + DB:', email);
+          userId = authData.user.id;
+        } else if (authError && (authError.message.includes('already exists') || authError.status === 422)) {
+          // If already in Auth, try to find existing profile ID to keep them in sync
+          const { data: existingProf } = await supabase.from('users').select('id').ilike('email', email).single();
+          if (existingProf) userId = existingProf.id;
+        } else if (authError) {
+          console.error('Supabase Auth error during signup:', authError.message);
+          // We continue anyway and try to create locally
         }
-      } catch (supaErr) {
-        console.error('Supabase signup failed:', supaErr.message);
-        return res.status(500).json({ error: 'Failed to create account in Supabase: ' + supaErr.message });
+      } catch (err) {
+        console.warn('Supabase Auth sync skipped:', err.message);
       }
     }
 
-    // Always insert into local SQLite
+    // 2. ALWAYS insert into local SQLite
     try {
       db.prepare('INSERT INTO users (id, fullname, email, password, role, points, profile_image) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(newUserId, fullname.trim(), email.toLowerCase(), hashedPassword, 'employee', 0, null);
-      console.log('User inserted into SQLite:', email);
+        .run(userId, fullname.trim(), email.toLowerCase(), hashedPassword, signupRole, 0, null);
+      console.log('✅ User created in local SQLite:', email);
     } catch (sqlErr) {
-      // If SQLite insert fails (e.g. duplicate), log but don't fail the signup
-      console.warn('SQLite insert warning:', sqlErr.message);
+      console.error('❌ SQLite Signup Error:', sqlErr.message);
+      return res.status(500).json({ error: 'Failed to create local account: ' + sqlErr.message });
     }
 
-    res.json({ success: true, user: { fullname: fullname.trim(), email: email.toLowerCase() } });
+    // 3. Final background sync to Supabase public.users
+    if (supabase) {
+      supabase.from('users').upsert({
+        id: userId,
+        fullname: fullname.trim(),
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        role: signupRole,
+        points: 0
+      }).then(({ error }) => {
+        if (error) console.error('⚠️ Supabase background sync failed:', error.message);
+        else console.log('✅ Supabase background sync successful for:', email);
+      });
+    }
+
+    res.json({ success: true, user: { fullname: fullname.trim(), email: email.toLowerCase(), role: signupRole } });
   } catch (err) {
-    console.error('Signup error:', err);
+    console.error('Signup crash:', err);
     res.status(500).json({ error: 'Sign up failed: ' + err.message });
   }
 });
@@ -359,13 +413,13 @@ app.post('/api/auth/login', async (req, res) => {
 
     // 1. Check Local SQLite (most reliable for legacy)
     try {
-      const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
+      const stmt = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)');
       localUser = stmt.get(email);
     } catch (e) { console.error('Local DB search failed:', e); }
 
     // 2. Check Supabase DB
     if (supabase) {
-      const { data } = await supabase.from('users').select('*').eq('email', email);
+      const { data } = await supabase.from('users').select('*').ilike('email', email);
       if (data && data.length > 0) supaUser = data[0];
     }
 
@@ -379,19 +433,55 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     if (!user) {
-      console.log(`Login failed: Email ${email} not found in any database.`);
-      return res.status(401).json({ error: 'Account does not exist' });
+      console.log(`Email ${email} not found in DBs. Attempting direct Supabase Auth fallback...`);
+      
+      if (supabase) {
+        try {
+          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password
+          });
+
+          if (authData && authData.user) {
+            console.log(`✅ Direct Auth Success for ${email}. Auto-creating missing database profile...`);
+            const isAdmin = await checkIsAdmin(email);
+            const signupRole = isAdmin ? 'admin' : 'employee';
+            const hashedPassword = await bcrypt.hash(password, 10);
+            
+            // Auto-heal: Create in both DBs
+            const newUserId = authData.user.id;
+            const fullname = authData.user.user_metadata?.fullname || email.split('@')[0];
+            
+            db.prepare('INSERT OR IGNORE INTO users (id, fullname, email, password, role, points) VALUES (?, ?, ?, ?, ?, ?)')
+              .run(newUserId, fullname, email, hashedPassword, signupRole, 0);
+            
+            await supabase.from('users').upsert({
+              id: newUserId,
+              fullname: fullname,
+              email: email,
+              password: hashedPassword,
+              role: signupRole,
+              points: 0
+            });
+
+            // Set the 'user' variable so the rest of the logic continues normally
+            user = { id: newUserId, fullname, email, role: signupRole, password: hashedPassword };
+          } else {
+            console.warn(`Direct Auth fallback failed for ${email}:`, authError?.message);
+            return res.status(401).json({ error: 'Account does not exist' });
+          }
+        } catch (err) {
+          console.error(`Direct Auth crash for ${email}:`, err.message);
+          return res.status(401).json({ error: 'Account does not exist' });
+        }
+      } else {
+        return res.status(401).json({ error: 'Account does not exist' });
+      }
     }
 
+    // Now we have a 'user' (either from DB or from Auth Fallback)
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log(`Login attempt for ${email}:`);
-    console.log(`- User found in DB: ${!!user}`);
-    if (user) {
-        console.log(`- Hash exists: ${!!user.password}`);
-        console.log(`- Password provided length: ${password ? password.length : 0}`);
-    }
-    console.log(`- Password match result: ${isMatch}`);
-
+    
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -399,24 +489,23 @@ app.post('/api/auth/login', async (req, res) => {
     // --- AUTO-MIGRATION LOGIC ---
     if (supabase) {
       try {
-        const { data: listData, error: listError } = await supabase.auth.admin.listUsers();
-        let authUser = null;
-        if (listData && listData.users) {
-           authUser = listData.users.find(u => u.email === email);
-        }
-        
+        // Instead of listing, try to create — if they exist, it will throw an error we can catch
+        const { data: newAuth, error: createErr } = await supabase.auth.admin.createUser({
+          email: email,
+          password: password, 
+          email_confirm: true,
+          user_metadata: { fullname: user.fullname }
+        });
+
         let supaId = null;
-        if (!authUser) {
-          console.log('Migrating legacy user to Supabase Auth:', email);
-          const { data: newAuth, error: createErr } = await supabase.auth.admin.createUser({
-            email: email,
-            password: password, 
-            email_confirm: true,
-            user_metadata: { fullname: user.fullname }
-          });
-          if (newAuth && newAuth.user) supaId = newAuth.user.id;
-        } else {
-          supaId = authUser.id;
+        if (newAuth && newAuth.user) {
+          supaId = newAuth.user.id;
+          console.log('Migrated legacy user to Supabase Auth:', email);
+        } else if (createErr && (createErr.message.includes('already exists') || createErr.status === 422)) {
+          // They already exist in Auth, we need their ID to ensure public.users is synced
+          // Note: we can't easily get the ID from admin without listing, but we can search in public.users
+          const { data: profile } = await supabase.from('users').select('id').ilike('email', email).single();
+          if (profile) supaId = profile.id;
         }
 
         // IMPORTANT: Ensure the user exists in public.users table for FK linking
@@ -439,7 +528,19 @@ app.post('/api/auth/login', async (req, res) => {
       }
     }
 
-    res.json({ success: true, user: { fullname: user.fullname, email: user.email, role: user.role } });
+    const isAdmin = await checkIsAdmin(email);
+    const finalRole = isAdmin ? 'admin' : 'employee';
+
+    // Sync role in databases (Automatic Grant/Revoke)
+    if (user.role !== finalRole) {
+      console.log(`Role change for ${email}: ${user.role} -> ${finalRole}`);
+      db.prepare('UPDATE users SET role = ? WHERE id = ?').run(finalRole, user.id);
+      if (supabase) {
+        await supabase.from('users').update({ role: finalRole }).eq('id', user.id);
+      }
+    }
+
+    res.json({ success: true, user: { fullname: user.fullname, email: user.email, role: finalRole } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });
@@ -479,15 +580,14 @@ app.get('/api/auth/profile', async (req, res) => {
       user = stmt.get(email);
     }
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
- 
+    const isAdmin = await checkIsAdmin(user.email);
+    const finalRole = isAdmin ? 'admin' : 'employee';
+
     res.json({ success: true, user: { 
       fullname: user.fullname, 
       email: user.email, 
       points: user.points || 0, 
-      role: user.role,
+      role: finalRole,
       profile_image: user.profile_image 
     } });
   } catch (err) {
@@ -2466,6 +2566,75 @@ app.put('/api/certifications/:id', async (req, res) => {
   }
 });
 
+app.get('/api/feedback/data', async (req, res) => {
+  const { email } = req.query;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    if (supabase) {
+      console.log(`Fetching all feedback for ${email} from cloud...`);
+      const { data, error } = await supabase
+        .from('monthly_feedback')
+        .select('*')
+        .eq('user_email', email)
+        .order('period', { ascending: false });
+
+      if (error) throw error;
+      return res.json({ success: true, feedback: data });
+    } else {
+      return res.json({ success: true, feedback: [] });
+    }
+  } catch (err) {
+    console.error('Failed to fetch feedback data:', err.message);
+    res.status(500).json({ error: 'Failed to fetch feedback: ' + err.message });
+  }
+});
+
+app.post('/api/feedback/save', async (req, res) => {
+  const { user_email, role, period, selections, is_submitted } = req.body;
+
+  if (!user_email || !role || !period) {
+    return res.status(400).json({ error: 'Missing required feedback fields' });
+  }
+
+  try {
+    if (supabase) {
+      console.log(`Cloud Syncing feedback for ${user_email} [${period}]...`);
+      const payload = {
+        user_email,
+        role,
+        period,
+        selections,
+        is_submitted,
+        updated_at: new Date()
+      };
+
+      const { data: existing } = await supabase
+        .from('monthly_feedback')
+        .select('id')
+        .eq('user_email', user_email)
+        .eq('role', role)
+        .eq('period', period)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase.from('monthly_feedback').update(payload).eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('monthly_feedback').insert(payload);
+        if (error) throw error;
+      }
+    }
+    res.json({ success: true, message: 'Feedback synced successfully' });
+  } catch (err) {
+    console.error('Feedback sync error:', err.message);
+    res.status(500).json({ error: 'Cloud Sync Failed: ' + err.message });
+  }
+});
+
 // Fallback: serve index.html for any unknown route
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -2508,4 +2677,7 @@ app.listen(PORT, async () => {
   } catch (err) {
     console.error('⚠️ Startup Sync Failed:', err.message);
   }
+
+  // Admin Sync
+  await syncAdminEmails();
 });
