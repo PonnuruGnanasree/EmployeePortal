@@ -545,7 +545,7 @@ function buildGridCard(doc) {
     <div class="doc-info">
       <div class="doc-name" title="${escapeHTML(doc.name)}">${escapeHTML(doc.name)}</div>
       <div class="doc-meta">
-        <span>${formatSize(doc.size)}</span>
+        ${formatSize(doc.size) !== '—' ? `<span>${formatSize(doc.size)}</span>` : ''}
         <span class="doc-folder-tag">${escapeHTML(doc.folder)}</span>
       </div>
     </div>
@@ -573,7 +573,7 @@ function buildListCard(doc) {
     <div class="doc-info">
       <div class="doc-name" title="${escapeHTML(doc.name)}">${escapeHTML(doc.name)}</div>
       <div class="doc-meta">
-        <span>${formatSize(doc.size)}</span> <span>·</span>
+        ${formatSize(doc.size) !== '—' ? `<span>${formatSize(doc.size)}</span> <span>·</span>` : ''}
         <span>${formatDate(doc.uploadedAt)}</span>
         <span class="doc-folder-tag">${escapeHTML(doc.folder)}</span>
       </div>

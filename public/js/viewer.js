@@ -118,6 +118,7 @@ async function fetchFolders() {
 }
 
 async function loadFolders() {
+  window.loadFolders = loadFolders;
   try {
     const data = await fetchFolders();
     console.log('Folders loaded from API:', data);
@@ -331,7 +332,7 @@ function buildGridCard(doc) {
     <div class="doc-info">
       <div class="doc-name" title="${escapeHTML(doc.name)}">${escapeHTML(doc.name.replace('.ytlink', ''))}</div>
       <div class="doc-meta">
-        <span class="doc-size">${isYt ? 'Video Link' : formatSize(doc.size)}</span>
+        ${(isYt || (formatSize(doc.size) !== '—')) ? `<span class="doc-size">${isYt ? 'Video Link' : formatSize(doc.size)}</span>` : ''}
         <span class="doc-folder-tag">${escapeHTML(doc.folder)}</span>
       </div>
     </div>
@@ -825,7 +826,7 @@ function confirmDelete(folder, diskFilename, uploaderEmail, displayName, isUserD
   }
 
   deleteConfirmMsg.textContent = `Are you sure you want to delete "${displayName || diskFilename}"?`;
-  deleteCallback = () => performDelete(folder, diskFilename, isUserDoc);
+  deleteCallback = () => performDelete(folder, diskFilename, isUserDoc, displayName);
   deleteConfirmModal.classList.add('active');
 }
 
@@ -848,10 +849,10 @@ deleteConfirmModal.addEventListener('click', (e) => {
   if (e.target === deleteConfirmModal) closeDeleteConfirmModal();
 });
 
-async function performDelete(folder, filename, isUserDoc = false) {
+async function performDelete(folder, filename, isUserDoc = false, displayName = '') {
   try {
     await deleteFile(folder, filename, isUserDoc);
-    showToast(`"${filename}" deleted`, 'success');
+    showToast(`"${displayName || filename}" deleted`, 'success');
     await loadFolders();
   } catch (err) {
     showToast(err.message, 'error');

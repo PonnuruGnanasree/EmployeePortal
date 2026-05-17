@@ -229,10 +229,19 @@
       margin-bottom: 14px;
       animation: fadeInUp 0.3s ease-out;
     }
+
     @keyframes fadeInUp {
-      from { opacity:0; transform:translateY(8px); }
-      to   { opacity:1; transform:translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     .q-section-header {
       font-weight: 800;
       font-size: 0.8rem;
@@ -241,11 +250,13 @@
       letter-spacing: 0.5px;
       margin-bottom: 12px;
     }
+
     .content-type-toggle {
       display: flex;
       gap: 8px;
       margin-bottom: 12px;
     }
+
     .toggle-btn {
       flex: 1;
       padding: 8px 12px;
@@ -258,6 +269,7 @@
       transition: all 0.2s;
       color: #64748b;
     }
+
     .toggle-btn.active {
       background: var(--primary);
       color: white;
@@ -404,24 +416,15 @@
       </nav>
     </aside>
     <main class="app-main">
-      <div class="connect-main">
-        <div class="connect-header">
-          <!-- <span class="week-badge">Week 19 Highlights</span> -->
-          <h1 class="connect-title">Gantec Weekly Connect</h1>
-          <div class="timing-wrap">
-            <div class="pulse-dot"></div>
-            <span>Every Thursday • 4:00 PM – 4:45 PM</span>
-          </div>
-          <!-- <button id="create-session-btn" onclick="window.location.href='webpage-creation.html'"
-            style="margin-top:16px; padding:12px 32px; background:var(--primary); color:white; border:none; border-radius:14px; font-weight:800; font-size:0.95rem; cursor:pointer; display:inline-flex; align-items:center; gap:10px; box-shadow:0 4px 15px rgba(29,52,97,0.3); transition:all 0.2s;">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg> -->
-          <!-- Create
-          </button> -->
+      <div class="connect-header">
+        <h1 class="connect-title">Gantec Weekly Connect</h1>
+        <div class="timing-wrap">
+          <div class="pulse-dot"></div>
+          <span>Every Thursday • 4:00 PM – 4:45 PM</span>
         </div>
+      </div>
 
+      <div class="connect-main">
         <div id="session-output">
           <!-- Dynamically populated -->
         </div>
@@ -638,13 +641,16 @@
               <input type="text" id="w3" class="input" placeholder="3rd" required>
             </div>
           </div>
-          <button type="submit" class="btn-post" style="background:#e11d48; width: auto; min-width: 160px; margin-top: 12px;">Save Fun Activity</button>
+          <div style="display: flex; justify-content: center; margin-top: 20px;">
+            <button type="submit" class="btn-post"
+              style="background:#e11d48; width: auto; min-width: 160px; margin: 0;">Save Fun Activity</button>
+          </div>
         </form>
       </div>
     </div>
   </div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=7"></script>
   <script>
     // --- Generate dynamic question fields with text/image toggle ---
     function generateQuestionFields(count) {
@@ -686,18 +692,18 @@
     }
 
     function switchQType(i, type) {
-      const textGroup  = document.getElementById(`q${i}-text-group`);
+      const textGroup = document.getElementById(`q${i}-text-group`);
       const imageGroup = document.getElementById(`q${i}-image-group`);
-      const btnText    = document.getElementById(`q${i}-btn-text`);
-      const btnImage   = document.getElementById(`q${i}-btn-image`);
+      const btnText = document.getElementById(`q${i}-btn-text`);
+      const btnImage = document.getElementById(`q${i}-btn-image`);
 
       if (type === 'text') {
-        textGroup.style.display  = 'block';
+        textGroup.style.display = 'block';
         imageGroup.style.display = 'none';
         btnText.classList.add('active');
         btnImage.classList.remove('active');
       } else {
-        textGroup.style.display  = 'none';
+        textGroup.style.display = 'none';
         imageGroup.style.display = 'block';
         btnImage.classList.add('active');
         btnText.classList.remove('active');
@@ -1142,12 +1148,12 @@
     openModalBtn.addEventListener('click', () => {
       postForm.reset();
       document.getElementById('edit-id').value = '';
-      
+
       // Show fun fields during creation
       document.getElementById('create-fun-fields').style.display = 'block';
 
-      postModal.querySelector('h2').textContent = 'Generate Session Card';
-      postModal.querySelector('.btn-post').textContent = 'Generate & Post Card';
+      postModal.querySelector('h2').textContent = 'Generate Weekly Connect Card';
+      postModal.querySelector('.btn-post').textContent = 'Generate & Post';
       postModal.classList.add('active');
     });
 

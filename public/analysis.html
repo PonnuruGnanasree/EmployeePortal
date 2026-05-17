@@ -10,7 +10,8 @@
     rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css?v=2" />
   <link rel="stylesheet" href="css/branding.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Chart.js: local copy first (works offline), CDN as fallback -->
+  <script src="js/chart.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js';document.head.appendChild(s);"></script>
   <style>
     .analysis-container {
       padding: 32px;
@@ -101,6 +102,9 @@
 
 <body>
   <div class="app-layout">
+    <!-- Toast container -->
+    <div id="toast-container" class="toast-container"></div>
+    
     <aside class="app-sidebar">
       <nav class="sidebar-nav">
         <a href="home.html" class="sidebar-link">
@@ -226,15 +230,6 @@
           <span class="link-text">Contact HR</span>
         </a>
 
-        <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
-          <a href="#" class="sidebar-link" id="sidebar-profile-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span class="link-text">My Profile</span>
-          </a>
-        </div>
       </nav>
     </aside>
 
@@ -330,6 +325,13 @@
                 </svg>
                 Pictorial Metric Breakdown
               </h3>
+              
+              <div style="display: flex; gap: 16px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); align-items: center; background: var(--bg-light); padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);">
+                <div style="display: flex; align-items: center; gap: 6px;" title="Multiplier / Engine (6-7)"><span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981;"></span> Mastery</div>
+                <div style="display: flex; align-items: center; gap: 6px;" title="Proactive / High-Perf (4-5)"><span style="width: 10px; height: 10px; border-radius: 50%; background: #6366f1;"></span> Advanced</div>
+                <div style="display: flex; align-items: center; gap: 6px;" title="Stagnant / Fluctuating / Steady (1-3)"><span style="width: 10px; height: 10px; border-radius: 50%; background: #f59e0b;"></span> Developing</div>
+              </div>
+
               <div style="position: relative;">
                 <input type="text" id="skill-search" placeholder="Search skill..." style="padding: 8px 12px 8px 36px; border-radius: 10px; border: 1px solid var(--border); font-size: 0.8rem; width: 220px;">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);">
@@ -352,8 +354,19 @@
     </div>
   </div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=7"></script>
   <script>
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      console.error('GLOBAL JS ERROR:', msg, 'at line', lineNo, error);
+      const syncStatus = document.getElementById('sync-status');
+      if(syncStatus && !syncStatus.innerHTML.includes('✅')) {
+        syncStatus.innerHTML = '<span style="color:red">JS Error: ' + msg + ' (Line ' + lineNo + ')</span>';
+      }
+      return false;
+    };
+    window.onunhandledrejection = function(event) {
+      console.error('UNHANDLED PROMISE REJECTION:', event.reason);
+    };
     let allFeedbackData = [];
     const charts = {};
 
@@ -378,47 +391,105 @@
       'collaboration': 'Collaboration', 'onboarding_support': 'Onboarding'
     };
 
+    let _initAnalysisRunning = false;
     async function initAnalysis() {
-      const email = localStorage.getItem('gantec_user_email');
-      if (!email) {
+      // Debounce: prevent simultaneous double calls
+      if (_initAnalysisRunning) return;
+      _initAnalysisRunning = true;
+
+      const rawEmail = localStorage.getItem('gantec_user_email');
+      if (!rawEmail) {
         window.location.href = 'login.html';
+        _initAnalysisRunning = false;
         return;
       }
-
+      const email = rawEmail.toLowerCase();
+      
       const syncStatus = document.getElementById('sync-status');
       syncStatus.innerHTML = '🔄 Syncing with Feedback Portal...';
-      
+
+      // ── STEP 1: Fetch data only (isolated try-catch) ──────────────────────
+      let fetchOk = false;
       try {
-        const response = await fetch(`/api/feedback/data?email=${encodeURIComponent(email)}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
+        let response;
+        try {
+          response = await fetch(`/api/feedback/data?email=${encodeURIComponent(email)}&t=${Date.now()}`, {
+            headers: { 'Cache-Control': 'no-cache' },
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+        } catch(firstErr) {
+          clearTimeout(timeoutId);
+          console.warn('First fetch attempt failed, retrying...', firstErr.message);
+          await new Promise(r => setTimeout(r, 2000));
+          const c2 = new AbortController();
+          setTimeout(() => c2.abort(), 15000);
+          response = await fetch(`/api/feedback/data?email=${encodeURIComponent(email)}&t=${Date.now()}`, {
+            headers: { 'Cache-Control': 'no-cache' },
+            signal: c2.signal
+          });
+        }
+
         const result = await response.json();
 
         if (!response.ok || !result.success) {
-          throw new Error(result.error || 'Failed to fetch data');
+          throw new Error(result.error || `Server returned ${response.status}`);
         }
 
-        // Standardize data format: parse stringified selections if they exist
+        // Parse data
         allFeedbackData = (result.feedback || []).map(record => {
           if (typeof record.selections === 'string') {
             try { record.selections = JSON.parse(record.selections); } catch(e) { record.selections = {}; }
           }
           return record;
         });
-        
+
+        fetchOk = true;
+        syncStatus.innerHTML = allFeedbackData.length === 0
+          ? '⚠️ No feedback records found yet.'
+          : `✅ Last updated: ${new Date().toLocaleTimeString()}`;
+
         if (allFeedbackData.length === 0) {
-          syncStatus.innerHTML = '⚠️ No feedback records found yet.';
-          updateAnalysis(); // Call to draw empty charts
-          return;
+          if (typeof showToast === 'function') showToast('No feedback records found yet.', 'warning');
         }
 
-        syncStatus.innerHTML = `✅ Last updated: ${new Date().toLocaleTimeString()}`;
-        
-        // Refresh the UI with the new data
+      } catch (fetchErr) {
+        // Only real network / server errors reach here
+        console.error('Feedback data fetch failed:', fetchErr);
+        syncStatus.innerHTML = `❌ Sync failed: ${fetchErr.message}`;
+        if (typeof showToast === 'function') showToast('Sync connection lost.', 'error');
+        _initAnalysisRunning = false;
+        return;
+      }
+
+      // ── STEP 2: Render charts (separate try-catch — Chart errors ≠ sync errors) ──
+      try {
+        // Wait for Chart.js to be available (up to 5 seconds)
+        let waited = 0;
+        while (typeof Chart === 'undefined' && waited < 5000) {
+          await new Promise(r => setTimeout(r, 100));
+          waited += 100;
+        }
+        if (typeof Chart === 'undefined') {
+          throw new Error('Chart.js library failed to load');
+        }
+
         updateAnalysis();
-      } catch (e) {
-        console.error('Failed to load dashboard data:', e);
-        syncStatus.innerHTML = '❌ Sync connection lost.';
+        if (fetchOk && allFeedbackData.length > 0) {
+          if (typeof showToast === 'function') showToast('Data Synced Successfully!', 'success');
+        }
+      } catch (renderErr) {
+        console.error('Chart render error:', renderErr);
+        syncStatus.innerHTML = `⚠️ Data loaded, but chart error: ${renderErr.message}`;
+        if (typeof showToast === 'function') showToast('Chart render error: ' + renderErr.message, 'warning');
+      } finally {
+        _initAnalysisRunning = false;
       }
     }
+
 
     function updateAnalysis() {
       const year = document.getElementById('filter-year').value;
@@ -436,9 +507,12 @@
       if (month) {
         snapshot = trendData.find(d => d.period === `${year}-${month}`);
       } else {
-        // Smart Default: Latest month with data
-        const withData = [...trendData].reverse().find(d => Object.keys(d.selections || {}).length > 0);
-        snapshot = withData || trendData[trendData.length - 1];
+        // Smart Default: Latest month with ACTUAL data
+        const withData = trendData.find(d => {
+          const keys = Object.keys(d.selections || {}).filter(k => k !== '_remarks');
+          return keys.length > 0;
+        });
+        snapshot = withData || trendData[0];
       }
 
       // Comparison Data for Radar (Always find both for the same month)
@@ -461,29 +535,44 @@
         return;
       }
 
-      insightCard.style.display = 'block';
       const currentAvg = calculateOverallAvg(selectedSnapshot);
+
+      // If this record has no numeric data yet, hide insight
+      if (currentAvg === null) {
+        insightCard.style.display = 'none';
+        return;
+      }
+
+      insightCard.style.display = 'block';
       
       // If we are looking at a specific month, compare it to the PREVIOUS record in the trend
       const currentIndex = trend.findIndex(d => d.period === selectedSnapshot.period);
       if (currentIndex > 0) {
         const prev = trend[currentIndex - 1];
         const prevAvg = calculateOverallAvg(prev);
+
+        // If previous record also has no data, skip comparison
+        if (prevAvg === null) {
+          insightText.innerHTML = `Welcome to your performance hub! Start filling in your monthly feedback to see growth trends here.`;
+          return;
+        }
+
         const diff = currentAvg - prevAvg;
-        const percent = Math.round((Math.abs(diff) / (prevAvg || 1)) * 100);
+        const absDiff = Math.abs(diff).toFixed(1);
         
         if (diff > 0) {
-          insightText.innerHTML = `<b>Month-over-Month Growth:</b> You improved by <b>${percent}%</b> compared to ${prev.period}. Great momentum!`;
+          insightText.innerHTML = `<b>Month-over-Month Growth:</b> Your average score improved by <b>+${absDiff}</b> points (currently <b>${currentAvg.toFixed(1)}</b> vs <b>${prevAvg.toFixed(1)}</b>) compared to ${prev.period}. Great momentum!`;
         } else if (diff < 0) {
-          insightText.innerHTML = `<b>Observation:</b> Your scores are down by <b>${percent}%</b> since ${prev.period}. Consider reviewing the growth metrics below.`;
+          insightText.innerHTML = `<b>Observation:</b> Your average score is down by <b>-${absDiff}</b> points since ${prev.period} (currently <b>${currentAvg.toFixed(1)}</b> vs <b>${prevAvg.toFixed(1)}</b>). Consider reviewing the growth metrics below.`;
         } else {
-          insightText.innerHTML = `<b>Consistency:</b> Your performance in ${selectedSnapshot.period} is perfectly stable compared to your last record.`;
+          insightText.innerHTML = `<b>Consistency:</b> Your average score in ${selectedSnapshot.period} is perfectly stable at <b>${currentAvg.toFixed(1)}</b> compared to your last record.`;
         }
       } else {
         // Fallback: Yearly view or first record
         const first = trend[0];
-        const diff = currentAvg - calculateOverallAvg(first);
-        if (diff > 0) {
+        const firstAvg = calculateOverallAvg(first);
+        const diff = firstAvg !== null ? currentAvg - firstAvg : null;
+        if (diff !== null && diff > 0) {
           insightText.innerHTML = `You are performing <b>above</b> your yearly starting point. Keep pushing!`;
         } else {
           insightText.innerHTML = `Welcome to your performance hub! Start filling in your monthly feedback to see growth trends here.`;
@@ -491,15 +580,21 @@
       }
     }
 
+
     function calculateOverallAvg(record) {
-      if (!record || !record.selections) return 0;
+      if (!record || !record.selections) return null;
       let selections = record.selections;
       if (typeof selections === 'string') {
         try { selections = JSON.parse(selections); } catch(e) { selections = {}; }
       }
-      const vals = Object.values(selections).map(v => Number(v)).filter(v => !isNaN(v));
-      return vals.length === 0 ? 0 : (vals.reduce((a, b) => a + b, 0) / vals.length) + 1;
+      // Exclude _remarks (object) and any non-numeric values
+      const vals = Object.entries(selections)
+        .filter(([k]) => k !== '_remarks')
+        .map(([, v]) => Number(v))
+        .filter(v => !isNaN(v) && isFinite(v));
+      return vals.length === 0 ? null : (vals.reduce((a, b) => a + b, 0) / vals.length) + 1;
     }
+
 
     // Search Logic
     document.getElementById('skill-search').addEventListener('input', (e) => {
@@ -513,14 +608,15 @@
     });
 
     function calculateAverage(selections, rowIds) {
-      if (!selections) return 0;
+      if (!selections) return null;
       if (typeof selections === 'string') {
         try { selections = JSON.parse(selections); } catch(e) { selections = {}; }
       }
-      const vals = rowIds.map(id => Number(selections[id])).filter(v => !isNaN(v));
-      if (vals.length === 0) return 0;
+      const vals = rowIds.map(id => Number(selections[id])).filter(v => !isNaN(v) && isFinite(v));
+      if (vals.length === 0) return null;
       return (vals.reduce((a, b) => a + b, 0) / vals.length) + 1; // 1-7 scale
     }
+
 
     function renderOverallTrend(data, highlightPeriod) {
       const ctx = document.getElementById('overallChart').getContext('2d');
@@ -666,7 +762,7 @@
       
       const selections = record ? record.selections : {};
       
-      // Always show ALL 26 parameters from the nameMap to make it look "Complete"
+        // Always show ALL 26 parameters from the nameMap to make it look "Complete"
       Object.keys(nameMap).forEach(id => {
         const val = selections[id];
         const hasData = typeof val === 'number';

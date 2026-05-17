@@ -946,6 +946,7 @@ document.addEventListener('DOMContentLoaded', () => {
       youtubeUrlInput.value = '';
       youtubeTitleInput.value = '';
       updateAddLinkBtnState();
+      await loadFolders();
     } catch (err) {
       showToast(err.message, 'error');
       addLinkBtn.disabled = false;

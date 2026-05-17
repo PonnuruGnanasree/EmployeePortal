@@ -566,11 +566,13 @@ app.get('/api/auth/profile', async (req, res) => {
       if (data) {
         user = data;
         // Auto-heal: If user in Supabase but not in local SQLite, sync them
-        const localCheck = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+        const localCheck = db.prepare('SELECT id, profile_image FROM users WHERE LOWER(email) = LOWER(?)').get(email);
         if (!localCheck) {
           console.log(`Auto-healing: Syncing Supabase user ${email} to local SQLite`);
           db.prepare('INSERT INTO users (id, fullname, email, password, role, points, profile_image) VALUES (?, ?, ?, ?, ?, ?, ?)')
             .run(user.id, user.fullname, user.email, user.password || '', user.role || 'employee', user.points || 0, user.profile_image || null);
+        } else if (localCheck.profile_image) {
+          user.profile_image = localCheck.profile_image;
         }
       }
     }
@@ -737,18 +739,19 @@ app.put('/api/auth/profile', async (req, res) => {
         const updatePayload = {
           fullname: newFullname,
           email: newEmailToSet,
-          password: newPasswordHashed,
-          profile_image: newProfileImage
+          password: newPasswordHashed
         };
         
         await supabase.from('users').update(updatePayload).eq('id', user.id);
         
-        // Also update Supabase Auth email/password if changed
-        if (email && email !== currentEmail) {
-          await supabase.auth.admin.updateUserById(user.id, { email: email });
-        }
-        if (newPassword) {
-          await supabase.auth.admin.updateUserById(user.id, { password: newPassword });
+        // Also update Supabase Auth email/password/metadata if changed
+        let authUpdate = {};
+        if (email && email !== currentEmail) authUpdate.email = email;
+        if (newPassword) authUpdate.password = newPassword;
+        if (fullname && fullname !== user.fullname) authUpdate.user_metadata = { fullname: newFullname };
+        
+        if (Object.keys(authUpdate).length > 0) {
+          await supabase.auth.admin.updateUserById(user.id, authUpdate);
         }
       } catch (supaErr) {
         console.error('Supabase profile sync failed:', supaErr.message);
@@ -963,13 +966,33 @@ app.get('/api/folders', async (req, res) => {
         (dbLinks || []).forEach(row => {
           if (!foldersMap[row.folder]) foldersMap[row.folder] = { name: row.folder, files: [], subfolders: [] };
           
+          const safeTitle = row.title.replace(/[^a-zA-Z0-9_\- ]/g, '_');
+          const filename = `${safeTitle}.ytlink`;
+          
+          // SYNC: Ensure this link is in our local SQLite
+          try {
+            const exists = db.prepare('SELECT id FROM public_documents WHERE folder = ? AND filename = ?').get(row.folder, filename);
+            if (!exists) {
+              console.log(`📡 Syncing missing Supabase link record: ${filename}`);
+              db.prepare('INSERT INTO public_documents (folder, filename, original_name, uploader_email) VALUES (?, ?, ?, ?)')
+                .run(row.folder, filename, row.title, row.uploaded_by);
+            }
+          } catch (syncErr) { /* ignore sync errors */ }
+
           const normalize = s => (s || '').toLowerCase().replace(/_/g, ' ').trim();
           const alreadyExists = foldersMap[row.folder].files.some(f => 
             normalize(f.name) === normalize(row.title) && f.type === 'link'
           );
 
           if (!alreadyExists) {
-            foldersMap[row.folder].files.push({ name: row.title, url: row.url, type: 'link', uploader_email: row.uploaded_by });
+            foldersMap[row.folder].files.push({ 
+              name: row.title, 
+              url: row.url, 
+              type: 'link', 
+              hashedName: filename,
+              path: filename,
+              uploader_email: row.uploaded_by 
+            });
           }
         });
       } catch (e) { console.error('Supabase global sync error:', e.message); }
@@ -1045,14 +1068,16 @@ app.post('/api/upload', (req, res) => {
           uploaded_by: uploaderEmail
         }]);
 
-        if (req.body.email) {
+        const isNotEmpty = req.file.size > 0;
+        if (req.body.email && isNotEmpty) {
           const { data: supaUser } = await supabase.from('users').select('id, points').ilike('email', req.body.email).single();
           if (supaUser) await supabase.from('users').update({ points: (supaUser.points || 0) + 1 }).eq('id', supaUser.id);
         }
       } catch (e) { console.error('⚠️ Supabase sync error:', e.message); }
     }
 
-    if (req.body.email) db.prepare('UPDATE users SET points = points + 1 WHERE email = ?').run(req.body.email);
+    const isNotEmpty = req.file.size > 0;
+    if (req.body.email && isNotEmpty) db.prepare('UPDATE users SET points = points + 1 WHERE email = ?').run(req.body.email);
     try {
       db.prepare('INSERT OR REPLACE INTO public_documents (uploader_email, folder, filename, original_name) VALUES (?, ?, ?, ?)')
         .run(uploaderEmail, folder, req.file.filename, req.file.originalname);
@@ -1198,7 +1223,35 @@ app.delete('/api/file', async (req, res) => {
     
     // Find the document to check ownership
     let doc = db.prepare('SELECT filename, uploader_email, original_name FROM public_documents WHERE folder = ? AND (original_name = ? OR filename = ?)').get(folder, file, file);
-    if (!doc) return res.status(404).json({ error: 'Document not found.' });
+    if (!doc) {
+      if (supabase) {
+        // Look up by original title (case-insensitive)
+        const { data: linkDoc } = await supabase.from('resource_links').select('title, uploaded_by').ilike('folder', folder).ilike('title', file).single();
+        if (linkDoc) {
+          if (!email) return res.status(401).json({ error: 'Authentication required to delete resources.' });
+          const user = await getUserByEmail(email);
+          const isAdmin = user && user.role === 'admin';
+          if (linkDoc.uploaded_by && linkDoc.uploaded_by.toLowerCase() !== email.toLowerCase() && !isAdmin) {
+            return res.status(403).json({ error: 'Access Denied: You are not the owner of this resource.' });
+          }
+          await supabase.from('resource_links').delete().ilike('folder', folder).ilike('title', file);
+          
+          // Deduct Point from Link Uploader
+          if (linkDoc.uploaded_by) {
+            db.prepare('UPDATE users SET points = MAX(0, points - 1) WHERE email = ?').run(linkDoc.uploaded_by);
+            try {
+              const { data: supaUser } = await supabase.from('users').select('id, points').ilike('email', linkDoc.uploaded_by).single();
+              if (supaUser) {
+                const newPoints = Math.max(0, (supaUser.points || 0) - 1);
+                await supabase.from('users').update({ points: newPoints }).eq('id', supaUser.id);
+              }
+            } catch (supaErr) { console.warn('⚠️ Supabase point deduction error:', supaErr.message); }
+          }
+          return res.json({ success: true });
+        }
+      }
+      return res.status(404).json({ error: 'Document not found.' });
+    }
 
     if (!email) return res.status(401).json({ error: 'Authentication required to delete resources.' });
 
@@ -1211,16 +1264,41 @@ app.delete('/api/file', async (req, res) => {
     }
 
     const filePath = path.join(UPLOADS_DIR, folder, doc.filename);
+    let isNotEmpty = true;
+    try {
+      if (await fs.pathExists(filePath)) {
+        const stats = await fs.stat(filePath);
+        if (stats.size === 0) isNotEmpty = false;
+      }
+    } catch (e) {
+      console.warn('Failed to check size of deleting file:', e.message);
+    }
+
     if (await fs.pathExists(filePath)) await fs.remove(filePath);
     
     if (supabase) {
-      await supabase.from('resource_uploads').delete().eq('folder', folder).eq('filename', doc.filename);
-      if (doc.original_name.endsWith('.ytlink')) {
-        await supabase.from('resource_links').delete().eq('folder', folder).eq('title', doc.original_name.replace('.ytlink', ''));
+      await supabase.from('resource_uploads').delete().ilike('folder', folder).ilike('filename', doc.filename);
+      if (doc.filename.endsWith('.ytlink') || (doc.original_name && doc.original_name.endsWith('.ytlink'))) {
+        await supabase.from('resource_links').delete().ilike('folder', folder).ilike('title', (doc.original_name || '').replace('.ytlink', ''));
       }
     }
     
     db.prepare('DELETE FROM public_documents WHERE folder = ? AND filename = ?').run(folder, doc.filename);
+
+    // Deduct Point from File Uploader only if file was not empty
+    if (doc.uploader_email && isNotEmpty) {
+      db.prepare('UPDATE users SET points = MAX(0, points - 1) WHERE email = ?').run(doc.uploader_email);
+      if (supabase) {
+        try {
+          const { data: supaUser } = await supabase.from('users').select('id, points').ilike('email', doc.uploader_email).single();
+          if (supaUser) {
+            const newPoints = Math.max(0, (supaUser.points || 0) - 1);
+            await supabase.from('users').update({ points: newPoints }).eq('id', supaUser.id);
+          }
+        } catch (supaErr) { console.warn('⚠️ Supabase point deduction error:', supaErr.message); }
+      }
+    }
+
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -1253,6 +1331,23 @@ app.delete('/api/delete-folder', async (req, res) => {
     if (await fs.pathExists(folderPath)) await fs.remove(folderPath);
     
     console.log(`[DELETE /api/delete-folder] Folder: "${folder}" by ${email || 'unknown'}`);
+
+    // Deduct Point from all Uploaders whose files are in this folder or its subfolders
+    const folderDocs = db.prepare('SELECT uploader_email FROM public_documents WHERE folder = ? OR folder LIKE ?').all(folder, folder + '/%');
+    for (const d of folderDocs) {
+      if (d.uploader_email) {
+        db.prepare('UPDATE users SET points = MAX(0, points - 1) WHERE email = ?').run(d.uploader_email);
+        if (supabase) {
+          try {
+            const { data: supaUser } = await supabase.from('users').select('id, points').ilike('email', d.uploader_email).single();
+            if (supaUser) {
+              const newPoints = Math.max(0, (supaUser.points || 0) - 1);
+              await supabase.from('users').update({ points: newPoints }).eq('id', supaUser.id);
+            }
+          } catch (supaErr) { console.warn('⚠️ Supabase point deduction error:', supaErr.message); }
+        }
+      }
+    }
     
     if (supabase) {
       console.log(`[Supabase] Deleting folder records for: ${folder}`);
@@ -1755,7 +1850,6 @@ app.post('/api/my-documents/upload', uploadUserDoc.single('file'), async (req, r
           } else {
             console.log('✅ Supabase Private Doc Sync SUCCESS');
           }
-          await supabase.from('users').update({ points: (user.points || 0) + 10 }).eq('id', supaId);
         } else {
           console.warn('⚠️ No Supabase UUID found for email. Sync skipped.');
         }
@@ -1768,9 +1862,6 @@ app.post('/api/my-documents/upload', uploadUserDoc.single('file'), async (req, r
     db.prepare('INSERT OR IGNORE INTO user_folders (user_id, path) VALUES (?, ?)').run(user.id, targetFolder);
     const stmt = db.prepare('INSERT INTO user_documents (user_id, original_name, hashed_name, folder, size) VALUES (?, ?, ?, ?, ?)');
     stmt.run(user.id, req.file.originalname, req.file.filename, targetFolder, req.file.size);
-
-    db.prepare('UPDATE users SET points = points + 10 WHERE id = ?').run(user.id);
-
 
     res.json({
       success: true,
@@ -2575,26 +2666,33 @@ app.get('/api/feedback/data', async (req, res) => {
 
   try {
     if (supabase) {
-      console.log(`Fetching all feedback for ${email} from cloud...`);
+      console.log(`[DEBUG] Fetching all feedback for ${email} from cloud...`);
+      const startTime = Date.now();
       const { data, error } = await supabase
         .from('monthly_feedback')
         .select('*')
-        .eq('user_email', email)
+        .eq('user_email', email.toLowerCase())
         .order('period', { ascending: false });
 
-      if (error) throw error;
+      console.log(`[DEBUG] Query finished in ${Date.now() - startTime}ms. Success: ${!error}`);
+      if (error) {
+        console.error('[DEBUG] Supabase error:', error);
+        throw error;
+      }
+      console.log(`[DEBUG] Returning ${data ? data.length : 0} feedback items.`);
       return res.json({ success: true, feedback: data });
     } else {
+      console.log('[DEBUG] No Supabase initialized, returning empty feedback');
       return res.json({ success: true, feedback: [] });
     }
   } catch (err) {
-    console.error('Failed to fetch feedback data:', err.message);
+    console.error('[DEBUG] Failed to fetch feedback data:', err.message);
     res.status(500).json({ error: 'Failed to fetch feedback: ' + err.message });
   }
 });
 
 app.post('/api/feedback/save', async (req, res) => {
-  const { user_email, role, period, selections, is_submitted } = req.body;
+  const { user_email, role, period, selections, remarks, is_submitted } = req.body;
 
   if (!user_email || !role || !period) {
     return res.status(400).json({ error: 'Missing required feedback fields' });
@@ -2603,11 +2701,12 @@ app.post('/api/feedback/save', async (req, res) => {
   try {
     if (supabase) {
       console.log(`Cloud Syncing feedback for ${user_email} [${period}]...`);
-      const payload = {
+      let payload = {
         user_email,
         role,
         period,
         selections,
+        remarks: remarks || {},
         is_submitted,
         updated_at: new Date()
       };
@@ -2620,12 +2719,45 @@ app.post('/api/feedback/save', async (req, res) => {
         .eq('period', period)
         .maybeSingle();
 
-      if (existing) {
-        const { error } = await supabase.from('monthly_feedback').update(payload).eq('id', existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('monthly_feedback').insert(payload);
-        if (error) throw error;
+      try {
+        if (existing) {
+          const { error } = await supabase.from('monthly_feedback').update(payload).eq('id', existing.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from('monthly_feedback').insert(payload);
+          if (error) throw error;
+        }
+      } catch (dbErr) {
+        // Fallback: If 'remarks' column is missing in Supabase, bundle it inside selections._remarks!
+        if (dbErr.message && (dbErr.message.includes('remarks') || dbErr.message.includes('schema cache'))) {
+          console.warn('⚠️ Supabase table is missing the separate "remarks" column. Bundling remarks inside selections._remarks...');
+          
+          let parsedSelections = selections || {};
+          if (typeof parsedSelections === 'string') {
+            try { parsedSelections = JSON.parse(parsedSelections); } catch(e) { parsedSelections = {}; }
+          }
+          parsedSelections._remarks = remarks || {};
+
+          // Rebuild payload without the separate remarks key
+          payload = {
+            user_email,
+            role,
+            period,
+            selections: parsedSelections,
+            is_submitted,
+            updated_at: new Date()
+          };
+
+          if (existing) {
+            const { error } = await supabase.from('monthly_feedback').update(payload).eq('id', existing.id);
+            if (error) throw error;
+          } else {
+            const { error } = await supabase.from('monthly_feedback').insert(payload);
+            if (error) throw error;
+          }
+        } else {
+          throw dbErr;
+        }
       }
     }
     res.json({ success: true, message: 'Feedback synced successfully' });

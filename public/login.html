@@ -165,7 +165,7 @@
 
   <div id="toast-container" class="toast-container"></div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=7"></script>
   <script>
     let isSignUp = false;
     const form = document.getElementById('login-form');
@@ -283,7 +283,7 @@
 
         // Fetch this user's profile image from server before redirect
         try {
-          const profileRes = await fetch(`/api/auth/profile?email=${encodeURIComponent(email)}`);
+          const profileRes = await fetch(`/api/auth/profile?email=${encodeURIComponent(email)}&t=${Date.now()}`);
           const profileData = await profileRes.json();
           if (profileData.success && profileData.user) {
             localStorage.setItem('gantec_user_name', profileData.user.fullname || email.split('@')[0]);

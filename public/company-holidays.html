@@ -457,10 +457,18 @@
     <main class="app-main">
       <div class="holiday-main">
         <div class="holiday-header">
-          <div class="week-badge">Official Calendar 2026</div>
+          <div class="week-badge" style="display: inline-flex; align-items: center; gap: 8px;">
+            Official Calendar 
+            <select id="yearSelect" onchange="generateCalendar()" style="background: transparent; border: none; font-size: inherit; font-weight: inherit; color: inherit; outline: none; cursor: pointer; padding: 0;">
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+              <option value="2028">2028</option>
+              <option value="2029">2029</option>
+              <option value="2030">2030</option>
+            </select>
+          </div>
           <h1 class="connect-title">Company Holidays</h1>
-          <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto;">Effective Period: 01 Jan 2026 to 31
-            Dec 2026. View all Company holidays and Floating holiday options for the year.</p>
+          <p id="effective-period-text" style="color: var(--text-secondary); max-width: 600px; margin: 0 auto;">Effective Period: 01 Jan 2026 to 31 Dec 2026. View all Company holidays and Floating holiday options for the year.</p>
         </div>
 
         <!-- Calendar Legend -->
@@ -542,7 +550,7 @@
     </div>
   </div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=7"></script>
   <script>
     let holidays = {};
 
@@ -596,13 +604,16 @@
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
     function generateCalendar() {
+      const selectedYear = parseInt(document.getElementById('yearSelect').value);
+      document.getElementById('effective-period-text').textContent = `Effective Period: 01 Jan ${selectedYear} to 31 Dec ${selectedYear}. View all Company holidays and Floating holiday options for the year.`;
+      
       calendarWrapper.innerHTML = ''; // Clear existing
       for (let m = 0; m < 12; m++) {
-        const date = new Date(2026, m, 1);
+        const date = new Date(selectedYear, m, 1);
         const monthCard = document.createElement('div');
         monthCard.className = 'month-card';
 
-        let html = `<div class="month-name">${months[m]} 2026</div>`;
+        let html = `<div class="month-name">${months[m]} ${selectedYear}</div>`;
         html += `<div class="calendar-grid">`;
 
         // Add day names
@@ -615,12 +626,12 @@
         }
 
         // Add days
-        const lastDay = new Date(2026, m + 1, 0).getDate();
+        const lastDay = new Date(selectedYear, m + 1, 0).getDate();
         const today = new Date();
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
         for (let d = 1; d <= lastDay; d++) {
-          const dateStr = `2026-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const dateStr = `${selectedYear}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
           const holiday = holidays[dateStr];
 
           let dayClass = 'day';

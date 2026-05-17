@@ -952,7 +952,7 @@
   </div>
 
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=7"></script>
   <script>
     const rubricData = {
       categories: [
@@ -1468,13 +1468,23 @@
         const email = getCurrentEmail();
         if (!email) return;
 
-        const { data, error } = await sb
+        let { data, error } = await sb
           .from('monthly_feedback')
           .select('role, selections, remarks, is_submitted')
           .eq('user_email', email)
           .eq('period', period);
 
-        if (error) throw error;
+        if (error) {
+          console.warn('Failed to query with remarks column, retrying without it...');
+          const retry = await sb
+            .from('monthly_feedback')
+            .select('role, selections, is_submitted')
+            .eq('user_email', email)
+            .eq('period', period);
+          
+          if (retry.error) throw retry.error;
+          data = retry.data;
+        }
 
         if (data && data.length > 0) {
           data.forEach(row => {
@@ -1699,7 +1709,8 @@
       const email = getCurrentEmail();
       if (email) {
         updateSyncStatus('syncing');
-        saveToSupabase(email, currentRole, false).then(() => {
+        // Auto-save without triggering the toast notification popup
+        saveToSupabase(email, currentRole, false, null, false).then(() => {
           updateSyncStatus('synced');
         }).catch(() => {
           updateSyncStatus('failed');
@@ -1728,9 +1739,23 @@
       }
     }
 
+    let remarkTimeout;
     function updateRemarks(rowId, val) {
       if (locked[currentRole]) return;
       remarks[currentRole][rowId] = val;
+      
+      const email = getCurrentEmail();
+      if (email) {
+        updateSyncStatus('syncing');
+        clearTimeout(remarkTimeout);
+        remarkTimeout = setTimeout(() => {
+          saveToSupabase(email, currentRole, false, null, false).then(() => {
+            updateSyncStatus('synced');
+          }).catch(() => {
+            updateSyncStatus('failed');
+          });
+        }, 1000);
+      }
     }
 
     // ── Save / Submit / Edit ─────────────────────────────────────────────────
@@ -1779,7 +1804,7 @@
       }
     }
 
-    async function saveToSupabase(email, role, isSubmit, targetPeriod = null) {
+    async function saveToSupabase(email, role, isSubmit, targetPeriod = null, showNotification = true) {
       const activePeriod = targetPeriod || period;
       
       // Save to local cache first for safety
@@ -1790,16 +1815,12 @@
       try {
         console.log(`Syncing feedback for ${email} [${activePeriod}] via server...`);
         
-        const selectionsWithRemarks = {
-          ...selections[role],
-          _remarks: remarks[role] || {} 
-        };
-
         const payload = {
           user_email: email,
           role: role,
           period: activePeriod,
-          selections: selectionsWithRemarks,
+          selections: selections[role] || {},
+          remarks: remarks[role] || {},
           is_submitted: isSubmit
         };
 
@@ -1817,8 +1838,8 @@
 
         if (isSubmit) {
           showToast('Assessment permanently submitted! 🎉', 'success');
-        } else if (!targetPeriod) {
-          showToast('Progress synced to cloud! ✅', 'success');
+        } else if (!targetPeriod && showNotification) {
+          showToast('Progress synced to cloud!', 'success');
         }
       } catch (e) {
         console.error('Cloud Sync Failed:', e.message);

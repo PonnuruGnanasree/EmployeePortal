@@ -241,16 +241,19 @@ function initUserProfile() {
         console.log('Supabase Auth Event:', event);
         if (session && session.user) {
           const user = session.user;
-          const fullName = user.user_metadata?.fullname || user.email;
+          const cachedName = localStorage.getItem('gantec_user_name');
+          // Only use session metadata if we don't already have a name, to prevent stale overrides
+          const fullName = cachedName || user.user_metadata?.fullname || user.email;
           localStorage.setItem('gantec_auth', 'true');
           localStorage.setItem('gantec_user_name', fullName);
           localStorage.setItem('gantec_user_email', user.email);
           
-          fetch(`/api/auth/profile?email=${encodeURIComponent(user.email)}`)
+          fetch(`/api/auth/profile?email=${encodeURIComponent(user.email)}&t=${Date.now()}`)
             .then(r => r.json())
             .then(data => {
               if (data.success && data.user) {
                 localStorage.setItem('gantec_user_role', data.user.role || 'employee');
+                localStorage.setItem('gantec_user_name', data.user.fullname);
                 if (data.user.profile_image) {
                   localStorage.setItem('gantec_user_profile', data.user.profile_image);
                 }
@@ -429,7 +432,7 @@ function createEditProfileModal(userData, currentImg) {
       <h3 style="margin-bottom: 20px; font-size: 1.25rem; font-weight: 700; color: #2563eb;">Edit Profile</h3>
       
       <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 0.9rem; color: #0c4a6e;">
-        <strong>Note:</strong> Changes to email or password require your current login password for security. Name changes can be made without a password.
+        <strong>Note:</strong> Changes can be made to your password only.
       </div>
       
       <div style="display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 24px;">
@@ -449,12 +452,12 @@ function createEditProfileModal(userData, currentImg) {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Email Address <span style="color: var(--text-muted); font-weight: normal;">(used for login)</span></label>
-          <input type="email" id="edit-email-input" class="text-input" value="${userData.email}" style="width: 100%;">
+          <label class="form-label">Email Address <span style="color: var(--text-muted); font-weight: normal;">(cannot be changed)</span></label>
+          <input type="email" id="edit-email-input" class="text-input" value="${userData.email}" style="width: 100%; opacity: 0.7; cursor: not-allowed;" readonly>
         </div>
 
         <div class="form-group">
-          <label class="form-label">Verify Current Password <span style="color: var(--text-muted); font-weight: normal;">(only if changing email/password)</span></label>
+          <label class="form-label">Verify Current Password <span style="color: var(--text-muted); font-weight: normal;">(only if changing password)</span></label>
           <div style="position: relative;">
             <input type="password" id="edit-current-password-input" class="text-input" placeholder="Enter your current password to verify" style="width: 100%; padding-right: 40px;">
             <button type="button" class="password-toggle-btn" data-target="edit-current-password-input" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; padding: 0; cursor: pointer; color: #94a3b8; display: flex; align-items: center; justify-content: center;">
@@ -592,7 +595,7 @@ function createEditProfileModal(userData, currentImg) {
         saveBtn.disabled = false;
         saveBtn.textContent = 'Save Changes';
       } else {
-        showToast('Profile updated successfully! ✅', 'success');
+        showToast('Profile updated successfully!', 'success');
         modal.classList.add('hidden');
       }
     } catch (err) {
@@ -707,7 +710,7 @@ function showProfileModal(name, email, src) {
         removeBtn.style.opacity = '1';
       }
 
-      showToast('Profile photo updated ✅', 'success');
+      showToast('Profile photo updated', 'success');
 
       // 3. Try to sync to server in the background (best-effort)
       const userEmail = email || localStorage.getItem('gantec_user_email');
@@ -987,4 +990,12 @@ document.addEventListener('DOMContentLoaded', () => {
   initSidebarLogic();
   initFolderSidebarToggle();
   syncLeavePortalLink(); // Initialize dynamic links
+
+  // --- Background Real-time Count Sync ---
+  // Periodically updates counts and folder contents in the background every 3 seconds
+  setInterval(() => {
+    if (typeof window.loadFolders === 'function') {
+      window.loadFolders();
+    }
+  }, 3000);
 });
