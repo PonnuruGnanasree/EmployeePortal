@@ -720,10 +720,10 @@
         <label>Button Text</label>
         <input type="text" id="w-btn" class="form-input" placeholder="e.g. Get Started">
       </div>
-      <div class="form-group">
+      <!-- <div class="form-group">
         <label>Text Colour (Optional)</label>
         <input type="text" id="w-color" class="form-input" placeholder="e.g. black, #ffffff, red" title="Pick text colour">
-      </div>
+      </div> -->
       <div class="modal-footer">
         <button class="btn-save" style="width: 100%;" onclick="saveWelcome()">Save Details</button>
       </div>
@@ -1133,7 +1133,7 @@
         instructions.forEach(instr => {
           const trimmed = instr.trim();
           if (!trimmed) return;
-          
+
           const words = trimmed.split(/\s+/);
 
           Object.keys(elementMap).forEach(key => {
@@ -1141,19 +1141,19 @@
               // Extract the color (the word immediately following the keyword or the last word)
               // This is more robust for "title red and subtitle orange"
               let color = words[words.length - 1];
-              
+
               // If the instruction is "title red and ...", the color is likely the word after "title"
               const keyIndex = words.indexOf(key);
               if (words[keyIndex + 1] && !elementMap[words[keyIndex + 1]] && words[keyIndex + 1] !== 'to') {
-                 color = words[keyIndex + 1];
+                color = words[keyIndex + 1];
               } else if (words[keyIndex + 2] && words[keyIndex + 1] === 'to') {
-                 color = words[keyIndex + 2];
+                color = words[keyIndex + 2];
               }
 
               try {
                 document.getElementById(elementMap[key]).style.color = color;
                 anyTargetFound = true;
-              } catch (e) {}
+              } catch (e) { }
             }
           });
         });

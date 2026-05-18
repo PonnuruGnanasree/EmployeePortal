@@ -2104,7 +2104,37 @@ app.post('/api/contact-hr', async (req, res) => {
     console.log(`Message: ${message}`);
     console.log(`-------------------\n`);
 
-    res.json({ success: true, message: 'Inquiry received locally (Resend API removed)' });
+    // Store in Supabase for tracking
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('hr_queries').insert({
+          employee_name: name,
+          employee_email: email,
+          subject: subject || 'No Subject',
+          message: message,
+          status: 'pending',
+          created_at: new Date()
+        });
+        if (error) {
+          console.warn('HR query storage skipped (table may not exist):', error.message);
+        } else {
+          console.log('✅ HR query saved to cloud database.');
+        }
+      } catch (dbErr) {
+        console.warn('HR query DB error:', dbErr.message);
+      }
+    }
+
+    // Build mailto URL for the frontend to optionally open
+    const mailtoSubject = encodeURIComponent(`[Employee Portal] ${subject || 'HR Inquiry'} — from ${name}`);
+    const mailtoBody = encodeURIComponent(`Hi Hemalatha,\n\n${message}\n\n— ${name} (${email})`);
+    const mailtoUrl = `mailto:hemalatha.malem@gantecusa.com?subject=${mailtoSubject}&body=${mailtoBody}`;
+
+    res.json({ 
+      success: true, 
+      message: 'Your query has been sent to HR successfully!',
+      mailto: mailtoUrl
+    });
   } catch (error) {
     console.error('Failed to process inquiry:', error);
     res.status(500).json({ error: 'Failed to process inquiry' });
@@ -2142,7 +2172,8 @@ app.post('/api/chat', async (req, res) => {
     - Use bullet points for lists.
     - Maximum 3 sentences for general text.
     - Prioritize using the Gantec Knowledge Base below for all Gantec-specific policy, holiday, and procedural questions.
-    - If the user's question or the requested information is NOT explicitly found in the Gantec Knowledge Base, DO NOT say "I don't know" or "Contact HR" as your only reply. Instead, use your general knowledge to provide a highly relevant, helpful, and closely related answer to their query, and then add a brief friendly note at the end that they can contact HR at dl-hr@gantecusa.com for official inquiries.
+    - If the user asks about the "next holiday" or upcoming holidays, you MUST explicitly list BOTH the next upcoming "Company Holiday" and the next upcoming "Floating Holiday Option" from the list based on the Current Date Context.
+    - If the user's question is NOT explicitly found in the Gantec Knowledge Base, DO NOT say "I don't know" or "Contact HR" as your only reply. Instead, you MUST use your general knowledge to provide a highly relevant, helpful, and closely related answer to their query, and then add a brief friendly note at the end that they can contact the HR Manager, Hemalatha Malem (hemalatha.malem@gantecusa.com), or the HR Department (hr@gantecusa.com) for official Gantec policies.
     
     Current Date Context:
     - Today is: ${currentDateStr}
@@ -2690,14 +2721,24 @@ app.post('/api/feedback/save', async (req, res) => {
     return res.status(400).json({ error: 'Missing required feedback fields' });
   }
 
+  // Clean selections: strip any _remarks that were bundled in the old fallback format
+  let cleanSelections = selections || {};
+  if (typeof cleanSelections === 'string') {
+    try { cleanSelections = JSON.parse(cleanSelections); } catch(e) { cleanSelections = {}; }
+  }
+  // Remove legacy bundled remarks key if present
+  if (cleanSelections._remarks) {
+    delete cleanSelections._remarks;
+  }
+
   try {
     if (supabase) {
       console.log(`Cloud Syncing feedback for ${user_email} [${period}]...`);
-      let payload = {
+      const payload = {
         user_email,
         role,
         period,
-        selections,
+        selections: cleanSelections,
         remarks: remarks || {},
         is_submitted,
         updated_at: new Date()
@@ -2711,45 +2752,12 @@ app.post('/api/feedback/save', async (req, res) => {
         .eq('period', period)
         .maybeSingle();
 
-      try {
-        if (existing) {
-          const { error } = await supabase.from('monthly_feedback').update(payload).eq('id', existing.id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase.from('monthly_feedback').insert(payload);
-          if (error) throw error;
-        }
-      } catch (dbErr) {
-        // Fallback: If 'remarks' column is missing in Supabase, bundle it inside selections._remarks!
-        if (dbErr.message && (dbErr.message.includes('remarks') || dbErr.message.includes('schema cache'))) {
-          console.warn('⚠️ Supabase table is missing the separate "remarks" column. Bundling remarks inside selections._remarks...');
-          
-          let parsedSelections = selections || {};
-          if (typeof parsedSelections === 'string') {
-            try { parsedSelections = JSON.parse(parsedSelections); } catch(e) { parsedSelections = {}; }
-          }
-          parsedSelections._remarks = remarks || {};
-
-          // Rebuild payload without the separate remarks key
-          payload = {
-            user_email,
-            role,
-            period,
-            selections: parsedSelections,
-            is_submitted,
-            updated_at: new Date()
-          };
-
-          if (existing) {
-            const { error } = await supabase.from('monthly_feedback').update(payload).eq('id', existing.id);
-            if (error) throw error;
-          } else {
-            const { error } = await supabase.from('monthly_feedback').insert(payload);
-            if (error) throw error;
-          }
-        } else {
-          throw dbErr;
-        }
+      if (existing) {
+        const { error } = await supabase.from('monthly_feedback').update(payload).eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('monthly_feedback').insert(payload);
+        if (error) throw error;
       }
     }
     res.json({ success: true, message: 'Feedback synced successfully' });

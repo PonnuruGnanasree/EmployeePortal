@@ -439,6 +439,7 @@
       padding: 0;
       vertical-align: top;
       position: relative;
+      min-height: 120px;
     }
 
     .category-label-cell {
@@ -452,6 +453,8 @@
     }
 
     .rubric-cell {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       min-height: 120px;
@@ -464,6 +467,13 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      box-sizing: border-box;
+    }
+
+    /* Spacer to maintain td height since button is absolute */
+    .rubric-table td:not(.category-label-cell) {
+      min-height: 120px;
+      height: 120px;
     }
 
     .cell-title {
@@ -481,17 +491,20 @@
     /* Selection States */
     .rubric-cell.user-selected {
       background: var(--user-bg);
-      box-shadow: inset 0 0 0 2px var(--user-color);
+      outline: 2.5px solid var(--user-color);
+      outline-offset: -1px;
     }
 
     .rubric-cell.admin-selected {
       background: var(--admin-bg);
-      box-shadow: inset 0 0 0 2px var(--admin-color);
+      outline: 2.5px solid var(--admin-color);
+      outline-offset: -1px;
     }
 
     .rubric-cell.both-selected {
       background: linear-gradient(135deg, var(--user-bg) 0%, var(--admin-bg) 100%);
-      box-shadow: inset 0 0 0 2px var(--primary);
+      outline: 2.5px solid var(--primary);
+      outline-offset: -1px;
     }
 
     .selection-indicator {
