@@ -1,17 +1,16 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 require('dotenv').config();
 
-async function list() {
+async function testSDK() {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  
+  console.log("--- Testing gemini-flash-lite-latest ---");
   try {
-    // Note: The SDK doesn't have a direct listModels method on the client usually, 
-    // it's often a manual fetch to the discovery service or similar.
-    // But we can try a simple generation with 'gemini-pro' to see if that works.
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
     const result = await model.generateContent("test");
-    console.log("Gemini Pro test successful");
+    console.log("SUCCESS! Response:", result.response.text());
   } catch (err) {
-    console.error("Gemini Pro test failed:", err.message);
+    console.error("FAILED:", err.message);
   }
 }
-list();
+testSDK();

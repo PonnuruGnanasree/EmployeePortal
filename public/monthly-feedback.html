@@ -1464,30 +1464,23 @@
       locked = { user: false, admin: false };
 
       try {
-        const sb = await getSupabase();
         const email = getCurrentEmail();
         if (!email) return;
 
-        let { data, error } = await sb
-          .from('monthly_feedback')
-          .select('role, selections, remarks, is_submitted')
-          .eq('user_email', email)
-          .eq('period', period);
-
-        if (error) {
-          console.warn('Failed to query with remarks column, retrying without it...');
-          const retry = await sb
-            .from('monthly_feedback')
-            .select('role, selections, is_submitted')
-            .eq('user_email', email)
-            .eq('period', period);
-          
-          if (retry.error) throw retry.error;
-          data = retry.data;
+        console.log(`Fetching feedback data for ${email} [${period}] from backend...`);
+        const res = await fetch(`/api/feedback/data?email=${encodeURIComponent(email)}&t=${Date.now()}`);
+        const result = await res.json();
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to fetch from server');
         }
 
-        if (data && data.length > 0) {
-          data.forEach(row => {
+        const data = result.feedback || [];
+        // Filter feedback items for the current active period
+        const periodData = data.filter(row => row.period === period);
+
+        if (periodData && periodData.length > 0) {
+          periodData.forEach(row => {
             const s = { ...(row.selections || {}) };
             // Extract bundled remarks if they exist
             if (s._remarks) {
@@ -1511,7 +1504,7 @@
           }
         }
       } catch (e) {
-        console.warn('Supabase load failed:', e.message);
+        console.warn('Backend load failed, falling back to local storage:', e.message);
         const email = getCurrentEmail();
         if (email) _loadFromLocalStorage(email);
       }
@@ -1774,7 +1767,7 @@
         if (!confirmed) return;
         await saveToSupabase(email, currentRole, true);
         locked[currentRole] = true;
-        localStorage.setItem(`gantec_rubric_locked_${email}`, JSON.stringify(locked));
+        localStorage.setItem(`gantec_rubric_locked_${email}_${period}`, JSON.stringify(locked));
         renderRubric();
         updateActionBar();
 
@@ -1797,7 +1790,7 @@
         } catch (_) { /* no record = editable */ }
 
         locked[currentRole] = false;
-        localStorage.setItem(`gantec_rubric_locked_${email}`, JSON.stringify(locked));
+        localStorage.setItem(`gantec_rubric_locked_${email}_${period}`, JSON.stringify(locked));
         showToast('Editing re-enabled', 'info');
         renderRubric();
         updateActionBar();

@@ -968,9 +968,20 @@ confirmUploadBtn?.addEventListener('click', async () => {
   const customNameLower = customName.toLowerCase();
   const folderData = allFolders.find(f => f.name === targetFolder);
   if (folderData && folderData.files.some(f => f.name.toLowerCase() === customNameLower)) {
-    showToast('Choose any other file name, the file name already exists', 'warning');
+    let errorEl = document.getElementById('rename-error-msg');
+    if (!errorEl) {
+      errorEl = document.createElement('div');
+      errorEl.id = 'rename-error-msg';
+      errorEl.style.cssText = 'color: #ef4444; font-size: 0.85rem; margin-top: 8px; font-weight: 500; background: rgba(239, 68, 68, 0.1); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(239,68,68,0.2);';
+      const wrap = renameInput.closest('.confirm-rename-wrap') || renameInput;
+      wrap.insertAdjacentElement('afterend', errorEl);
+    }
+    errorEl.textContent = '⚠️ Choose any other file name, the file name already exists';
     return;
   }
+  
+  let existingError = document.getElementById('rename-error-msg');
+  if (existingError) existingError.remove();
 
   confirmUploadBtn.disabled = true;
   if (confirmCancelBtn) confirmCancelBtn.disabled = true;

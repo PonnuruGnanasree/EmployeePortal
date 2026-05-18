@@ -219,8 +219,7 @@
 
       <main class="app-main">
 
-        <!-- Toast container -->
-        <div id="toast-container" class="toast-container"></div>
+
         <main class="upload-main">
           <div style="margin-bottom: 12px;">
             <a href="viewer.html" class="btn btn-secondary btn-sm"
@@ -526,13 +525,14 @@
         <h3>Confirm Delete ? </h3>
         <p id="delete-confirm-msg">Should I need to delete this?</p>
       </div>
-      <div class="confirm-footer">
-        <button id="delete-confirm-ok-btn" class="btn-confirm btn-confirm-delete">Yes, Delete</button>
+      <div style="display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end;">
         <button id="delete-confirm-cancel-btn" class="btn-confirm btn-confirm-cancel">No, Keep it</button>
+        <button id="delete-confirm-ok-btn" class="btn-confirm btn-confirm-delete">Yes, Delete</button>
       </div>
     </div>
   </div>
 
+  <div id="toast-container" class="toast-container"></div>
   <script src="js/app.js?v=7"></script>
   <script src="js/uploader.js"></script>
 </body>

@@ -2132,48 +2132,40 @@ app.post('/api/chat', async (req, res) => {
       console.warn('Could not read knowledge base file:', kbErr.message);
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `You are the Gantec HR Assistant. 
-            STRICT RULES:
-            - BE EXTREMELY CONCISE. 
-            - NO long introductions like "I'd be happy to help". Just give the answer.
-            - Use bullet points for lists.
-            - Maximum 3 sentences for general text.
-            - If you don't know the answer based on the knowledge base, ask the user to contact HR at dl-hr@gantecusa.com.
-            
-            Platform Navigation:
-            - Training Resources: Sidebar menu -> Training Resources.
-            - Document Locker: Sidebar menu.
-            - Company Culture/Certifications/Contact HR: Sidebar menu.
-            
-            Gantec Knowledge Base:
-            ${knowledgeBase}
-            
-            Question: ${message}`
-          }]
-        }]
-      })
-    });
+    const today = new Date();
+    const currentDateStr = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    const data = await response.json();
+    const prompt = `You are the Gantec HR Assistant. 
+    STRICT RULES:
+    - BE EXTREMELY CONCISE. 
+    - NO long introductions like "I'd be happy to help". Just give the answer.
+    - Use bullet points for lists.
+    - Maximum 3 sentences for general text.
+    - Prioritize using the Gantec Knowledge Base below for all Gantec-specific policy, holiday, and procedural questions.
+    - If the user's question or the requested information is NOT explicitly found in the Gantec Knowledge Base, DO NOT say "I don't know" or "Contact HR" as your only reply. Instead, use your general knowledge to provide a highly relevant, helpful, and closely related answer to their query, and then add a brief friendly note at the end that they can contact HR at dl-hr@gantecusa.com for official inquiries.
+    
+    Current Date Context:
+    - Today is: ${currentDateStr}
+    
+    Platform Navigation:
+    - Training Resources: Sidebar menu -> Training Resources.
+    - Document Locker: Sidebar menu.
+    - Company Culture/Certifications/Contact HR: Sidebar menu.
+    
+    Gantec Knowledge Base:
+    ${knowledgeBase}
+    
+    Question: ${message}`;
 
-    if (!response.ok) {
-      if (response.status === 429 || (data.error?.message && data.error.message.includes('high demand'))) {
-        return res.json({ success: true, reply: "I'm a bit busy right now! Please try asking me again in a few seconds. 🤖" });
-      }
-      throw new Error(data.error?.message || 'Gemini API Error');
-    }
-
-    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
+    const result = await model.generateContent(prompt);
+    const replyText = result.response.text() || "I'm sorry, I couldn't generate a response.";
     res.json({ success: true, reply: replyText });
   } catch (error) {
     console.error('Gemini API Error:', error.message);
+    if (error.message && (error.message.includes('429') || error.message.includes('quota') || error.message.includes('demand'))) {
+      return res.json({ success: true, reply: "I'm a bit busy right now! Please try asking me again in a few seconds. 🤖" });
+    }
     res.status(500).json({ error: 'AI Assistant is currently unavailable.' });
   }
 });
@@ -2328,7 +2320,7 @@ ${highlights}
       return res.json({ success: true, summary: simulatedSummary });
     }
 
-    const genModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1' });
+    const genModel = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
     
     console.log(`🤖 Summarizing with Gemini SDK (v1): ${filename}...`);
     
