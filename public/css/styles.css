@@ -1379,8 +1379,8 @@ svg {
 .toast-container {
   position: fixed;
   top: 50%;
-  right: 24px;
   transform: translateY(-50%);
+  right: 24px;
   z-index: 999;
   display: flex;
   flex-direction: column;
@@ -2321,7 +2321,7 @@ svg {
 
 /* Empty State */
 .empty-state {
-  display: flex !important;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -3655,8 +3655,8 @@ svg {
 #toast-container {
   position: fixed;
   top: 50%;
-  right: 24px;
   transform: translateY(-50%);
+  right: 24px;
   z-index: 9999;
   display: flex;
   flex-direction: column;
