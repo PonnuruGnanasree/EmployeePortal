@@ -249,7 +249,8 @@
   <div class="bg-orb orb-2"></div>
   <div class="bg-orb orb-3"></div>
 
-  <div class="app-layout">    <aside class="app-sidebar">
+  <div class="app-layout">
+    <aside class="app-sidebar">
       <nav class="sidebar-nav">
         <a href="home.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -332,15 +333,21 @@
           <span class="link-text">Leave Portal</span>
         </a>
 
-        <a href="company-culture.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
-          <span class="link-text">Company Culture</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="#" class="sidebar-link sidebar-dropdown-trigger" id="nav-culture">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span class="link-text">Company Culture</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="company-culture.html" class="submenu-link">Culture Overview</a>
+            <a href="employee-support.html" class="submenu-link">Employee Support</a>
+          </div>
+        </div>
 
         <a href="faq.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -382,7 +389,8 @@
     <div class="main-wrapper" style="flex:1;">
       <header class="app-header">
         <a href="home.html" class="header-brand">
-          <span class="gantec-logo-text" style="font-size: 1.25rem;">GANTEC <span class="gantec-logo-gradient">Employee Portal</span></span>
+          <span class="gantec-logo-text" style="font-size: 1.25rem;">GANTEC <span class="gantec-logo-gradient">Employee
+              Portal</span></span>
         </a>
         <div id="user-profile-section"></div>
       </header>
@@ -392,7 +400,7 @@
           <!-- Left side: HR Info -->
           <div class="hr-card">
             <div class="hr-avatar-wrap">
-              <img src="images/default-avatar.png" alt="Hemalatha Malem" class="hr-avatar">
+              <img src="https://ui-avatars.com/api/?name=Hemalatha+Malem&background=1d3461&color=fff&size=256&rounded=true" alt="Hemalatha Malem" class="hr-avatar">
               <div class="status-badge" title="Online"></div>
             </div>
             <h2 class="hr-name">Hemalatha Malem</h2>
@@ -414,21 +422,20 @@
             </div>
 
             <div class="hr-actions">
-              <a href="mailto:hemalatha.malem@gantecusa.com" class="btn btn-primary"
-                style="width: 100%; justify-content: center;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                  <polyline points="22,6 12,13 2,6" />
-                </svg>
-                Send Email
-              </a>
-              <button class="btn btn-secondary" style="width: 100%; justify-content: center;"
-                onclick="showToast('Starting chat with HR...', 'info')">
+              <a class="btn btn-secondary" style="width: 100%; justify-content: center; text-decoration: none; margin-bottom: 16px;"
+                href="https://teams.microsoft.com/l/chat/0/0?users=hemalatha.malem@gantecusa.com" target="_blank">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
                   <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-13.5 8.38 8.38 0 0 1 3.8.9L21 3z" />
                 </svg>
-                Start Chat
-              </button>
+                Teams Chat
+              </a>
+              <a class="btn btn-secondary" style="width: 100%; justify-content: center; text-decoration: none;"
+                href="https://teams.microsoft.com/l/call/0/0?users=hemalatha.malem@gantecusa.com" target="_blank">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+                Teams Call
+              </a>
             </div>
           </div>
 
@@ -460,51 +467,9 @@
                 <button type="reset" class="btn btn-secondary">Reset</button>
               </div>
             </form>
-
-            <div class="extra-actions">
-              <button class="btn btn-secondary btn-sm" id="request-call-btn">Request a Call</button>
-              <button class="btn btn-secondary btn-sm" onclick="showToast('Opening HR Chat...', 'info')">Chat with
-                HR</button>
-            </div>
           </div>
         </div>
       </main>
-    </div>
-  </div>
-
-  <!-- Call Request Modal -->
-  <div class="modal-overlay" id="call-modal">
-    <div class="modal-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h3 style="margin: 0;">Request a Call</h3>
-        <button type="button" onclick="closeModal()"
-          style="background: #f1f5f9; border: none; color: #64748b; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-      <form id="call-form" style="display: flex; flex-direction: column; gap: 16px;">
-        <div class="form-group">
-          <label>Preferred Date</label>
-          <input type="date" class="text-input" required>
-        </div>
-        <div class="form-group">
-          <label>Preferred Time Slot</label>
-          <select class="text-input" required style="appearance: auto;">
-            <option value="">Select a time...</option>
-            <option>09:00 AM - 10:00 AM</option>
-            <option>10:00 AM - 11:00 AM</option>
-            <option>11:00 AM - 12:00 PM</option>
-            <option>02:00 PM - 03:00 PM</option>
-            <option>03:00 PM - 04:00 PM</option>
-          </select>
-        </div>
-        <div style="display: flex; gap: 10px; margin-top: 10px;">
-          <button type="submit" class="btn btn-primary" style="flex:1; justify-content: center;">Submit Request</button>
-        </div>
-      </form>
     </div>
   </div>
 
@@ -513,9 +478,6 @@
   <script src="js/app.js?v=7"></script>
   <script>
     const form = document.getElementById('hr-contact-form');
-    const callBtn = document.getElementById('request-call-btn');
-    const callModal = document.getElementById('call-modal');
-    const callForm = document.getElementById('call-form');
 
     // Populate user info from localStorage
     document.addEventListener('DOMContentLoaded', () => {
@@ -552,9 +514,45 @@
 
       updateHRStatus();
       setInterval(updateHRStatus, 60000);
+
+      // Fetch HR dynamic config from .env (via server) to update Teams Chat/Call, Avatar, and Name
+      fetch('/api/hr/config')
+        .then(res => res.json())
+        .then(config => {
+          if (config && config.hr_email) {
+            const hrEmail = config.hr_email;
+            const encodedEmail = encodeURIComponent(hrEmail);
+            
+            // 1. Update Teams Chat & Call Hrefs
+            const chatBtn = document.querySelector('.hr-actions a[href*="teams.microsoft.com/l/chat"]');
+            if (chatBtn) chatBtn.href = `https://teams.microsoft.com/l/chat/0/0?users=${encodedEmail}`;
+            
+            const callBtn = document.querySelector('.hr-actions a[href*="teams.microsoft.com/l/call"]');
+            if (callBtn) callBtn.href = `https://teams.microsoft.com/l/call/0/0?users=${encodedEmail}`;
+            
+            // 2. Parse display name dynamically from email
+            const parsedName = hrEmail.split('@')[0].split('.').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' ');
+            document.querySelector('.hr-name').textContent = parsedName;
+
+            // 3. Fetch HR's custom profile picture dynamically or use dynamic initials fallback
+            fetch(`/api/users/profile-image?email=${encodedEmail}`)
+              .then(res => res.json())
+              .then(data => {
+                if (data && data.profile_image) {
+                  document.querySelector('.hr-avatar').src = data.profile_image;
+                } else {
+                  document.querySelector('.hr-avatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(parsedName)}&background=1d3461&color=fff&size=256&rounded=true`;
+                }
+              })
+              .catch(err => {
+                document.querySelector('.hr-avatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(parsedName)}&background=1d3461&color=fff&size=256&rounded=true`;
+              });
+          }
+        })
+        .catch(err => console.warn('Failed to fetch HR dynamic config:', err));
     });
 
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
 
       const nameVal = document.getElementById('name').value;
@@ -562,57 +560,31 @@
       const subjectVal = document.getElementById('subject').value;
       const messageVal = document.getElementById('message').value;
       const submitBtn = form.querySelector('button[type="submit"]');
-      const originalText = submitBtn.textContent;
 
       submitBtn.textContent = 'Sending...';
-      submitBtn.disabled = true;
 
-      try {
-        const response = await fetch('/api/contact-hr', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: nameVal,
-            email: emailVal,
-            subject: subjectVal,
-            message: messageVal
-          })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to send message');
+      fetch('/api/contact-hr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nameVal, email: emailVal, subject: subjectVal, message: messageVal })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          showToast('Query sent to HR successfully!', 'success');
+          form.reset();
+        } else {
+          showToast('Failed to send query. Try again.', 'error');
         }
-
-        form.innerHTML = `
-          <div class="success-message">
-            <span class="success-icon">✅</span>
-            <h3 style="margin-bottom:12px;">Request Sent!</h3>
-            <p style="color:var(--text-secondary); line-height:1.6;">Your request has been sent to HR (Hemalatha Malem).<br>She will contact you via email or chat soon.</p>
-            <button type="button" class="btn btn-secondary" style="margin-top:24px;" onclick="window.location.reload()">Send Another</button>
-          </div>
-        `;
-      } catch (err) {
-        showToast(err.message, 'error');
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-      }
+      })
+      .catch(err => {
+        console.error(err);
+        showToast('Error sending query.', 'error');
+      })
+      .finally(() => {
+        submitBtn.textContent = 'Submit Query';
+      });
     });
-
-    callBtn.addEventListener('click', () => callModal.classList.add('active'));
-
-    function closeModal() {
-      callModal.classList.remove('active');
-    }
-
-    callForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      closeModal();
-      showToast('Call request submitted successfully!', 'success');
-    });
-
-    window.onclick = (e) => { if (e.target === callModal) closeModal(); };
   </script>
 </body>
 

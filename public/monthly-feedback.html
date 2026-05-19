@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Monthly Feedback Rubric | Gantec</title>
+  <title>Monthly Feedback | Gantec</title>
   <link rel="stylesheet" href="css/branding.css">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -806,7 +806,9 @@
             <span class="link-text">Monthly Feedback</span>
           </a>
           <div class="sidebar-submenu">
-            <a href="monthly-feedback.html" class="submenu-link active">Feedback</a>
+            <a href="monthly-feedback.html" class="submenu-link active">Feedback Insights</a>
+            <a href="insights.html" class="submenu-link">Reportee Insights</a>
+            <a href="feedback-dashboard.html" class="submenu-link">Dashboard</a>
             <a href="analysis.html" class="submenu-link">Performance Analysis</a>
           </div>
         </div>
@@ -831,15 +833,21 @@
           <span class="link-text">Leave Portal</span>
         </a>
 
-        <a href="company-culture.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
-          <span class="link-text">Company Culture</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="#" class="sidebar-link sidebar-dropdown-trigger" id="nav-culture">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span class="link-text">Company Culture</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="company-culture.html" class="submenu-link">Culture Overview</a>
+            <a href="employee-support.html" class="submenu-link">Employee Support</a>
+          </div>
+        </div>
 
         <a href="faq.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -868,7 +876,9 @@
 
         <a href="contact-hr.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+            <path
+              d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+            </path>
           </svg>
           <span class="link-text">Contact HR</span>
         </a>
@@ -887,14 +897,7 @@
 
     <main class="app-main">
       <div class="rubric-container">
-        <!-- <div class="philosophy-section">
-          <h1 class="philosophy-title">The "Data Always" Philosophy</h1>
-          <p class="philosophy-text">
-            This rubric provides a common language for our growth. Whether you are a Junior, Mid, or Senior, you have a clear definition of what "Exceptional" looks like for your role. This allows us to have objective, honest, and supportive conversations about your future here.
-            <br><br>
-            <strong>In short:</strong> We want to be the best place for talent to grow, and that starts with giving you the data you need to win.
-          </p>
-        </div> -->
+        <div id="target-employee-banner" style="display: none;"></div>
 
         <div class="header-controls">
           <div class="custom-period-selector">
@@ -1395,7 +1398,11 @@
       });
     }
 
-    function getCurrentEmail() { 
+    function getCurrentEmail() {
+      const params = new URLSearchParams(window.location.search);
+      const urlEmail = params.get('email');
+      if (urlEmail) return urlEmail.toLowerCase();
+
       const email = localStorage.getItem('gantec_user_email');
       return email ? email.toLowerCase() : null;
     }
@@ -1464,7 +1471,33 @@
         console.warn('Role detection failed, defaulting to user');
       }
 
+      // Check if evaluating a sub-mail instead of oneself
+      const loggedInEmail = localStorage.getItem('gantec_user_email');
+      const targetEmail = getCurrentEmail();
+      if (targetEmail && loggedInEmail && targetEmail.toLowerCase() !== loggedInEmail.toLowerCase()) {
+        currentRole = 'admin';
+
+        // Show beautiful banner
+        const banner = document.getElementById('target-employee-banner');
+        if (banner) {
+          banner.style.display = 'block';
+          banner.innerHTML = `
+            <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #f59e0b; border-radius: 16px; padding: 20px; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow);">
+              <div>
+                <h3 style="margin: 0 0 4px; color: #78350f; font-weight: 800; font-family: 'Outfit', sans-serif;">🎯 Evaluating Reportee: ${targetEmail}</h3>
+                <p style="margin: 0; color: #b45309; font-size: 0.9rem;">You are completing or reviewing the Monthly Feedback for the Reportee account in <strong>Manager</strong> mode.</p>
+              </div>
+              <a href="insights.html" style="background: #f59e0b; color: white; padding: 8px 16px; border-radius: 10px; font-weight: 700; text-decoration: none; font-size: 0.85rem;">⬅️ Back to Insights</a>
+            </div>
+          `;
+        }
+      }
+
       await loadFromSupabase();
+
+      // Highlight active role correctly
+      document.querySelectorAll('.role-item').forEach(btn => btn.classList.remove('active'));
+      document.querySelector(`.role-item.${currentRole}`).classList.add('active');
 
       renderRubric();
       updateActionBar();
@@ -1483,7 +1516,7 @@
         console.log(`Fetching feedback data for ${email} [${period}] from backend...`);
         const res = await fetch(`/api/feedback/data?email=${encodeURIComponent(email)}&t=${Date.now()}`);
         const result = await res.json();
-        
+
         if (!result.success) {
           throw new Error(result.error || 'Failed to fetch from server');
         }
@@ -1550,7 +1583,7 @@
       const yearInput = document.getElementById('yearInput');
       const month = monthSelect.value;
       const year = yearInput.value;
-      
+
       if (!month || !year || year.length < 4) return;
 
       const newPeriod = `${year}-${month}`;
@@ -1562,7 +1595,7 @@
         try {
           // Temporarily keep the old period for the save operation
           const oldPeriod = period;
-          await saveToSupabase(email, currentRole, false, oldPeriod); 
+          await saveToSupabase(email, currentRole, false, oldPeriod);
         } catch (e) {
           console.warn('Auto-save failed during period switch:', e);
         }
@@ -1708,9 +1741,9 @@
       } else {
         selections[currentRole][rowId] = index;
       }
-      
+
       renderRubric();
-      
+
       // Auto-save on every selection with visual status
       const email = getCurrentEmail();
       if (email) {
@@ -1727,7 +1760,7 @@
     function updateSyncStatus(status) {
       const btn = document.querySelector('.action-btn.secondary');
       if (!btn) return;
-      
+
       let statusEl = document.getElementById('sync-status-indicator');
       if (!statusEl) {
         statusEl = document.createElement('div');
@@ -1749,7 +1782,7 @@
     function updateRemarks(rowId, val) {
       if (locked[currentRole]) return;
       remarks[currentRole][rowId] = val;
-      
+
       const email = getCurrentEmail();
       if (email) {
         updateSyncStatus('syncing');
@@ -1812,7 +1845,7 @@
 
     async function saveToSupabase(email, role, isSubmit, targetPeriod = null, showNotification = true) {
       const activePeriod = targetPeriod || period;
-      
+
       // Save to local cache first for safety
       localStorage.setItem(`gantec_rubric_selections_${email}_${activePeriod}`, JSON.stringify(selections));
       localStorage.setItem(`gantec_rubric_remarks_${email}_${activePeriod}`, JSON.stringify(remarks));
@@ -1820,7 +1853,7 @@
 
       try {
         console.log(`Syncing feedback for ${email} [${activePeriod}] via server...`);
-        
+
         const payload = {
           user_email: email,
           role: role,
@@ -1837,7 +1870,7 @@
         });
 
         const result = await response.json();
-        
+
         if (!response.ok) {
           throw new Error(result.error || 'Failed to sync with server');
         }

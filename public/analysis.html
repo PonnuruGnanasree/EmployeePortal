@@ -11,7 +11,8 @@
   <link rel="stylesheet" href="css/styles.css?v=2" />
   <link rel="stylesheet" href="css/branding.css" />
   <!-- Chart.js: local copy first (works offline), CDN as fallback -->
-  <script src="js/chart.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js';document.head.appendChild(s);"></script>
+  <script src="js/chart.min.js"
+    onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js';document.head.appendChild(s);"></script>
   <style>
     .analysis-container {
       padding: 32px;
@@ -64,37 +65,52 @@
     }
 
     @media print {
-      body, html {
+
+      body,
+      html {
         height: auto !important;
         overflow: visible !important;
       }
-      .app-sidebar, .analysis-filters, .sync-status, button, #status-footer, .app-header {
+
+      .app-sidebar,
+      .analysis-filters,
+      .sync-status,
+      button,
+      #status-footer,
+      .app-header {
         display: none !important;
       }
+
       .app-main {
         margin-left: 0 !important;
         padding: 0 !important;
         height: auto !important;
         overflow: visible !important;
       }
+
       .analysis-container {
         padding: 0 !important;
         max-width: 100% !important;
         height: auto !important;
         overflow: visible !important;
       }
+
       .analysis-card {
         box-shadow: none !important;
         border: 1px solid #eee !important;
         break-inside: avoid;
         margin-bottom: 20px;
       }
+
       .analysis-grid {
-        display: block !important; /* Stack them for printing */
+        display: block !important;
+        /* Stack them for printing */
       }
+
       #drilldown-grid {
         display: grid !important;
-        grid-template-columns: 1fr 1fr !important; /* Two columns for paper */
+        grid-template-columns: 1fr 1fr !important;
+        /* Two columns for paper */
       }
     }
   </style>
@@ -104,7 +120,7 @@
   <div class="app-layout">
     <!-- Toast container -->
     <div id="toast-container" class="toast-container"></div>
-    
+
     <aside class="app-sidebar">
       <nav class="sidebar-nav">
         <a href="home.html" class="sidebar-link">
@@ -163,7 +179,9 @@
             <span class="link-text">Monthly Feedback</span>
           </a>
           <div class="sidebar-submenu">
-            <a href="monthly-feedback.html" class="submenu-link">Feedback</a>
+            <a href="monthly-feedback.html" class="submenu-link">Feedback Insights</a>
+            <a href="insights.html" class="submenu-link">Reportee Insights</a>
+            <a href="feedback-dashboard.html" class="submenu-link">Dashboard</a>
             <a href="analysis.html" class="submenu-link active">Performance Analysis</a>
           </div>
         </div>
@@ -188,15 +206,21 @@
           <span class="link-text">Leave Portal</span>
         </a>
 
-        <a href="company-culture.html" class="sidebar-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
-          <span class="link-text">Company Culture</span>
-        </a>
+        <div class="sidebar-dropdown">
+          <a href="#" class="sidebar-link sidebar-dropdown-trigger" id="nav-culture">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span class="link-text">Company Culture</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="company-culture.html" class="submenu-link">Culture Overview</a>
+            <a href="employee-support.html" class="submenu-link">Employee Support</a>
+          </div>
+        </div>
 
         <a href="faq.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -225,7 +249,9 @@
 
         <a href="contact-hr.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+            <path
+              d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+            </path>
           </svg>
           <span class="link-text">Contact HR</span>
         </a>
@@ -243,31 +269,45 @@
 
       <main class="app-main">
         <div class="analysis-container">
-          <div class="analysis-header" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 32px; gap: 20px; flex-wrap: wrap;">
+          <div id="target-employee-banner" style="display: none;"></div>
+
+          <div class="analysis-header"
+            style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 32px; gap: 20px; flex-wrap: wrap;">
             <div class="header-text">
               <h1>Performance <span class="gradient-text">Analysis</span></h1>
-              <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Real-time pictorial insights from your feedback portal.</p>
+              <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Real-time pictorial insights from
+                your feedback portal.</p>
             </div>
 
             <div class="analysis-filters" style="display: flex; gap: 12px; align-items: center;">
-              <button onclick="window.print()" class="action-btn" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; padding: 11px 20px; border-radius: 12px; display: flex; align-items: center; gap: 8px; font-weight: 700; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              <button onclick="window.print()" class="action-btn"
+                style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; padding: 11px 20px; border-radius: 12px; display: flex; align-items: center; gap: 8px; font-weight: 700; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                </svg>
                 Download Report
               </button>
               <div class="filter-group">
-                <label style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">View Role</label>
-                <select id="filter-role" class="text-input" onchange="updateAnalysis()" style="width: 160px; padding: 10px 14px; border-radius: 12px; cursor: pointer;">
+                <label
+                  style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">View
+                  Role</label>
+                <select id="filter-role" class="text-input" onchange="updateAnalysis()"
+                  style="width: 160px; padding: 10px 14px; border-radius: 12px; cursor: pointer;">
                   <option value="user" selected>Self-Assessment</option>
                   <option value="admin">Manager Review</option>
                 </select>
               </div>
               <div class="filter-group">
-                <label style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">Year</label>
-                <input type="number" id="filter-year" class="text-input" value="2026" onchange="updateAnalysis()" style="width: 90px; padding: 10px 14px; border-radius: 12px;">
+                <label
+                  style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">Year</label>
+                <input type="number" id="filter-year" class="text-input" value="2026" onchange="updateAnalysis()"
+                  style="width: 90px; padding: 10px 14px; border-radius: 12px;">
               </div>
               <div class="filter-group">
-                <label style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">Month</label>
-                <select id="filter-month" class="text-input" onchange="updateAnalysis()" style="width: 140px; padding: 10px 14px; border-radius: 12px; cursor: pointer;">
+                <label
+                  style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">Month</label>
+                <select id="filter-month" class="text-input" onchange="updateAnalysis()"
+                  style="width: 140px; padding: 10px 14px; border-radius: 12px; cursor: pointer;">
                   <option value="">Full Year View</option>
                   <option value="01">January</option>
                   <option value="02">February</option>
@@ -283,21 +323,25 @@
                   <option value="12">December</option>
                 </select>
               </div>
-              <button onclick="initAnalysis()" class="action-btn secondary" style="align-self: flex-end; padding: 11px 16px; border-radius: 12px;">🔄 Sync</button>
+              <button onclick="initAnalysis()" class="action-btn secondary"
+                style="align-self: flex-end; padding: 11px 16px; border-radius: 12px;">🔄 Sync</button>
             </div>
           </div>
 
-          <div id="ai-insight-card" class="analysis-card" style="margin-bottom: 24px; border-left: 5px solid #10b981; background: #f0fdf4; display: none;">
+          <div id="ai-insight-card" class="analysis-card"
+            style="margin-bottom: 24px; border-left: 5px solid #10b981; background: #f0fdf4; display: none;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <div style="font-size: 1.5rem;">🚀</div>
               <div>
                 <h4 style="color: #166534; margin: 0; font-size: 0.9rem;">Performance Insight</h4>
-                <p id="ai-insight-text" style="color: #15803d; margin: 4px 0 0; font-size: 0.85rem; font-weight: 500;"></p>
+                <p id="ai-insight-text" style="color: #15803d; margin: 4px 0 0; font-size: 0.85rem; font-weight: 500;">
+                </p>
               </div>
             </div>
           </div>
 
-          <div class="analysis-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 32px;">
+          <div class="analysis-grid"
+            style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 32px;">
             <!-- Primary Trend -->
             <div class="analysis-card" id="trend-card" style="height: 400px;">
               <h3 style="margin-bottom: 20px;">Overall Skill Progression</h3>
@@ -316,36 +360,47 @@
 
           <!-- Individual Parameter Drill-down -->
           <div id="drilldown-section" class="analysis-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
               <h3 style="display: flex; align-items: center; gap: 10px; margin: 0;">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #6366f1;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"
+                  style="color: #6366f1;">
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="12" y1="8" x2="12" y2="16"></line>
                   <line x1="8" y1="12" x2="16" y2="12"></line>
                 </svg>
                 Pictorial Metric Breakdown
               </h3>
-              
-              <div style="display: flex; gap: 16px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); align-items: center; background: var(--bg-light); padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);">
-                <div style="display: flex; align-items: center; gap: 6px;" title="Multiplier / Engine (6-7)"><span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981;"></span> Mastery</div>
-                <div style="display: flex; align-items: center; gap: 6px;" title="Proactive / High-Perf (4-5)"><span style="width: 10px; height: 10px; border-radius: 50%; background: #6366f1;"></span> Advanced</div>
-                <div style="display: flex; align-items: center; gap: 6px;" title="Stagnant / Fluctuating / Steady (1-3)"><span style="width: 10px; height: 10px; border-radius: 50%; background: #f59e0b;"></span> Developing</div>
+
+              <div
+                style="display: flex; gap: 16px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); align-items: center; background: var(--bg-light); padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);">
+                <div style="display: flex; align-items: center; gap: 6px;" title="Multiplier / Engine (6-7)"><span
+                    style="width: 10px; height: 10px; border-radius: 50%; background: #10b981;"></span> Mastery</div>
+                <div style="display: flex; align-items: center; gap: 6px;" title="Proactive / High-Perf (4-5)"><span
+                    style="width: 10px; height: 10px; border-radius: 50%; background: #6366f1;"></span> Advanced</div>
+                <div style="display: flex; align-items: center; gap: 6px;"
+                  title="Stagnant / Fluctuating / Steady (1-3)"><span
+                    style="width: 10px; height: 10px; border-radius: 50%; background: #f59e0b;"></span> Developing</div>
               </div>
 
               <div style="position: relative;">
-                <input type="text" id="skill-search" placeholder="Search skill..." style="padding: 8px 12px 8px 36px; border-radius: 10px; border: 1px solid var(--border); font-size: 0.8rem; width: 220px;">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);">
+                <input type="text" id="skill-search" placeholder="Search skill..."
+                  style="padding: 8px 12px 8px 36px; border-radius: 10px; border: 1px solid var(--border); font-size: 0.8rem; width: 220px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+                  style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);">
                   <circle cx="11" cy="11" r="8"></circle>
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
               </div>
             </div>
-            <div id="drilldown-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
+            <div id="drilldown-grid"
+              style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
               <!-- Individual bars injected here -->
             </div>
           </div>
 
-          <div id="status-footer" style="margin-top: 32px; text-align: center; font-size: 0.8rem; color: var(--text-muted);">
+          <div id="status-footer"
+            style="margin-top: 32px; text-align: center; font-size: 0.8rem; color: var(--text-muted);">
             <div id="sync-status">Connected to Feedback Portal</div>
           </div>
         </div>
@@ -356,15 +411,15 @@
 
   <script src="js/app.js?v=7"></script>
   <script>
-    window.onerror = function(msg, url, lineNo, columnNo, error) {
+    window.onerror = function (msg, url, lineNo, columnNo, error) {
       console.error('GLOBAL JS ERROR:', msg, 'at line', lineNo, error);
       const syncStatus = document.getElementById('sync-status');
-      if(syncStatus && !syncStatus.innerHTML.includes('✅')) {
+      if (syncStatus && !syncStatus.innerHTML.includes('✅')) {
         syncStatus.innerHTML = '<span style="color:red">JS Error: ' + msg + ' (Line ' + lineNo + ')</span>';
       }
       return false;
     };
-    window.onunhandledrejection = function(event) {
+    window.onunhandledrejection = function (event) {
       console.error('UNHANDLED PROMISE REJECTION:', event.reason);
     };
     let allFeedbackData = [];
@@ -397,14 +452,42 @@
       if (_initAnalysisRunning) return;
       _initAnalysisRunning = true;
 
-      const rawEmail = localStorage.getItem('gantec_user_email');
+      const params = new URLSearchParams(window.location.search);
+      const urlEmail = params.get('email');
+      const rawEmail = urlEmail ? urlEmail.toLowerCase() : (localStorage.getItem('gantec_user_email') ? localStorage.getItem('gantec_user_email').toLowerCase() : null);
+
       if (!rawEmail) {
         window.location.href = 'login.html';
         _initAnalysisRunning = false;
         return;
       }
       const email = rawEmail.toLowerCase();
-      
+
+      // Show beautiful banner if acting as manager viewing a sub email's performance
+      const loggedInEmail = localStorage.getItem('gantec_user_email');
+      const isSubMailView = urlEmail && loggedInEmail && urlEmail.toLowerCase() !== loggedInEmail.toLowerCase();
+      if (isSubMailView) {
+        // Set default filter role to Manager Review for the sub mail
+        const filterRoleSelect = document.getElementById('filter-role');
+        if (filterRoleSelect && filterRoleSelect.value === 'user') {
+          filterRoleSelect.value = 'admin';
+        }
+
+        const banner = document.getElementById('target-employee-banner');
+        if (banner) {
+          banner.style.display = 'block';
+          banner.innerHTML = `
+            <div style="background: linear-gradient(135deg, #e0f2fe, #bae6fd); border: 1px solid #0284c7; border-radius: 16px; padding: 20px; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow);">
+              <div>
+                <h3 style="margin: 0 0 4px; color: #0369a1; font-weight: 800; font-family: 'Outfit', sans-serif;">📊 Analyzing Reportee: ${email}</h3>
+                <p style="margin: 0; color: #0284c7; font-size: 0.9rem;">You are reviewing the detailed Performance Analytics and competency breakdown for your Reportee  in <strong>Manager</strong> mode. </p>
+              </div>
+              <a href="insights.html" style="background: #0284c7; color: white; padding: 8px 16px; border-radius: 10px; font-weight: 700; text-decoration: none; font-size: 0.85rem;">⬅️ Back to Insights</a>
+            </div>
+          `;
+        }
+      }
+
       const syncStatus = document.getElementById('sync-status');
       syncStatus.innerHTML = '🔄 Syncing with Feedback Portal...';
 
@@ -413,7 +496,7 @@
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
-        
+
         let response;
         try {
           response = await fetch(`/api/feedback/data?email=${encodeURIComponent(email)}&t=${Date.now()}`, {
@@ -421,7 +504,7 @@
             signal: controller.signal
           });
           clearTimeout(timeoutId);
-        } catch(firstErr) {
+        } catch (firstErr) {
           clearTimeout(timeoutId);
           console.warn('First fetch attempt failed, retrying...', firstErr.message);
           await new Promise(r => setTimeout(r, 2000));
@@ -442,7 +525,7 @@
         // Parse data
         allFeedbackData = (result.feedback || []).map(record => {
           if (typeof record.selections === 'string') {
-            try { record.selections = JSON.parse(record.selections); } catch(e) { record.selections = {}; }
+            try { record.selections = JSON.parse(record.selections); } catch (e) { record.selections = {}; }
           }
           return record;
         });
@@ -529,7 +612,7 @@
     function updateAIInsight(trend, selectedSnapshot) {
       const insightCard = document.getElementById('ai-insight-card');
       const insightText = document.getElementById('ai-insight-text');
-      
+
       if (!selectedSnapshot || trend.length === 0) {
         insightCard.style.display = 'none';
         return;
@@ -544,7 +627,7 @@
       }
 
       insightCard.style.display = 'block';
-      
+
       // If we are looking at a specific month, compare it to the PREVIOUS record in the trend
       const currentIndex = trend.findIndex(d => d.period === selectedSnapshot.period);
       if (currentIndex > 0) {
@@ -559,7 +642,7 @@
 
         const diff = currentAvg - prevAvg;
         const absDiff = Math.abs(diff).toFixed(1);
-        
+
         if (diff > 0) {
           insightText.innerHTML = `<b>Month-over-Month Growth:</b> Your average score improved by <b>+${absDiff}</b> points (currently <b>${currentAvg.toFixed(1)}</b> vs <b>${prevAvg.toFixed(1)}</b>) compared to ${prev.period}. Great momentum!`;
         } else if (diff < 0) {
@@ -585,7 +668,7 @@
       if (!record || !record.selections) return null;
       let selections = record.selections;
       if (typeof selections === 'string') {
-        try { selections = JSON.parse(selections); } catch(e) { selections = {}; }
+        try { selections = JSON.parse(selections); } catch (e) { selections = {}; }
       }
       // Exclude _remarks (object) and any non-numeric values
       const vals = Object.entries(selections)
@@ -600,7 +683,7 @@
     document.getElementById('skill-search').addEventListener('input', (e) => {
       const term = e.target.value.toLowerCase();
       const cards = document.querySelectorAll('#drilldown-grid > div');
-      
+
       cards.forEach(card => {
         const text = card.textContent.toLowerCase();
         card.style.display = text.includes(term) ? 'block' : 'none';
@@ -610,7 +693,7 @@
     function calculateAverage(selections, rowIds) {
       if (!selections) return null;
       if (typeof selections === 'string') {
-        try { selections = JSON.parse(selections); } catch(e) { selections = {}; }
+        try { selections = JSON.parse(selections); } catch (e) { selections = {}; }
       }
       const vals = rowIds.map(id => Number(selections[id])).filter(v => !isNaN(v) && isFinite(v));
       if (vals.length === 0) return null;
@@ -623,7 +706,7 @@
       if (charts.overall) charts.overall.destroy();
 
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      
+
       // Create a 12-month data array
       const values = new Array(12).fill(null);
       const pointRadii = new Array(12).fill(4); // Small dots for all months by default
@@ -635,7 +718,7 @@
         const monthIndex = parseInt(d.period.split('-')[1]) - 1;
         if (monthIndex >= 0 && monthIndex < 12) {
           values[monthIndex] = calculateOverallAvg(d);
-          
+
           // Historical data points are Blue
           pointRadii[monthIndex] = 6;
           pointColors[monthIndex] = '#fff';
@@ -677,7 +760,7 @@
             pointBackgroundColor: pointColors,
             pointBorderColor: pointBorderColors,
             pointBorderWidth: 3,
-            spanGaps: true 
+            spanGaps: true
           }]
         },
         options: {
@@ -697,7 +780,7 @@
       if (charts.radar) charts.radar.destroy();
 
       const radarLabels = ['Delivery', 'Architecture', 'Reliability', 'Growth', 'Presence', 'Assist'];
-      
+
       const userData = [
         calculateAverage(userRecord ? userRecord.selections : {}, categoryMap['tech-output']),
         calculateAverage(userRecord ? userRecord.selections : {}, categoryMap['sol-arch']),
@@ -745,12 +828,12 @@
           scales: {
             r: { min: 1, max: 7, ticks: { display: false }, grid: { color: 'rgba(0,0,0,0.05)' } }
           },
-          plugins: { 
-            legend: { 
-              display: true, 
+          plugins: {
+            legend: {
+              display: true,
               position: 'bottom',
               labels: { boxWidth: 12, font: { size: 10, weight: '600' } }
-            } 
+            }
           }
         }
       });
@@ -759,19 +842,19 @@
     function renderDrilldown(record) {
       const container = document.getElementById('drilldown-grid');
       container.innerHTML = '';
-      
+
       const selections = record ? record.selections : {};
-      
-        // Always show ALL 26 parameters from the nameMap to make it look "Complete"
+
+      // Always show ALL 26 parameters from the nameMap to make it look "Complete"
       Object.keys(nameMap).forEach(id => {
         const val = selections[id];
         const hasData = typeof val === 'number';
-        
+
         const percentage = hasData ? ((val + 1) / 7) * 100 : 0;
-        const color = hasData 
+        const color = hasData
           ? (val >= 5 ? '#10b981' : (val >= 3 ? '#6366f1' : '#f59e0b'))
           : '#e2e8f0';
-        
+
         const levelNames = ['Stagnant', 'Fluctuating', 'Steady', 'Proactive', 'High-Perf', 'Multiplier', 'Engine'];
         const levelLabel = hasData ? levelNames[val] : 'No Entry';
 
@@ -793,4 +876,5 @@
     initAnalysis();
   </script>
 </body>
+
 </html>

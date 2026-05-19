@@ -11,6 +11,18 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+// Configure SMTP Transporter for silent background emails
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.office365.com',
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for 587
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+});
 
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -140,6 +152,69 @@ db.exec(`
   );
   CREATE TABLE IF NOT EXISTS admin_emails (
     email TEXT PRIMARY KEY,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS hr_queries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_name TEXT NOT NULL,
+    employee_email TEXT NOT NULL,
+    subject TEXT,
+    message TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS support_tickets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    category TEXT NOT NULL,
+    priority TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS main_sub_mails (
+    id TEXT PRIMARY KEY,
+    main_email TEXT NOT NULL,
+    sub_email TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS social_posts (
+    id TEXT PRIMARY KEY,
+    user_email TEXT NOT NULL,
+    image_url TEXT,
+    caption TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS social_comments (
+    id TEXT PRIMARY KEY,
+    post_id TEXT NOT NULL,
+    user_email TEXT NOT NULL,
+    comment_text TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(post_id) REFERENCES social_posts(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS social_likes (
+    post_id TEXT NOT NULL,
+    user_email TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(post_id, user_email),
+    FOREIGN KEY(post_id) REFERENCES social_posts(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS social_stories (
+    id TEXT PRIMARY KEY,
+    user_email TEXT NOT NULL,
+    image_url TEXT,
+    story_text TEXT,
+    expires_at DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
@@ -598,6 +673,46 @@ app.get('/api/auth/profile', async (req, res) => {
   }
 });
 
+// GET /api/users/profile-image – Fetch any user's profile image dynamically
+app.get('/api/users/profile-image', async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ error: 'Email query parameter is required.' });
+
+    // 1. Check local SQLite
+    const userLocal = db.prepare('SELECT profile_image FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+    if (userLocal && userLocal.profile_image) {
+      return res.json({ profile_image: userLocal.profile_image });
+    }
+
+    // 2. Check Supabase
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('profile_image')
+          .eq('email', email.toLowerCase().trim())
+          .single();
+        if (!error && data && data.profile_image) {
+          return res.json({ profile_image: data.profile_image });
+        }
+      } catch (sbErr) {
+        console.warn('Supabase profile image fetch error:', sbErr.message);
+      }
+    }
+
+    res.json({ profile_image: null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/hr/config – Fetch dynamic HR configuration
+app.get('/api/hr/config', (req, res) => {
+  res.json({
+    hr_email: process.env.HR_EMAIL || 'hemalatha.malem@gantecusa.com'
+  });
+});
 
 // PUT /api/auth/profile – Update user profile
 app.put('/api/auth/profile', async (req, res) => {
@@ -2125,19 +2240,229 @@ app.post('/api/contact-hr', async (req, res) => {
       }
     }
 
-    // Build mailto URL for the frontend to optionally open
-    const mailtoSubject = encodeURIComponent(`[Employee Portal] ${subject || 'HR Inquiry'} — from ${name}`);
-    const mailtoBody = encodeURIComponent(`Hi Hemalatha,\n\n${message}\n\n— ${name} (${email})`);
-    const mailtoUrl = `mailto:hemalatha.malem@gantecusa.com?subject=${mailtoSubject}&body=${mailtoBody}`;
+    // Store in local SQLite as a secondary/primary tracking system
+    try {
+      db.prepare(`
+        INSERT INTO hr_queries (employee_name, employee_email, subject, message, status)
+        VALUES (?, ?, ?, ?, 'pending')
+      `).run(name, email, subject || 'No Subject', message);
+      console.log('✅ HR query saved to local SQLite database.');
+    } catch (dbLocalErr) {
+      console.error('❌ Failed to save query to SQLite:', dbLocalErr.message);
+    }
+
+    // 3. Silent Email Forwarding if SMTP is configured
+    const recipientEmail = process.env.HR_EMAIL;
+    if (recipientEmail && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        const mailOptions = {
+          from: `"HR Portal" <${process.env.SMTP_USER}>`,
+          to: recipientEmail,
+          replyTo: email,
+          subject: `[Contact HR Inquiry] ${subject || 'No Subject'}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 24px; line-height: 1.6; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+              <h2 style="color: #2b6cb0; margin-top: 0; display: flex; align-items: center; gap: 8px;">📬 New HR Inquiry</h2>
+              <p style="color: #4a5568;">A new employee inquiry has been submitted via the Contact HR portal.</p>
+              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+              <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; width: 120px; color: #4a5568;">Sender:</td>
+                  <td style="padding: 8px 0; color: #2d3748;">${name} (<a href="mailto:${email}">${email}</a>)</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Subject:</td>
+                  <td style="padding: 8px 0; color: #2d3748;">${subject || 'No Subject'}</td>
+                </tr>
+              </table>
+              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+              <p style="font-weight: bold; color: #4a5568; margin-bottom: 8px;">Message:</p>
+              <blockquote style="background: #f7fafc; padding: 16px; border-left: 4px solid #2b6cb0; margin: 0; border-radius: 4px; color: #2d3748; white-space: pre-wrap;">${message}</blockquote>
+              <p style="font-size: 0.8em; color: #a0aec0; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 16px;">This inquiry was dynamically logged and routed from Gantec Employee Portal.</p>
+            </div>
+          `
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`✅ HR email notification successfully forwarded to ${recipientEmail}!`);
+      } catch (mailErr) {
+        console.error('❌ Failed to forward HR email:', mailErr.message);
+      }
+    } else {
+      console.log(`ℹ️ [Email Dispatch] HR Inquiry logged securely. (SMTP not configured, skipped email transmission to ${recipientEmail})`);
+    }
 
     res.json({ 
       success: true, 
-      message: 'Your query has been sent to HR successfully!',
-      mailto: mailtoUrl
+      message: 'Your query has been sent to HR successfully!'
     });
   } catch (error) {
     console.error('Failed to process inquiry:', error);
     res.status(500).json({ error: 'Failed to process inquiry' });
+  }
+});
+
+// ─── HR Inbox Dashboard APIs ──────────────────────────────────────────────────
+app.get('/api/hr/queries', async (req, res) => {
+  try {
+    // 1. Fetch from Supabase if active
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('hr_queries')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!error && data) {
+          return res.json(data);
+        }
+        console.warn('Supabase hr_queries fetch issue, falling back to SQLite:', error?.message);
+      } catch (err) {
+        console.warn('Supabase fetch failed, falling back to SQLite:', err.message);
+      }
+    }
+
+    // 2. Fetch from SQLite fallback
+    const queries = db.prepare('SELECT * FROM hr_queries ORDER BY created_at DESC').all();
+    res.json(queries);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/hr/queries/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // 'pending', 'in-progress', 'resolved'
+
+    if (!['pending', 'in-progress', 'resolved'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    // 1. Update in local SQLite
+    db.prepare('UPDATE hr_queries SET status = ? WHERE id = ?').run(status, id);
+
+    // 2. Update in Supabase if active
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('hr_queries')
+          .update({ status })
+          .eq('id', id);
+        if (error) console.error('Supabase query status update skipped:', error.message);
+      } catch (err) {
+        console.error('Supabase status sync error:', err.message);
+      }
+    }
+
+    res.json({ success: true, message: 'Status updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Employee Support Ticket Route ────────────────────────────────────────────
+app.post('/api/employee-support/ticket', async (req, res) => {
+  try {
+    const { name, email, category, priority, subject, description } = req.body;
+
+    if (!name || !email || !subject || !description) {
+      return res.status(400).json({ error: 'Name, email, subject, and description are required.' });
+    }
+
+    console.log(`\n🎟️ [NEW SUPPORT TICKET]`);
+    console.log(`Category: ${category} | Priority: ${priority}`);
+    console.log(`From: ${name} (${email})`);
+    console.log(`Subject: ${subject}`);
+    console.log(`Description: ${description}`);
+    console.log(`------------------------\n`);
+
+    // 1. Store in SQLite database
+    try {
+      db.prepare(`
+        INSERT INTO support_tickets (name, email, category, priority, subject, description, status)
+        VALUES (?, ?, ?, ?, ?, ?, 'pending')
+      `).run(name, email, category, priority, subject, description);
+      console.log('✅ Support ticket saved to local SQLite database.');
+    } catch (sqlErr) {
+      console.error('❌ SQLite ticket storage error:', sqlErr.message);
+    }
+
+    // 2. Sync to Supabase if active
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('support_tickets').insert({
+          name,
+          email,
+          category,
+          priority,
+          subject,
+          description,
+          status: 'pending',
+          created_at: new Date()
+        });
+        if (error) {
+          console.warn('Supabase support_tickets sync issue:', error.message);
+        } else {
+          console.log('✅ Support ticket synced to cloud database.');
+        }
+      } catch (dbErr) {
+        console.warn('Supabase support_tickets DB error:', dbErr.message);
+      }
+    }
+
+    // 3. Silent Email Forwarding if SMTP is configured
+    const recipientEmail = process.env.SUPPORT_EMAIL;
+    if (recipientEmail && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        const mailOptions = {
+          from: `"Support Portal" <${process.env.SMTP_USER}>`,
+          to: recipientEmail,
+          replyTo: email,
+          subject: `[Support Ticket] [${category}] [${priority} Priority] ${subject}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 24px; line-height: 1.6; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+              <h2 style="color: #2b6cb0; margin-top: 0; display: flex; align-items: center; gap: 8px;">🎟️ New Support Ticket</h2>
+              <p style="color: #4a5568;">A new support inquiry has been submitted via the Employee Support portal.</p>
+              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+              <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; width: 120px; color: #4a5568;">Sender:</td>
+                  <td style="padding: 8px 0; color: #2d3748;">${name} (<a href="mailto:${email}">${email}</a>)</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Category:</td>
+                  <td style="padding: 8px 0; color: #2d3748;">${category}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Priority:</td>
+                  <td style="padding: 8px 0; color: #2d3748;">${priority}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Subject:</td>
+                  <td style="padding: 8px 0; color: #2d3748;">${subject}</td>
+                </tr>
+              </table>
+              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+              <p style="font-weight: bold; color: #4a5568; margin-bottom: 8px;">Description:</p>
+              <blockquote style="background: #f7fafc; padding: 16px; border-left: 4px solid #2b6cb0; margin: 0; border-radius: 4px; color: #2d3748; white-space: pre-wrap;">${description}</blockquote>
+              <p style="font-size: 0.8em; color: #a0aec0; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 16px;">This inquiry was dynamically logged and routed from Gantec Employee Portal.</p>
+            </div>
+          `
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`✅ Support email notification successfully forwarded to ${recipientEmail}!`);
+      } catch (mailErr) {
+        console.error('❌ Failed to forward support email:', mailErr.message);
+      }
+    } else {
+      console.log(`ℹ️ [Email Dispatch] Support ticket logged securely. (SMTP not configured, skipped email transmission to ${recipientEmail})`);
+    }
+
+    res.json({ success: true, message: 'Ticket submitted successfully!' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to process support ticket' });
   }
 });
 
@@ -2764,6 +3089,281 @@ app.post('/api/feedback/save', async (req, res) => {
   } catch (err) {
     console.error('Feedback sync error:', err.message);
     res.status(500).json({ error: 'Cloud Sync Failed: ' + err.message });
+  }
+});
+
+app.get('/api/sub-mails', async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  try {
+    let subMails = [];
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('main_sub_mails')
+        .select('sub_email')
+        .eq('main_email', email.toLowerCase());
+      
+      if (!error && data) {
+        subMails = data.map(item => item.sub_email);
+      } else if (error) {
+        console.warn('Supabase fetch sub-mails failed, falling back to SQLite:', error.message);
+      }
+    }
+    
+    // SQLite fallback / merge
+    const rows = db.prepare('SELECT sub_email FROM main_sub_mails WHERE main_email = ?').all(email.toLowerCase());
+    const sqliteSubs = rows.map(r => r.sub_email);
+    
+    // Combine unique sub_emails
+    const allSubs = Array.from(new Set([...subMails, ...sqliteSubs]));
+
+    // Fetch profile name and profile image for each sub-email to support actual profile pictures!
+    const subsData = [];
+    for (const subEmail of allSubs) {
+      let fullname = '';
+      let profile_image = '';
+      
+      // Check local SQLite first
+      try {
+        const userRow = db.prepare('SELECT fullname, profile_image FROM users WHERE LOWER(email) = LOWER(?)').get(subEmail);
+        if (userRow) {
+          fullname = userRow.fullname;
+          profile_image = userRow.profile_image;
+        }
+      } catch (e) {}
+
+      // Check Supabase if not found or if we want latest
+      if (supabase && (!fullname || !profile_image)) {
+        try {
+          const { data, error } = await supabase.from('users').select('fullname, profile_image').ilike('email', subEmail).single();
+          if (!error && data) {
+            fullname = data.fullname || fullname;
+            profile_image = data.profile_image || profile_image;
+          }
+        } catch (e) {}
+      }
+
+      // Fallbacks if user doesn't exist yet in users table
+      if (!fullname) {
+        fullname = subEmail.split('@')[0].split('.').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+      }
+
+      subsData.push({
+        email: subEmail,
+        fullname,
+        profile_image: profile_image || null
+      });
+    }
+
+    res.json({ success: true, subMails: subsData });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/sub-mails', async (req, res) => {
+  const { main_email, sub_email } = req.body;
+  if (!main_email || !sub_email) {
+    return res.status(400).json({ error: 'main_email and sub_email are required' });
+  }
+
+  const id = uuidv4();
+  const created_at = new Date();
+
+  try {
+    if (supabase) {
+      const { error } = await supabase
+        .from('main_sub_mails')
+        .insert([{ id, main_email: main_email.toLowerCase(), sub_email: sub_email.toLowerCase(), created_at }]);
+      if (error) {
+        console.warn('Supabase main_sub_mails insert failed, trying locally:', error.message);
+      }
+    }
+
+    db.prepare(
+      'INSERT INTO main_sub_mails (id, main_email, sub_email, created_at) VALUES (?, ?, ?, ?)'
+    ).run(id, main_email.toLowerCase(), sub_email.toLowerCase(), created_at.toISOString());
+
+    // Sync / ensure sub-user exists in the users table so their profile is active
+    let userExists = false;
+    try {
+      const localCheck = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(sub_email);
+      if (localCheck) userExists = true;
+    } catch (e) {}
+
+    if (!userExists && supabase) {
+      try {
+        const { data } = await supabase.from('users').select('id').ilike('email', sub_email);
+        if (data && data.length > 0) userExists = true;
+      } catch (e) {}
+    }
+
+    // If user profile record doesn't exist, create a stub profile so they have points, profile picture, etc.
+    if (!userExists) {
+      const stubId = uuidv4();
+      const stubName = sub_email.split('@')[0].split('.').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+      const stubUser = {
+        id: stubId,
+        fullname: stubName,
+        email: sub_email.toLowerCase(),
+        password: '', // passwordless stub
+        role: 'employee',
+        points: 0,
+        profile_image: `https://ui-avatars.com/api/?name=${encodeURIComponent(stubName)}&background=1d3461&color=fff&size=256&rounded=true`
+      };
+
+      // Insert into SQLite
+      try {
+        db.prepare(
+          'INSERT INTO users (id, fullname, email, password, role, points, profile_image) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).run(stubUser.id, stubUser.fullname, stubUser.email, stubUser.password, stubUser.role, stubUser.points, stubUser.profile_image);
+      } catch (e) {
+        console.warn('Local SQLite stub insert failed:', e.message);
+      }
+
+      // Insert into Supabase
+      if (supabase) {
+        try {
+          await supabase.from('users').insert([stubUser]);
+        } catch (e) {
+          console.warn('Supabase stub insert failed:', e.message);
+        }
+      }
+    }
+
+    res.json({ success: true, message: 'Sub mail added and profile synced successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+// ─── Gantec Social API ────────────────────────────────────────────────────────
+app.get('/api/social/feed', async (req, res) => {
+  try {
+    // Get posts with user info
+    const posts = db.prepare(`
+      SELECT p.*, u.fullname, u.profile_image 
+      FROM social_posts p 
+      LEFT JOIN users u ON LOWER(p.user_email) = LOWER(u.email)
+      ORDER BY p.created_at DESC
+    `).all();
+
+    // Attach comments and likes
+    for (let post of posts) {
+      post.comments = db.prepare(`
+        SELECT c.*, u.fullname as user_name 
+        FROM social_comments c 
+        LEFT JOIN users u ON LOWER(c.user_email) = LOWER(u.email)
+        WHERE c.post_id = ? 
+        ORDER BY c.created_at ASC
+      `).all(post.id);
+
+      const likes = db.prepare('SELECT user_email FROM social_likes WHERE post_id = ?').all(post.id);
+      post.likedBy = likes.map(l => l.user_email.toLowerCase());
+      post.likesCount = post.likedBy.length;
+    }
+
+    const stories = db.prepare(`
+      SELECT s.*, u.fullname as user_name, u.profile_image 
+      FROM social_stories s 
+      LEFT JOIN users u ON LOWER(s.user_email) = LOWER(u.email)
+      WHERE s.expires_at > datetime('now')
+      ORDER BY s.created_at DESC
+    `).all();
+
+    res.json({ success: true, posts, stories });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/social/posts', (req, res) => {
+  try {
+    const { user_email, image_url, caption } = req.body;
+    if (!user_email) return res.status(400).json({ error: 'Email required' });
+    
+    const id = uuidv4();
+    db.prepare('INSERT INTO social_posts (id, user_email, image_url, caption) VALUES (?, ?, ?, ?)')
+      .run(id, user_email, image_url || '', caption || '');
+    
+    res.json({ success: true, post_id: id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/social/comments', (req, res) => {
+  try {
+    const { post_id, user_email, comment_text } = req.body;
+    if (!post_id || !user_email || !comment_text) return res.status(400).json({ error: 'Missing data' });
+    
+    const id = uuidv4();
+    db.prepare('INSERT INTO social_comments (id, post_id, user_email, comment_text) VALUES (?, ?, ?, ?)')
+      .run(id, post_id, user_email, comment_text);
+      
+    res.json({ success: true, comment_id: id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/social/likes', (req, res) => {
+  try {
+    const { post_id, user_email } = req.body;
+    if (!post_id || !user_email) return res.status(400).json({ error: 'Missing data' });
+    
+    const emailLower = user_email.toLowerCase();
+    const existing = db.prepare('SELECT * FROM social_likes WHERE post_id = ? AND LOWER(user_email) = ?').get(post_id, emailLower);
+    
+    if (existing) {
+      db.prepare('DELETE FROM social_likes WHERE post_id = ? AND LOWER(user_email) = ?').run(post_id, emailLower);
+      res.json({ success: true, action: 'unliked' });
+    } else {
+      db.prepare('INSERT INTO social_likes (post_id, user_email) VALUES (?, ?)').run(post_id, emailLower);
+      res.json({ success: true, action: 'liked' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/social/posts/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_email } = req.body;
+    if (!id || !user_email) return res.status(400).json({ error: 'Missing data' });
+
+    const post = db.prepare('SELECT * FROM social_posts WHERE id = ?').get(id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (post.user_email.toLowerCase() !== user_email.toLowerCase()) {
+      return res.status(403).json({ error: 'You can only delete your own posts' });
+    }
+
+    db.prepare('DELETE FROM social_comments WHERE post_id = ?').run(id);
+    db.prepare('DELETE FROM social_likes WHERE post_id = ?').run(id);
+    db.prepare('DELETE FROM social_posts WHERE id = ?').run(id);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/social/stories', (req, res) => {
+  try {
+    const { user_email, image_url, story_text } = req.body;
+    if (!user_email) return res.status(400).json({ error: 'Missing user email' });
+    
+    const id = uuidv4();
+    // Stories expire in 24 hours
+    db.prepare(`
+      INSERT INTO social_stories (id, user_email, image_url, story_text, expires_at) 
+      VALUES (?, ?, ?, ?, datetime('now', '+24 hours'))
+    `).run(id, user_email, image_url || '', story_text || '');
+    
+    res.json({ success: true, story_id: id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

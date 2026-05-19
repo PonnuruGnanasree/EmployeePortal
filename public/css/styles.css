@@ -3867,3 +3867,54 @@ svg {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* =============================================
+   GANTEC PREMIUM SCROLLBAR & OVERFLOW INJECTION
+   ============================================= */
+html, body {
+  overflow-y: auto !important;
+  scroll-behavior: smooth;
+  min-height: 100vh;
+}
+
+/* Ensure app-main is always scrollable with smooth touch scrolling */
+.app-main {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Sleek, Modern, Harmonious Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.01);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(29, 52, 97, 0.18);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(29, 52, 97, 0.35) !important;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Local horizontal overflow protection for tables, charts, and split screens */
+.queries-scroll, 
+.recent-table, 
+.table-wrapper, 
+.chart-container, 
+.inbox-layout,
+.rubric-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}

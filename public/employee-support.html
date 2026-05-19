@@ -4,8 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Company Culture – Gantec Employee Portal</title>
-  <meta name="description" content="Discover the values and environment that drive Gantec." />
+  <title>Employee Support – Gantec Employee Portal</title>
+  <meta name="description" content="Access support resources and assistance for Gantec employees." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet" />
@@ -242,7 +242,8 @@
   <div class="bg-orb orb-2"></div>
   <div class="bg-orb orb-3"></div>
 
-  <div class="app-layout">    <aside class="app-sidebar">
+  <div class="app-layout">
+    <aside class="app-sidebar">
       <nav class="sidebar-nav">
         <a href="home.html" class="sidebar-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -336,8 +337,8 @@
             <span class="link-text">Company Culture</span>
           </a>
           <div class="sidebar-submenu">
-            <a href="company-culture.html" class="submenu-link active">Culture Overview</a>
-            <a href="employee-support.html" class="submenu-link">Employee Support</a>
+            <a href="company-culture.html" class="submenu-link">Culture Overview</a>
+            <a href="employee-support.html" class="submenu-link active">Employee Support</a>
           </div>
         </div>
 
@@ -381,7 +382,8 @@
     <div class="main-wrapper" style="flex:1;">
       <header class="app-header">
         <a href="home.html" class="header-brand">
-          <span class="gantec-logo-text" style="font-size: 1.25rem;">GANTEC <span class="gantec-logo-gradient">Employee Portal</span></span>
+          <span class="gantec-logo-text" style="font-size: 1.25rem;">GANTEC <span class="gantec-logo-gradient">Employee
+              Portal</span></span>
         </a>
         <div id="user-profile-section"></div>
       </header>
@@ -389,187 +391,135 @@
       <main class="app-main">
         <div class="culture-container">
           <div class="culture-header">
-            <h1 class="culture-title">Our Company Culture</h1>
-            <p class="culture-intro">At Gantec, we believe that a strong culture builds strong people. We focus on
-              creating an environment where employees feel <strong>valued, motivated, and empowered to grow</strong>.
+            <h1 class="culture-title">Employee Support</h1>
+            <p class="culture-intro">Access resources, raise tickets, and find support information to help you succeed
+              at Gantec.
             </p>
           </div>
 
-          <!-- <div class="hero-image-wrap">
-            <img src="company_culture_illustration_1775933887061.png" alt="Collaborative Culture Illustration">
-          </div> -->
+          <!-- Premium Support Ticket Form -->
+          <div class="support-card-container" style="max-width: 750px; margin: 0 auto;">
+            <div class="form-card"
+              style="background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 24px; padding: 32px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04); transition: all 0.3s ease;">
+              <h2 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 8px; color: var(--text-primary);">Report
+                Your Concern</h2>
+              <p style="color: var(--text-muted); margin-bottom: 24px; font-size: 0.95rem;">Describe your query or issue
+                below, and our support team will get back to you shortly.</p>
 
-          <section>
-            <h2 style="font-size: 2.2rem; font-weight: 850; text-align: center; margin-bottom: 48px;">Our Core Values
-            </h2>
+              <form id="support-ticket-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                  <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">Your Name</label>
+                  <input type="text" id="support-name" required placeholder="John Doe"
+                    style="padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); outline: none; transition: border 0.2s ease;" />
+                </div>
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                  <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">Email Address</label>
+                  <input type="email" id="support-email" required placeholder="john@gantecusa.com"
+                    style="padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); outline: none;" />
+                </div>
 
-            <div class="values-grid">
-              <!-- Collaboration -->
-              <div class="value-card">
-                <div class="value-icon">🤝</div>
-                <h3 class="value-title">Collaboration</h3>
-                <p class="value-desc">We believe in working together as one team. Success is a shared journey.</p>
-                <ul class="value-bullets">
-                  <li>Open communication across teams</li>
-                  <li>Supporting each other for shared goals</li>
-                  <li>Encouraging idea sharing</li>
-                </ul>
-              </div>
+                <!-- <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                  <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">Inquiry Category</label>
+                  <select id="support-category" style="padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: #fff; cursor: pointer; outline: none;">
+                    <option value="IT Support">💻 IT & Technical Support</option>
+                    <option value="HR Support">👥 HR Support</option>
+                    <option value="Payroll & Benefits">💵 Payroll & Benefits</option>
+                    <option value="Training Resources">📚 Training Resources</option>
+                    <option value="Other">❓ Other General Inquiry</option>
+                  </select>
+                </div> -->
+                <!-- <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                  <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">Priority Level</label>
+                  <select id="support-priority" style="padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: #fff; cursor: pointer; outline: none;">
+                    <option value="Low">🟢 Low</option>
+                    <option value="Medium" selected>🟡 Medium</option>
+                    <option value="High">🔴 High</option>
+                  </select>
+                </div> -->
 
-              <!-- Continuous Learning -->
-              <div class="value-card">
-                <div class="value-icon">📚</div>
-                <h3 class="value-title">Continuous Learning</h3>
-                <p class="value-desc">Growth never stops here. We invest in your potential every day.</p>
-                <ul class="value-bullets">
-                  <li>Access to certifications</li>
-                  <li>Regular upskilling opportunities</li>
-                  <li>Learning from real-time feedback</li>
-                </ul>
-              </div>
+                <div class="form-group" style="grid-column: span 2; display: flex; flex-direction: column; gap: 8px;">
+                  <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">Subject</label>
+                  <input type="text" id="support-subject" required placeholder="Brief summary of your inquiry"
+                    style="padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); outline: none;" />
+                </div>
 
-              <!-- Respect -->
-              <div class="value-card">
-                <div class="value-icon">🌟</div>
-                <h3 class="value-title">Respect</h3>
-                <p class="value-desc">Respect is at the heart of everything we do, ensuring an inclusive workplace.</p>
-                <ul class="value-bullets">
-                  <li>Valuing every individual's opinion</li>
-                  <li>Positive and inclusive environment</li>
-                  <li>Professionalism and kindness</li>
-                </ul>
-              </div>
+                <div class="form-group" style="grid-column: span 2; display: flex; flex-direction: column; gap: 8px;">
+                  <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">Detailed
+                    Description</label>
+                  <textarea id="support-description" required rows="5"
+                    placeholder="Provide details about your query here..."
+                    style="padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); outline: none; resize: vertical; font-family: inherit;"></textarea>
+                </div>
 
-              <!-- Innovation -->
-              <div class="value-card">
-                <div class="value-icon">🚀</div>
-                <h3 class="value-title">Innovation</h3>
-                <p class="value-desc">We encourage new ideas and creative thinking to stay ahead of the curve.</p>
-                <ul class="value-bullets">
-                  <li>Freedom to experiment</li>
-                  <li>Embracing new technologies</li>
-                  <li>Constant improvement mindset</li>
-                </ul>
-              </div>
-
-              <!-- Accountability -->
-              <div class="value-card">
-                <div class="value-icon">🎯</div>
-                <h3 class="value-title">Accountability</h3>
-                <p class="value-desc">We take ownership of our work and deliver with commitment.</p>
-                <ul class="value-bullets">
-                  <li>Responsibility for outcomes</li>
-                  <li>Integrity in every action</li>
-                  <li>Ownership of delivery</li>
-                </ul>
-              </div>
-
-              <!-- Communication -->
-              <div class="value-card">
-                <div class="value-icon">💬</div>
-                <h3 class="value-title">Open Communication</h3>
-                <p class="value-desc">Transparency builds trust. We keep our conversations clear and honest.</p>
-                <ul class="value-bullets">
-                  <li>Clear and honest dialogue</li>
-                  <li>Regular feedback cycles</li>
-                  <li>Trust-based discussions</li>
-                </ul>
-              </div>
-
-              <!-- Work-Life Balance -->
-              <div class="value-card">
-                <div class="value-icon">⚖️</div>
-                <h3 class="value-title">Work-Life Balance</h3>
-                <p class="value-desc">We care about your well-being. A happy employee is a productive one.</p>
-                <ul class="value-bullets">
-                  <li>Healthy work habits</li>
-                  <li>Personal-professional balance</li>
-                  <li>Well-being support</li>
-                </ul>
-              </div>
-
-              <!-- Adaptability -->
-              <div class="value-card">
-                <div class="value-icon">🌱</div>
-                <h3 class="value-title">Adaptability</h3>
-                <p class="value-desc">We embrace change and stay flexible in a fast-moving environment.</p>
-                <ul class="value-bullets">
-                  <li>Quickly adjusting to new challenges</li>
-                  <li>Open to feedback and improvements</li>
-                  <li>Staying resilient during changes</li>
-                </ul>
-              </div>
-
-              <!-- Excellence -->
-              <div class="value-card">
-                <div class="value-icon">🏆</div>
-                <h3 class="value-title">Excellence</h3>
-                <p class="value-desc">We always strive to give our best in everything we deliver.</p>
-                <ul class="value-bullets">
-                  <li>High-quality standards in work</li>
-                  <li>Meticulous attention to detail</li>
-                  <li>Continuously improving performance</li>
-                </ul>
-              </div>
+                <div style="grid-column: span 2; margin-top: 12px;">
+                  <button type="submit" id="support-submit-btn"
+                    style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: var(--primary); color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(29, 52, 97, 0.2);">
+                    Submit For Support
+                  </button>
+                </div>
+              </form>
             </div>
-          </section>
-
-          <section class="quote-section">
-            <div class="quote-symbol">“</div>
-            <p class="quote-text">Data First, People Always</p>
-            <p style="color:var(--text-muted); font-weight: 600;">- Gantec </p>
-          </section>
-
-          <div class="extra-sections">
-            <section class="extra-card">
-              <h2>Work Environment</h2>
-              <ul class="extra-list">
-                <li class="extra-item">
-                  <div class="item-dot">🌈</div> Friendly and inclusive workplace
-                </li>
-                <li class="extra-item">
-                  <div class="item-dot">💡</div> Idea-driven and innovation-focused
-                </li>
-                <li class="extra-item">
-                  <div class="item-dot">🤝</div> Supportive teams and leadership
-                </li>
-                <li class="extra-item">
-                  <div class="item-dot">🎉</div> Fun activities like Weekly Connect
-                </li>
-              </ul>
-            </section>
-
-            <section class="extra-card">
-              <h2>What Makes Us Unique</h2>
-              <ul class="extra-list">
-                <li class="extra-item">
-                  <div class="item-dot">📈</div> Focus on employee growth
-                </li>
-                <li class="extra-item">
-                  <div class="item-dot">📊</div> Regular Monthly Feedback
-                </li>
-                <li class="extra-item">
-                  <div class="item-dot">💖</div> Weekly Connect sessions
-                </li>
-                <li class="extra-item">
-                  <div class="item-dot">🚀</div> Opportunities to learn and lead
-                </li>
-              </ul>
-            </section>
-          </div>
-
-          <div style="text-align: center; margin-top: 80px; padding-bottom: 40px;">
-            <p style="font-size: 1.4rem; font-weight: 700; color: var(--primary);">More than just a workplace — we are a
-              community.</p>
-            <p style="color: var(--text-muted); margin-top: 8px;">Growing together, supporting each other, and
-              celebrating success.</p>
           </div>
         </div>
       </main>
     </div>
   </div>
 
+  <div id="toast-container" class="toast-container"></div>
+
   <script src="js/app.js?v=7"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Auto-prefill employee info
+      const name = localStorage.getItem('gantec_user_name');
+      const email = localStorage.getItem('gantec_user_email');
+      if (name) document.getElementById('support-name').value = name;
+      if (email) document.getElementById('support-email').value = email;
+
+      const form = document.getElementById('support-ticket-form');
+      const submitBtn = document.getElementById('support-submit-btn');
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        submitBtn.textContent = 'Submitting Ticket...';
+        submitBtn.disabled = true;
+
+        const payload = {
+          name: document.getElementById('support-name').value,
+          email: document.getElementById('support-email').value,
+          category: document.getElementById('support-category').value,
+          priority: document.getElementById('support-priority').value,
+          subject: document.getElementById('support-subject').value,
+          description: document.getElementById('support-description').value
+        };
+
+        fetch('/api/employee-support/ticket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              showToast('Ticket submitted successfully! Admin notified.', 'success');
+              document.getElementById('support-subject').value = '';
+              document.getElementById('support-description').value = '';
+            } else {
+              showToast(data.error || 'Failed to submit ticket.', 'error');
+            }
+          })
+          .catch(err => {
+            console.error(err);
+            showToast('Error submitting support ticket.', 'error');
+          })
+          .finally(() => {
+            submitBtn.textContent = 'Submit Support Ticket';
+            submitBtn.disabled = false;
+          });
+      });
+    });
+  </script>
 </body>
 
 </html>

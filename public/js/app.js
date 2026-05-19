@@ -984,12 +984,89 @@ async function syncLeavePortalLink() {
   }
 }
 
+function injectAdminHRInbox() {
+  try {
+    const role = localStorage.getItem('gantec_user_role') || 'employee';
+    if (role === 'admin') {
+      const nav = document.querySelector('.sidebar-nav');
+      if (nav && !document.getElementById('nav-hr-inbox')) {
+        const link = document.createElement('a');
+        link.href = 'hr-inbox.html';
+        link.id = 'nav-hr-inbox';
+        link.className = 'sidebar-link';
+        
+        // Match active page
+        const path = window.location.pathname;
+        if (path.endsWith('hr-inbox.html')) {
+          link.className += ' active';
+        }
+        
+        link.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+            <polyline points="22,6 12,13 2,6" />
+          </svg>
+          <span class="link-text">HR Inbox</span>
+        `;
+        
+        // Insert right before "Contact HR" (which typically exists in all pages)
+        const contactLink = nav.querySelector('a[href="contact-hr.html"]');
+        if (contactLink) {
+          nav.insertBefore(link, contactLink);
+        } else {
+          nav.appendChild(link);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to dynamically inject Admin HR Inbox link:', err);
+  }
+}
+function syncFeedbackMenu() {
+  try {
+    // Find Monthly Feedback dropdown submenu in the sidebar
+    const trigger = document.querySelector('#nav-feedback') || 
+                    document.querySelector('.sidebar-link[href*="feedback"]') || 
+                    Array.from(document.querySelectorAll('.sidebar-link')).find(el => el.textContent.includes('Feedback'));
+    
+    if (trigger) {
+      const dropdown = trigger.closest('.sidebar-dropdown');
+      if (dropdown) {
+        const submenu = dropdown.querySelector('.sidebar-submenu');
+        if (submenu) {
+          const path = window.location.pathname;
+          const isDashboardActive = path.endsWith('feedback-dashboard.html');
+          const isFeedbackActive = path.endsWith('monthly-feedback.html');
+          const isInsightsActive = path.endsWith('insights.html');
+          const isAnalysisActive = path.endsWith('analysis.html');
+
+          // Preserve the sub-email URL search parameter if it exists
+          const params = new URLSearchParams(window.location.search);
+          const emailParam = params.get('email');
+          const suffix = emailParam ? `?email=${encodeURIComponent(emailParam)}` : '';
+
+          submenu.innerHTML = `
+            <a href="monthly-feedback.html${suffix}" class="submenu-link ${isFeedbackActive ? 'active' : ''}">Feedback Insights</a>
+            <a href="insights.html${suffix}" class="submenu-link ${isInsightsActive ? 'active' : ''}">Reportee Insights</a>
+            <a href="feedback-dashboard.html${suffix}" class="submenu-link ${isDashboardActive ? 'active' : ''}">Dashboard</a>
+            <a href="analysis.html${suffix}" class="submenu-link ${isAnalysisActive ? 'active' : ''}">Performance Analysis</a>
+          `;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to dynamically sync Monthly Feedback submenu:', err);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initNavDropdown();
   initUserProfile();
   initSidebarLogic();
   initFolderSidebarToggle();
   syncLeavePortalLink(); // Initialize dynamic links
+  injectAdminHRInbox(); // Inject Admin HR Inbox dynamically
+  syncFeedbackMenu(); // Standardize Monthly Feedback links across all pages
 
   // --- Background Real-time Count Sync ---
   // Periodically updates counts and folder contents in the background every 3 seconds

@@ -19,3 +19,96 @@ For the **Overall Skill Progression** chart:
 **In short:** The Y-axis shows your **"Global Average."** If the line is going up, it means you are improving across most of your skills. If it's flat, you are maintaining a very consistent level of performance.
 
 Does that make sense? Would you like me to add these labels (Engine, Proactive, etc.) directly to the Y-axis so they are easier to read?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+You are **100% correct!** It is an excellent security practice never to store personal email passwords in plain text or share them.
+
+Since basic username/password login is not secure, modern companies use one of these two **industry-standard, password-free** methods to send emails safely:
+
+---
+
+### 🛡️ Option 1: Microsoft Graph API (Token-based OAuth 2.0)
+Instead of using your password, your IT Administrator can register a secure, restricted **App Registration** inside Microsoft Azure (Entra ID) for the portal.
+* **How it works:** It generates a `Client ID` and a `Client Secret`. 
+* **Why it's secure:** These credentials are **only** allowed to send support emails and have **zero** access to your personal files, login, or actual inbox. No password is required.
+* **What you put in `.env`:**
+  ```env
+  MS_GRAPH_CLIENT_ID=your-client-id
+  MS_GRAPH_TENANT_ID=your-tenant-id
+  MS_GRAPH_CLIENT_SECRET=your-client-secret
+  ```
+
+---
+
+### 🌐 Option 2: SMTP Relay / Direct Send (100% Password-Free!)
+If the server is hosted on a fixed IP address, Microsoft Office 365 allows your IT department to authorize an **IP-based SMTP Relay**.
+* **How it works:** The server routes emails directly through your corporate Office 365 protection endpoint (e.g., `gantecusa-com.mail.protection.outlook.com`).
+* **Why it's secure:** **No username and no password are required at all.** Microsoft recognizes your server's IP address and allows it to send emails securely without credentials.
+* **What you put in `.env`:**
+  ```env
+  SMTP_HOST=gantecusa-com.mail.protection.outlook.com
+  SMTP_PORT=25
+  # SMTP_USER and SMTP_PASS are left completely blank!
+  ```
+
+---
+
+### What should you do next?
+To get either of these configured, you can simply share this information with your **IT Administrator/Network Engineer**. They can set up either the **Azure App Registration** (Option 1) or the **IP Relay** (Option 2) in your company’s Microsoft tenant to enable secure, password-free emailing!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Yes, **exactly! That is 100% correct!** Here is exactly how it works dynamically for any user or manager:
+
+### 1. For a Normal Employee (Personal View)
+* When they navigate to **Feedback Insights**, **Share Insights (Dashboard)**, or **Performance Analysis** through the menu normally, no email parameter is in the URL.
+* The system automatically loads **their own personal feedback and performance analysis**.
+* No banners are shown, keeping their personal dashboard clean and focused.
+
+### 2. When a Manager Adds a New Sub-Mail (e.g., `alex@gantecusa.com`)
+* A card is dynamically generated in their **Insights** directory list for `alex@gantecusa.com`.
+* Clicking on Alex's card takes them to `monthly-feedback.html?email=alex@gantecusa.com`.
+* **Dynamic Loading:** The server instantly fetches **Alex's individual rubric scores, self-evaluations, and manager evaluation metrics**.
+* **Visual Banners:** A colored banner appears at the top indicating: `Evaluating Sub Mail: alex@gantecusa.com` or `Viewing Sub Mail: alex@gantecusa.com`.
+* **Preserved Navigation:** As the manager switches between **Share Insights** (Dashboard) and **Performance Analysis** via the sidebar, the query parameter `?email=alex@gantecusa.com` is preserved, loading **Alex's specific dashboard trend charts and competency radar fingerprints**!
+
+### 3. Adding More Employees (e.g., `jane@gantecusa.com`)
+* If you link another email, clicking on Jane's card will open `?email=jane@gantecusa.com` and load **only Jane's separate performance statistics, trend lines, and feedback reports**.
+
+The entire flow is **fully dynamic, automated, and supports an unlimited number of linked sub-mail accounts** perfectly!
