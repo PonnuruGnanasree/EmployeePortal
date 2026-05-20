@@ -808,7 +808,7 @@
           <div class="sidebar-submenu">
             <a href="monthly-feedback.html" class="submenu-link active">Feedback Insights</a>
             <a href="insights.html" class="submenu-link">Reportee Insights</a>
-            <a href="feedback-dashboard.html" class="submenu-link">Dashboard</a>
+            <a href="feedback-dashboard.html" class="submenu-link">Monthly Dashboard</a>
             <a href="analysis.html" class="submenu-link">Performance Analysis</a>
           </div>
         </div>
@@ -883,15 +883,7 @@
           <span class="link-text">Contact HR</span>
         </a>
 
-        <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
-          <a href="#" class="sidebar-link" id="sidebar-profile-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span class="link-text">My Profile</span>
-          </a>
-        </div>
+
       </nav>
     </aside>
 
@@ -977,6 +969,7 @@
           weight: "60% Weight",
           subsections: [
             {
+              id: "technical_delivery",
               name: "Technical Delivery",
               icon: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
               focus: "Output, Velocity, and Quality",
@@ -1051,6 +1044,7 @@
               ]
             },
             {
+              id: "solutioning_depth",
               name: "Solutioning Depth",
               icon: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>`,
               focus: "Engineering Rigor and Vision",
@@ -1125,6 +1119,7 @@
               ]
             },
             {
+              id: "reliability",
               name: "Reliability",
               icon: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
               focus: "Trust and Predictability",
@@ -1192,6 +1187,7 @@
           weight: "40% Weight",
           subsections: [
             {
+              id: "growth",
               name: "Growth",
               icon: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
               focus: "Learning and Adaptability",
@@ -1253,6 +1249,7 @@
               ]
             },
             {
+              id: "presence",
               name: "Presence",
               icon: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
               focus: "Communication and Influence",
@@ -1314,6 +1311,7 @@
               ]
             },
             {
+              id: "assist",
               name: "Assist",
               icon: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
               focus: "Team Multiplier and Mentorship",
@@ -1699,10 +1697,18 @@
                             >${remarks[currentRole][row.id] || ''}</textarea>
                           </td>
                         </tr>
+                          <!-- Comment Box -->
                       `).join('')}
                     </tbody>
                   </table>
                 </div>
+              </div>
+              <div class="skill-comment" style="margin-top: 20px;">
+                <textarea class="skill-comment-input" placeholder="Add a comment for this skill..."
+                  data-skill-id="${sub.id}" oninput="updateSkillComment('${sub.id}', this.value)"
+                  ${locked[currentRole] ? 'disabled' : ''}
+                  style="width:100%;min-height:80px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.9rem;resize:vertical;background:transparent;color:var(--text-primary);"
+                >${remarks[currentRole]["comment_" + sub.id] || ''}</textarea>
               </div>
             </div>
           `;
@@ -1788,6 +1794,25 @@
         updateSyncStatus('syncing');
         clearTimeout(remarkTimeout);
         remarkTimeout = setTimeout(() => {
+          saveToSupabase(email, currentRole, false, null, false).then(() => {
+            updateSyncStatus('synced');
+          }).catch(() => {
+            updateSyncStatus('failed');
+          });
+        }, 1000);
+      }
+    }
+
+    let skillCommentTimeout;
+    function updateSkillComment(skillId, val) {
+      if (locked[currentRole]) return;
+      remarks[currentRole]["comment_" + skillId] = val;
+
+      const email = getCurrentEmail();
+      if (email) {
+        updateSyncStatus('syncing');
+        clearTimeout(skillCommentTimeout);
+        skillCommentTimeout = setTimeout(() => {
           saveToSupabase(email, currentRole, false, null, false).then(() => {
             updateSyncStatus('synced');
           }).catch(() => {

@@ -181,7 +181,7 @@
           <div class="sidebar-submenu">
             <a href="monthly-feedback.html" class="submenu-link">Feedback Insights</a>
             <a href="insights.html" class="submenu-link">Reportee Insights</a>
-            <a href="feedback-dashboard.html" class="submenu-link">Dashboard</a>
+            <a href="feedback-dashboard.html" class="submenu-link">Monthly Dashboard</a>
             <a href="analysis.html" class="submenu-link active">Performance Analysis</a>
           </div>
         </div>
@@ -372,29 +372,53 @@
                 Pictorial Metric Breakdown
               </h3>
 
-              <div
-                style="display: flex; gap: 16px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); align-items: center; background: var(--bg-light); padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);">
-                <div style="display: flex; align-items: center; gap: 6px;" title="Multiplier / Engine (6-7)"><span
-                    style="width: 10px; height: 10px; border-radius: 50%; background: #10b981;"></span> Mastery</div>
-                <div style="display: flex; align-items: center; gap: 6px;" title="Proactive / High-Perf (4-5)"><span
-                    style="width: 10px; height: 10px; border-radius: 50%; background: #6366f1;"></span> Advanced</div>
-                <div style="display: flex; align-items: center; gap: 6px;"
-                  title="Stagnant / Fluctuating / Steady (1-3)"><span
-                    style="width: 10px; height: 10px; border-radius: 50%; background: #f59e0b;"></span> Developing</div>
+              <div id="status-legend-filter"
+                style="display: flex; gap: 4px; font-size: 0.75rem; font-weight: 600; align-items: center; background: var(--bg-light); padding: 4px; border-radius: 24px; border: 1px solid var(--border); flex-wrap: wrap;">
+                <button data-filter="all" style="border: none; background: white; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; cursor: pointer; color: var(--text-primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s; outline: none;">
+                  All
+                </button>
+                <button data-filter="mastery" style="border: none; background: transparent; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; gap: 6px; transition: all 0.2s; outline: none;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span> Mastery
+                </button>
+                <button data-filter="advanced" style="border: none; background: transparent; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; gap: 6px; transition: all 0.2s; outline: none;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #6366f1;"></span> Advanced
+                </button>
+                <button data-filter="developing" style="border: none; background: transparent; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; gap: 6px; transition: all 0.2s; outline: none;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></span> Developing
+                </button>
               </div>
 
-              <div style="position: relative;">
-                <input type="text" id="skill-search" placeholder="Search skill..."
-                  style="padding: 8px 12px 8px 36px; border-radius: 10px; border: 1px solid var(--border); font-size: 0.8rem; width: 220px;">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
-                  style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
+              <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <!-- View Toggle Segmented Control -->
+                <div id="drilldown-view-toggle" style="display: flex; background: var(--bg-light); border: 1px solid var(--border); padding: 4px; border-radius: 12px;">
+                  <button data-view="chart" style="border: none; background: white; padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer; color: var(--text-primary); display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s; outline: none;">
+                    📊 Chart
+                  </button>
+                  <button data-view="grid" style="border: none; background: transparent; padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; gap: 6px; transition: all 0.2s; outline: none;">
+                    🗂️ Grid
+                  </button>
+                </div>
+
+                <div style="position: relative;">
+                  <input type="text" id="skill-search" placeholder="Search skill..."
+                    style="padding: 8px 12px 8px 36px; border-radius: 10px; border: 1px solid var(--border); font-size: 0.8rem; width: 220px;">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+                    style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                </div>
               </div>
             </div>
+
+            <!-- Chart view container (default active) -->
+            <div id="drilldown-chart-container" style="display: block; width: 100%; height: 500px; margin-top: 10px; position: relative;">
+              <canvas id="drilldownChart"></canvas>
+            </div>
+
+            <!-- Grid view container -->
             <div id="drilldown-grid"
-              style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
+              style="display: none; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
               <!-- Individual bars injected here -->
             </div>
           </div>
@@ -603,7 +627,10 @@
       const userSnapshot = yearData.find(d => d.role === 'user' && d.period === targetPeriod);
       const adminSnapshot = yearData.find(d => d.role === 'admin' && d.period === targetPeriod);
 
-      renderOverallTrend(trendData, snapshot ? snapshot.period : null);
+      const userDataList = yearData.filter(d => d.role === 'user');
+      const adminDataList = yearData.filter(d => d.role === 'admin');
+
+      renderOverallTrend(userDataList, adminDataList, snapshot ? snapshot.period : null);
       renderRadarProfile(userSnapshot, adminSnapshot);
       renderDrilldown(snapshot);
       updateAIInsight(trendData, snapshot);
@@ -679,16 +706,211 @@
     }
 
 
-    // Search Logic
-    document.getElementById('skill-search').addEventListener('input', (e) => {
-      const term = e.target.value.toLowerCase();
+    // Interactive Legend Filter & Search Logic
+    let currentLegendFilter = 'all';
+    let currentDrilldownData = {};
+
+    function applyDrilldownFilters() {
+      const term = document.getElementById('skill-search').value.toLowerCase();
       const cards = document.querySelectorAll('#drilldown-grid > div');
 
       cards.forEach(card => {
         const text = card.textContent.toLowerCase();
-        card.style.display = text.includes(term) ? 'block' : 'none';
+        const tier = card.dataset.tier;
+        
+        const matchesSearch = text.includes(term);
+        const matchesLegend = currentLegendFilter === 'all' || tier === currentLegendFilter;
+
+        card.style.display = (matchesSearch && matchesLegend) ? 'flex' : 'none';
       });
+
+      updateDrilldownChart();
+    }
+
+    document.getElementById('skill-search').addEventListener('input', applyDrilldownFilters);
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. Legend filter handler
+      const legendFilter = document.getElementById('status-legend-filter');
+      if (legendFilter) {
+        legendFilter.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => {
+            legendFilter.querySelectorAll('button').forEach(b => {
+              b.style.background = 'transparent';
+              b.style.color = 'var(--text-muted)';
+              b.style.fontWeight = '600';
+              b.style.boxShadow = 'none';
+            });
+            btn.style.background = 'white';
+            btn.style.color = 'var(--text-primary)';
+            btn.style.fontWeight = '700';
+            btn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+            
+            currentLegendFilter = btn.dataset.filter;
+            applyDrilldownFilters();
+          });
+        });
+      }
+
+      // 2. View toggle handler
+      const viewToggle = document.getElementById('drilldown-view-toggle');
+      if (viewToggle) {
+        viewToggle.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => {
+            viewToggle.querySelectorAll('button').forEach(b => {
+              b.style.background = 'transparent';
+              b.style.color = 'var(--text-muted)';
+              b.style.fontWeight = '600';
+              b.style.boxShadow = 'none';
+            });
+            btn.style.background = 'white';
+            btn.style.color = 'var(--text-primary)';
+            btn.style.fontWeight = '700';
+            btn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+            
+            const view = btn.dataset.view;
+            const chartContainer = document.getElementById('drilldown-chart-container');
+            const gridContainer = document.getElementById('drilldown-grid');
+            
+            if (view === 'chart') {
+              chartContainer.style.display = 'block';
+              gridContainer.style.display = 'none';
+              updateDrilldownChart();
+            } else {
+              chartContainer.style.display = 'none';
+              gridContainer.style.display = 'grid';
+            }
+          });
+        });
+      }
     });
+
+    function updateDrilldownChart() {
+      const canvas = document.getElementById('drilldownChart');
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      if (charts.drilldown) charts.drilldown.destroy();
+
+      const term = document.getElementById('skill-search').value.toLowerCase();
+
+      // Filter and sort the skills based on active search/filters
+      const filteredSkills = Object.keys(nameMap).map(id => {
+        const val = currentDrilldownData[id];
+        const hasData = typeof val === 'number';
+        
+        let tier = 'none';
+        if (hasData) {
+          tier = val >= 5 ? 'mastery' : (val >= 3 ? 'advanced' : 'developing');
+        }
+
+        const matchesSearch = nameMap[id].toLowerCase().includes(term);
+        const matchesLegend = currentLegendFilter === 'all' || tier === currentLegendFilter;
+
+        return {
+          id,
+          name: nameMap[id],
+          val: hasData ? val + 1 : 0,
+          hasData,
+          tier,
+          visible: matchesSearch && matchesLegend
+        };
+      }).filter(item => item.visible);
+
+      // Sort: rated first (descending), then unrated
+      filteredSkills.sort((a, b) => {
+        if (a.hasData && !b.hasData) return -1;
+        if (!a.hasData && b.hasData) return 1;
+        return b.val - a.val;
+      });
+
+      const labels = filteredSkills.map(item => item.name);
+      const values = filteredSkills.map(item => item.val);
+      const backgroundColors = [];
+      const borderColors = [];
+
+      filteredSkills.forEach(item => {
+        if (!item.hasData) {
+          backgroundColors.push('rgba(226, 232, 240, 0.4)');
+          borderColors.push('#e2e8f0');
+        } else if (item.tier === 'mastery') {
+          backgroundColors.push('rgba(16, 185, 129, 0.2)');
+          borderColors.push('#10b981');
+        } else if (item.tier === 'advanced') {
+          backgroundColors.push('rgba(99, 102, 241, 0.2)');
+          borderColors.push('#6366f1');
+        } else {
+          backgroundColors.push('rgba(245, 158, 11, 0.2)');
+          borderColors.push('#f59e0b');
+        }
+      });
+
+      // Calculate dynamic height based on number of items to prevent squishing
+      const chartContainer = document.getElementById('drilldown-chart-container');
+      if (chartContainer) {
+        const dynamicHeight = Math.max(300, filteredSkills.length * 32 + 80);
+        chartContainer.style.height = `${dynamicHeight}px`;
+      }
+
+      charts.drilldown = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: values,
+            backgroundColor: backgroundColors,
+            borderColor: borderColors,
+            borderWidth: 1.5,
+            borderRadius: 6,
+            barThickness: 14
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(30, 41, 59, 0.9)',
+              titleFont: { size: 12, weight: '700', family: "'Outfit', sans-serif" },
+              bodyFont: { size: 12, family: "'Outfit', sans-serif" },
+              padding: 10,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  const val = context.raw;
+                  if (val === 0) return 'No Entry';
+                  const levelNames = ['Stagnant', 'Fluctuating', 'Steady', 'Proactive', 'High-Perf', 'Multiplier', 'Engine'];
+                  return ` Score: ${val}/7 (${levelNames[val - 1]})`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              min: 0,
+              max: 7,
+              ticks: {
+                stepSize: 1,
+                font: { weight: '600' }
+              },
+              grid: { color: 'rgba(0,0,0,0.04)' }
+            },
+            y: {
+              grid: { display: false },
+              ticks: {
+                font: {
+                  size: 11,
+                  weight: '600',
+                  family: "'Outfit', sans-serif"
+                }
+              }
+            }
+          }
+        }
+      });
+    }
 
     function calculateAverage(selections, rowIds) {
       if (!selections) return null;
@@ -701,46 +923,77 @@
     }
 
 
-    function renderOverallTrend(data, highlightPeriod) {
+    function renderOverallTrend(userData, adminData, highlightPeriod) {
       const ctx = document.getElementById('overallChart').getContext('2d');
       if (charts.overall) charts.overall.destroy();
 
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-      // Create a 12-month data array
-      const values = new Array(12).fill(null);
-      const pointRadii = new Array(12).fill(4); // Small dots for all months by default
-      const pointColors = new Array(12).fill('#e2e8f0'); // Light grey for empty months
-      const pointBorderColors = new Array(12).fill('#f1f5f9');
+      // Create 12-month data arrays for both datasets
+      const userValues = new Array(12).fill(null);
+      const userPointRadii = new Array(12).fill(4);
+      const userPointColors = new Array(12).fill('#e2e8f0');
+      const userPointBorderColors = new Array(12).fill('#f1f5f9');
 
-      // Map existing data to the correct month index
-      data.forEach(d => {
+      const adminValues = new Array(12).fill(null);
+      const adminPointRadii = new Array(12).fill(4);
+      const adminPointColors = new Array(12).fill('#e2e8f0');
+      const adminPointBorderColors = new Array(12).fill('#f1f5f9');
+
+      // Map User Data
+      userData.forEach(d => {
         const monthIndex = parseInt(d.period.split('-')[1]) - 1;
         if (monthIndex >= 0 && monthIndex < 12) {
-          values[monthIndex] = calculateOverallAvg(d);
+          userValues[monthIndex] = calculateOverallAvg(d);
 
-          // Historical data points are Blue
-          pointRadii[monthIndex] = 6;
-          pointColors[monthIndex] = '#fff';
-          pointBorderColors[monthIndex] = '#6366f1';
+          // Historical points are white inside with indigo border
+          userPointRadii[monthIndex] = 6;
+          userPointColors[monthIndex] = '#fff';
+          userPointBorderColors[monthIndex] = '#6366f1';
 
-          // Highlight logic (Green)
+          // Highlight logic
           if (d.period === highlightPeriod) {
-            pointRadii[monthIndex] = 10;
-            pointColors[monthIndex] = '#10b981';
-            pointBorderColors[monthIndex] = '#fff';
+            userPointRadii[monthIndex] = 10;
+            userPointColors[monthIndex] = '#6366f1';
+            userPointBorderColors[monthIndex] = '#fff';
           }
         }
       });
 
-      // Special case: if highlightPeriod is set but has no data, we still show the green dot on the baseline
+      // Map Admin/Manager Data
+      adminData.forEach(d => {
+        const monthIndex = parseInt(d.period.split('-')[1]) - 1;
+        if (monthIndex >= 0 && monthIndex < 12) {
+          adminValues[monthIndex] = calculateOverallAvg(d);
+
+          // Historical points are white inside with green border
+          adminPointRadii[monthIndex] = 6;
+          adminPointColors[monthIndex] = '#fff';
+          adminPointBorderColors[monthIndex] = '#10b981';
+
+          // Highlight logic
+          if (d.period === highlightPeriod) {
+            adminPointRadii[monthIndex] = 10;
+            adminPointColors[monthIndex] = '#10b981';
+            adminPointBorderColors[monthIndex] = '#fff';
+          }
+        }
+      });
+
+      // Special case: if highlightPeriod is set but has no data, show baseline dot
       if (highlightPeriod) {
         const hMonthIndex = parseInt(highlightPeriod.split('-')[1]) - 1;
-        if (values[hMonthIndex] === null) {
-          values[hMonthIndex] = 1; // Show at baseline if no data
-          pointRadii[hMonthIndex] = 10;
-          pointColors[hMonthIndex] = '#10b981';
-          pointBorderColors[hMonthIndex] = '#fff';
+        if (userValues[hMonthIndex] === null) {
+          userValues[hMonthIndex] = 1;
+          userPointRadii[hMonthIndex] = 10;
+          userPointColors[hMonthIndex] = '#6366f1';
+          userPointBorderColors[hMonthIndex] = '#fff';
+        }
+        if (adminValues[hMonthIndex] === null) {
+          adminValues[hMonthIndex] = 1;
+          adminPointRadii[hMonthIndex] = 10;
+          adminPointColors[hMonthIndex] = '#10b981';
+          adminPointBorderColors[hMonthIndex] = '#fff';
         }
       }
 
@@ -748,25 +1001,55 @@
         type: 'line',
         data: {
           labels: monthNames,
-          datasets: [{
-            label: 'Performance Level',
-            data: values,
-            borderColor: '#6366f1',
-            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-            borderWidth: 4,
-            tension: 0.4,
-            fill: true,
-            pointRadius: pointRadii,
-            pointBackgroundColor: pointColors,
-            pointBorderColor: pointBorderColors,
-            pointBorderWidth: 3,
-            spanGaps: true
-          }]
+          datasets: [
+            {
+              label: 'Self-Assessment (User)',
+              data: userValues,
+              borderColor: '#6366f1',
+              backgroundColor: 'rgba(99, 102, 241, 0.05)',
+              borderWidth: 4,
+              tension: 0.4,
+              fill: true,
+              pointRadius: userPointRadii,
+              pointBackgroundColor: userPointColors,
+              pointBorderColor: userPointBorderColors,
+              pointBorderWidth: 3,
+              spanGaps: true
+            },
+            {
+              label: 'Manager Review (Admin)',
+              data: adminValues,
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.05)',
+              borderWidth: 4,
+              tension: 0.4,
+              fill: true,
+              pointRadius: adminPointRadii,
+              pointBackgroundColor: adminPointColors,
+              pointBorderColor: adminPointBorderColors,
+              pointBorderWidth: 3,
+              spanGaps: true
+            }
+          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                boxWidth: 12,
+                font: {
+                  size: 11,
+                  weight: '600',
+                  family: "'Outfit', sans-serif"
+                },
+                padding: 15
+              }
+            }
+          },
           scales: {
             y: { min: 1, max: 7, grid: { color: 'rgba(0,0,0,0.05)' } },
             x: { grid: { display: false } }
@@ -844,33 +1127,139 @@
       container.innerHTML = '';
 
       const selections = record ? record.selections : {};
+      currentDrilldownData = selections;
 
-      // Always show ALL 26 parameters from the nameMap to make it look "Complete"
-      Object.keys(nameMap).forEach(id => {
+      const levelNames = ['Stagnant', 'Fluctuating', 'Steady', 'Proactive', 'High-Perf', 'Multiplier', 'Engine'];
+
+      // Status badge config — mirrors the certification page's expiry-badge style
+      function getSkillStatus(val) {
+        if (typeof val !== 'number') {
+          return { label: 'No Entry', badgeBg: '#f1f5f9', badgeColor: '#94a3b8', icon: '○', tier: 'none', barColor: '#e2e8f0', borderColor: '#f1f5f9' };
+        }
+        if (val >= 5) {
+          // Mastery (6-7 on the 1-7 scale → index 5,6)
+          return { label: levelNames[val], badgeBg: '#dcfce7', badgeColor: '#16a34a', icon: '✦', tier: 'mastery', barColor: '#10b981', borderColor: '#bbf7d0' };
+        }
+        if (val >= 3) {
+          // Advanced (4-5 on the 1-7 scale → index 3,4)
+          return { label: levelNames[val], badgeBg: '#e0e7ff', badgeColor: '#4f46e5', icon: '▲', tier: 'advanced', barColor: '#6366f1', borderColor: '#c7d2fe' };
+        }
+        // Developing (1-3 on the 1-7 scale → index 0,1,2)
+        return { label: levelNames[val], badgeBg: '#fef3c7', badgeColor: '#d97706', icon: '●', tier: 'developing', barColor: '#f59e0b', borderColor: '#fde68a' };
+      }
+
+      // Category icon map for extra visual flair
+      const categoryIcons = {};
+      (categoryMap['tech-output'] || []).forEach(id => categoryIcons[id] = '⚡');
+      (categoryMap['sol-arch'] || []).forEach(id => categoryIcons[id] = '🏗️');
+      (categoryMap['reliability'] || []).forEach(id => categoryIcons[id] = '🛡️');
+      (categoryMap['growth'] || []).forEach(id => categoryIcons[id] = '📈');
+      (categoryMap['presence'] || []).forEach(id => categoryIcons[id] = '🎤');
+      (categoryMap['assist'] || []).forEach(id => categoryIcons[id] = '🤝');
+
+      // Always show ALL parameters from the nameMap
+      Object.keys(nameMap).forEach((id, index) => {
         const val = selections[id];
         const hasData = typeof val === 'number';
-
+        const status = getSkillStatus(val);
         const percentage = hasData ? ((val + 1) / 7) * 100 : 0;
-        const color = hasData
-          ? (val >= 5 ? '#10b981' : (val >= 3 ? '#6366f1' : '#f59e0b'))
-          : '#e2e8f0';
-
-        const levelNames = ['Stagnant', 'Fluctuating', 'Steady', 'Proactive', 'High-Perf', 'Multiplier', 'Engine'];
-        const levelLabel = hasData ? levelNames[val] : 'No Entry';
+        const scoreDisplay = hasData ? `${val + 1}/7` : '—';
+        const catIcon = categoryIcons[id] || '📊';
 
         const card = document.createElement('div');
-        card.style.cssText = `padding: 16px; background: ${hasData ? 'var(--bg-light)' : '#f8fafc'}; border-radius: 12px; border: 1px solid ${hasData ? 'var(--border)' : '#f1f5f9'}; opacity: ${hasData ? '1' : '0.6'};`;
+        card.dataset.tier = status.tier;
+        card.style.cssText = `
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px;
+          background: ${hasData ? 'white' : '#f8fafc'};
+          border-radius: 20px;
+          border: 1px solid ${status.borderColor};
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+          opacity: ${hasData ? '1' : '0.6'};
+          cursor: default;
+        `;
+
+        // Hover effect
+        card.addEventListener('mouseenter', () => {
+          if (hasData) {
+            card.style.transform = 'translateY(-2px)';
+            card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.02)';
+            card.style.borderColor = status.barColor;
+          }
+        });
+        card.addEventListener('mouseleave', () => {
+          card.style.transform = 'translateY(0)';
+          card.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.02)';
+          card.style.borderColor = status.borderColor;
+        });
+
         card.innerHTML = `
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="font-size: 0.75rem; font-weight: 700; color: ${hasData ? 'var(--text-primary)' : '#94a3b8'};">${nameMap[id]}</span>
-            <span style="font-size: 0.6rem; font-weight: 800; color: ${color}; text-transform: uppercase;">${levelLabel}</span>
+          ${hasData ? `<div style="position: absolute; top: -50%; right: -50%; width: 120px; height: 120px; background: ${status.barColor}; opacity: 0.02; filter: blur(30px); border-radius: 50%; pointer-events: none;"></div>` : ''}
+
+          <!-- Left Side: Title & Badge -->
+          <div style="display: flex; flex-direction: column; gap: 10px; max-width: calc(100% - 70px);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.15rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.05));">${catIcon}</span>
+              <span style="font-size: 0.85rem; font-weight: 700; color: ${hasData ? '#1e293b' : '#64748b'}; letter-spacing: -0.01em; line-height: 1.2;">
+                ${nameMap[id]}
+              </span>
+            </div>
+            <div>
+              <span style="
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 0.72rem;
+                font-weight: 700;
+                background: ${status.badgeBg};
+                color: ${status.badgeColor};
+                letter-spacing: 0.02em;
+                text-transform: uppercase;
+                border: 1px solid rgba(0,0,0,0.02);
+              ">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: ${status.barColor}; display: inline-block;"></span>
+                ${status.label}
+              </span>
+            </div>
           </div>
-          <div style="height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
-            <div style="height: 100%; width: ${percentage}%; background: ${color}; transition: width 0.8s ease;"></div>
+
+          <!-- Right Side: Circular Gauge -->
+          <div style="position: relative; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+              <circle cx="18" cy="18" r="15.915" fill="none" stroke="#e2e8f0" stroke-width="3.2" />
+              <circle class="gauge-path" cx="18" cy="18" r="15.915" fill="none" 
+                      stroke="${status.barColor}" stroke-width="3.2" 
+                      stroke-dasharray="0, 100" stroke-linecap="round"
+                      style="transition: stroke-dasharray 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);" />
+            </svg>
+            <div style="position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <span style="font-size: 0.95rem; font-weight: 800; color: ${hasData ? '#1e293b' : '#94a3b8'}; line-height: 1;">
+                ${scoreDisplay}
+              </span>
+              ${hasData ? `<span style="font-size: 0.52rem; font-weight: 600; color: #94a3b8; margin-top: 1px; letter-spacing: 0.02em; text-transform: uppercase;">Max 7</span>` : ''}
+            </div>
           </div>
         `;
         container.appendChild(card);
+
+        // Animate the circle gauge stroke after a staggered delay
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            const gauge = card.querySelector('.gauge-path');
+            if (gauge) gauge.setAttribute('stroke-dasharray', `${percentage}, 100`);
+          }, 60 + index * 40);
+        });
       });
+
+      // Render / Update Chart Representation
+      updateDrilldownChart();
     }
 
     initAnalysis();

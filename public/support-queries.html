@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support Queries – Gantec Employee Portal</title>
+  <meta name="description" content="Manage and resolve employee technical support tickets." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <link rel="stylesheet" href="css/branding.css" />
+  <style>
+    .inbox-container {
+      padding: 40px 40px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      height: calc(100vh - 80px);
+    }
+
+    .inbox-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .inbox-title {
+      font-size: 2.2rem;
+      font-weight: 850;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Filters Bar */
+    .filters-bar {
+      display: flex;
+      gap: 16px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      padding: 16px 24px;
+      border-radius: 20px;
+      align-items: center;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 12px 18px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(29, 52, 97, 0.1);
+    }
+
+    .filter-select {
+      padding: 12px 18px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      cursor: pointer;
+      appearance: auto;
+    }
+
+    /* Inbox Main Layout */
+    .inbox-layout {
+      display: block;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* List Column */
+    .query-list-card {
+      display: flex;
+      flex-direction: column;
+      flex: 1; /* Make it take the full height */
+    }
+
+    .list-header {
+      padding: 0 0 16px 0;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .queries-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .query-item {
+      padding: 18px 20px;
+      border-radius: 12px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .query-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+      border-color: #cbd5e1;
+    }
+
+    .query-item.active {
+      background: #f8fafc;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+
+    .query-item-meta {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+    }
+
+    .query-item-title {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 1.05rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .query-item-sender {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #334155;
+      display: flex;
+      align-items: center;
+    }
+
+    .query-item-body-preview {
+      font-size: 0.95rem;
+      color: #334155;
+      line-height: 1.6;
+      margin-top: 8px;
+      white-space: pre-wrap;
+    }
+    
+    .delete-btn {
+      background: #fee2e2;
+      color: #dc2626;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .delete-btn:hover {
+      background: #fca5a5;
+    }
+
+    /* Status Buttons */
+    .inline-status-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .inline-status-btn {
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .btn-pending {
+      background: #fff3cd; color: #856404; border-color: #ffeeba;
+    }
+    .btn-pending:hover { background: #ffeeba; }
+
+    .btn-in-progress {
+      background: #cce5ff; color: #004085; border-color: #b8daff;
+    }
+    .btn-in-progress:hover { background: #b8daff; }
+
+    .btn-resolved {
+      background: #d4edda; color: #155724; border-color: #c3e6cb;
+    }
+    .btn-resolved:hover { background: #c3e6cb; }
+
+    /* Badges */
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-badge.pending {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .status-badge.in-progress {
+      background: #dbeafe;
+      color: #2563eb;
+    }
+
+    .status-badge.resolved {
+      background: #d1fae5;
+      color: #059669;
+    }
+
+    /* Priorities */
+    .priority-badge {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .priority-badge.low {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+
+    .priority-badge.medium {
+      background: #eff6ff;
+      color: #3b82f6;
+    }
+
+    .priority-badge.high {
+      background: #fff7ed;
+      color: #ea580c;
+    }
+
+    .priority-badge.urgent {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    /* Detail View Column */
+    .query-detail-card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 24px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.03);
+      overflow: hidden;
+    }
+
+    .detail-placeholder {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      gap: 16px;
+    }
+
+    .detail-placeholder-icon {
+      font-size: 4rem;
+      opacity: 0.3;
+    }
+
+    .detail-view {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .detail-view.active {
+      display: flex;
+    }
+
+    .detail-header {
+      padding: 28px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .detail-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .detail-subject {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0;
+      line-height: 1.25;
+    }
+
+    .detail-sender-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .sender-info-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sender-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .sender-name-email {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.3;
+    }
+
+    .sender-name {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-size: 1rem;
+    }
+
+    .sender-email {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .sender-teams-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .teams-action-btn {
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      color: var(--text-secondary);
+    }
+
+    .teams-action-btn:hover {
+      background: #f8fafc;
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .meta-details-strip {
+      display: flex;
+      gap: 16px;
+      padding: 12px 28px;
+      background: rgba(255, 255, 255, 0.4);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .meta-label {
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* Message Body Scroll Pane */
+    .detail-body-pane {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px;
+      line-height: 1.7;
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Detail Footer Controls */
+    .detail-footer {
+      padding: 20px 32px;
+      border-top: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.3);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-picker-label {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .status-actions-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .status-btn {
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .status-btn.btn-pending {
+      background: #fff;
+      border-color: #d97706;
+      color: #d97706;
+    }
+
+    .status-btn.btn-pending:hover {
+      background: #fffbeb;
+    }
+
+    .status-btn.btn-in-progress {
+      background: #fff;
+      border-color: #2563eb;
+      color: #2563eb;
+    }
+
+    .status-btn.btn-in-progress:hover {
+      background: #eff6ff;
+    }
+
+    .status-btn.btn-resolved {
+      background: #fff;
+      border-color: #059669;
+      color: #059669;
+    }
+
+    .status-btn.btn-resolved:hover {
+      background: #ecfdf5;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 950px) {
+      .inbox-layout {
+        grid-template-columns: 1fr;
+      }
+      .query-detail-card {
+        display: none;
+      }
+      .query-detail-card.mobile-active {
+        display: flex;
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Background orbs -->
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-orb orb-3"></div>
+
+  <div class="app-layout">
+    <!-- Sidebar dynamically loads through app.js -->
+    <aside class="app-sidebar">
+      <nav class="sidebar-nav">
+        <a href="home.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <span class="link-text">Home</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="viewer.html" class="sidebar-link sidebar-dropdown-trigger" id="nav-training">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span class="link-text">Training Resources</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="viewer.html" class="submenu-link">View and Upload Resources</a>
+            <a href="content-leader.html" class="submenu-link">Content Leaders</a>
+          </div>
+        </div>
+
+        <a href="document-locker.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="2" />
+            <line x1="9" y1="7" x2="15" y2="7" />
+            <line x1="9" y1="11" x2="15" y2="11" />
+            <line x1="9" y1="15" x2="12" y2="15" />
+          </svg>
+          <span class="link-text">Document Locker</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="certifications.html" class="sidebar-link sidebar-dropdown-trigger" id="nav-certifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="7"></circle>
+              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+            </svg>
+            <span class="link-text">Certifications</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="certifications.html" class="submenu-link">View Certifications</a>
+            <a href="add-certification.html" class="submenu-link">Add Certification</a>
+            <a href="certificate-leaders.html" class="submenu-link">Certificate Leaders</a>
+          </div>
+        </div>
+
+        <div class="sidebar-dropdown">
+          <a href="#" class="sidebar-link sidebar-dropdown-trigger" id="nav-feedback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            <span class="link-text">Monthly Feedback</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="monthly-feedback.html" class="submenu-link">Feedback</a>
+            <a href="analysis.html" class="submenu-link">Performance Analysis</a>
+          </div>
+        </div>
+
+        <a href="company-holidays.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span class="link-text">Company Holidays</span>
+        </a>
+
+        <a href="https://apps.powerapps.com/play/e/default-ced75afe-4090-4a10-abf8-341ef09ef1cd/a/9ea3498a-fa3c-4c95-b390-5edd3ce97108?tenantId=ced75afe-4090-4a10-abf8-341ef09ef1cd&hint=57114947-a9fc-4feb-8ce4-00a9ea82d511&source=sharebutton&sourcetime=1778565137667"
+          target="_blank" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <path d="M16 2v4M8 2v4M3 10h18" />
+            <path d="M10 14l2 2 4-4" />
+          </svg>
+          <span class="link-text">Leave Portal</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="#" class="sidebar-link sidebar-dropdown-trigger" id="nav-culture">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span class="link-text">Company Culture</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="company-culture.html" class="submenu-link">Culture Overview</a>
+            <a href="employee-support.html" class="submenu-link">Employee Support</a>
+          </div>
+        </div>
+
+        <a href="faq.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <circle cx="12" cy="17" r="0.5" fill="currentColor"></circle>
+          </svg>
+          <span class="link-text">FAQ</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="weekly-connect.html" class="sidebar-link sidebar-dropdown-trigger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span class="link-text">Weekly Connect</span>
+          </a>
+          <div class="sidebar-submenu">
+            <a href="weekly-connect.html" class="submenu-link">Connect Highlights</a>
+            <a href="team-members.html" class="submenu-link">Team Members</a>
+            <a href="webpage-creation.html" class="submenu-link">Webpage Builder</a>
+          </div>
+        </div>
+
+        <a href="contact-hr.html" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+            </path>
+          </svg>
+          <span class="link-text">Contact HR</span>
+        </a>
+      </nav>
+    </aside>
+
+    <div class="main-wrapper" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+      <header class="app-header">
+        <a href="home.html" class="header-brand">
+          <span class="gantec-logo-text" style="font-size: 1.25rem;">GANTEC <span class="gantec-logo-gradient">Employee Portal</span></span>
+        </a>
+        <div id="user-profile-section"></div>
+      </header>
+
+      <main class="app-main" style="flex:1; min-height:0; display:flex; flex-direction:column;">
+        <div class="inbox-container">
+          <div class="inbox-header">
+            <h1 class="inbox-title">Support Queries</h1>
+            <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">
+              Gantec Support Operations Control
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="filters-bar">
+            <input type="text" id="search-box" class="search-input" placeholder="Search by name, email, subject, category, priority..." />
+            <select id="status-filter" class="filter-select">
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="in-progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </div>
+
+          <!-- Inbox Main View -->
+          <div class="inbox-layout">
+            <!-- List Pane -->
+            <div class="query-list-card">
+              <div class="list-header">
+                <span id="list-panel-title">Active Support Tickets</span>
+                <span id="active-list-count" style="font-size: 0.85rem; background: var(--primary); color: #fff; padding: 2px 8px; border-radius: 12px; font-weight: 600;">0</span>
+              </div>
+              <div class="queries-scroll" id="submissions-list-container">
+                <!-- Submissions injected via JavaScript -->
+              </div>
+            </div>
+
+            <!-- Detail panel removed as requested -->
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="js/app.js?v=7"></script>
+  <script>
+    // Safeguard page protection
+    const currentRole = localStorage.getItem('gantec_user_role');
+    const adminEmail = localStorage.getItem('gantec_user_email');
+    if (currentRole !== 'admin') {
+      document.body.innerHTML = `
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family: 'Inter', sans-serif; gap:16px;">
+          <h1 style="color:var(--danger); font-weight:800;">⛔ Access Denied</h1>
+          <p>You do not have the required permissions to view this control center.</p>
+          <a href="home.html" style="padding:12px 24px; border-radius:30px; background:var(--primary); color:#fff; text-decoration:none; font-weight:700; box-shadow: 0 4px 14px rgba(0,0,0,0.15);">Go Back Home</a>
+        </div>
+      `;
+      throw new Error("Unauthorized access redirected.");
+    }
+
+    let supportTickets = [];
+    let selectedItemId = null;
+
+    const listContainer = document.getElementById('submissions-list-container');
+    const listPanelTitle = document.getElementById('list-panel-title');
+    const activeListCount = document.getElementById('active-list-count');
+    const searchBox = document.getElementById('search-box');
+    const statusFilter = document.getElementById('status-filter');
+
+    // UI elements for Detail Pane
+    const placeholder = document.getElementById('detail-placeholder');
+    const detailView = document.getElementById('detail-view');
+    const detailSubject = document.getElementById('detail-subject');
+    const detailBadge = document.getElementById('detail-badge');
+    const senderAvatar = document.getElementById('sender-avatar');
+    const senderName = document.getElementById('sender-name');
+    const senderEmail = document.getElementById('sender-email');
+    const detailCategory = document.getElementById('detail-category');
+    const detailPriority = document.getElementById('detail-priority');
+    const detailBody = document.getElementById('detail-body');
+    const teamsChatAction = document.getElementById('teams-chat-action');
+    const teamsCallAction = document.getElementById('teams-call-action');
+
+    async function loadData() {
+      try {
+        const supportRes = await fetch(`/api/admin/support-tickets?email=${encodeURIComponent(adminEmail)}`);
+        if (supportRes.ok) {
+          supportTickets = await supportRes.json();
+        } else {
+          console.error("Failed to fetch support tickets");
+        }
+        renderList();
+      } catch (err) {
+        console.error('Failed to load support tickets:', err);
+        showToast('Error loading support tickets data', 'error');
+      }
+    }
+
+    function renderList() {
+      const searchTerm = searchBox.value.toLowerCase().trim();
+      const statusTerm = statusFilter.value;
+
+      const filtered = supportTickets.filter(item => {
+        const name = item.name || '';
+        const email = item.email || '';
+        const message = item.description || '';
+        const subject = item.subject || '';
+        const category = item.category || '';
+        const priority = item.priority || '';
+
+        const matchesSearch = 
+          name.toLowerCase().includes(searchTerm) ||
+          email.toLowerCase().includes(searchTerm) ||
+          subject.toLowerCase().includes(searchTerm) ||
+          message.toLowerCase().includes(searchTerm) ||
+          category.toLowerCase().includes(searchTerm) ||
+          priority.toLowerCase().includes(searchTerm);
+
+        const matchesStatus = statusTerm === 'all' || item.status === statusTerm;
+
+        return matchesSearch && matchesStatus;
+      });
+
+      activeListCount.textContent = filtered.length;
+      listContainer.innerHTML = '';
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = `<div style="text-align:center; padding:32px; color:var(--text-muted); font-size:0.9rem;">No support queries found matching criteria.</div>`;
+        return;
+      }
+
+      filtered.forEach(item => {
+        const dateStr = new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const name = item.name || 'Anonymous';
+        const email = item.email || '';
+        const message = item.description || '';
+
+        const itemEl = document.createElement('div');
+        itemEl.className = `query-item ${selectedItemId === item.id ? 'active' : ''}`;
+        itemEl.onclick = () => selectItem(item.id);
+
+        const currentStatus = item.status || 'pending';
+        const statusText = currentStatus.replace('-', ' ');
+
+        itemEl.innerHTML = `
+          <div class="query-item-meta" style="justify-content: space-between;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="font-weight:700; color:#0f172a;">${dateStr}</span>
+              <span style="background:#e2e8f0; padding:2px 8px; border-radius:12px; font-size:0.7rem; color:#475569; text-transform:capitalize;">${item.category || 'General'}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span class="status-badge ${currentStatus}" style="text-transform:capitalize;">${statusText}</span>
+              <button class="delete-btn" onclick="event.stopPropagation(); deleteTicket(${item.id})">Delete</button>
+            </div>
+          </div>
+          <div class="query-item-title">${item.subject || 'No Subject'}</div>
+          <div class="query-item-sender">
+            <svg style="width:14px; height:14px; margin-right:6px; opacity:0.6;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            ${name} (${email})
+          </div>
+          <div class="query-item-body-preview">${message}</div>
+          <div class="inline-status-actions">
+            <button class="inline-status-btn btn-pending" onclick="event.stopPropagation(); updateStatus(${item.id}, 'pending')">Pending</button>
+            <button class="inline-status-btn btn-in-progress" onclick="event.stopPropagation(); updateStatus(${item.id}, 'in-progress')">In Progress</button>
+            <button class="inline-status-btn btn-resolved" onclick="event.stopPropagation(); updateStatus(${item.id}, 'resolved')">Resolved</button>
+          </div>
+        `;
+        listContainer.appendChild(itemEl);
+      });
+    }
+
+    async function deleteTicket(id) {
+      if(!confirm('Are you sure you want to delete this support ticket?')) return;
+      try {
+        const response = await fetch('/api/admin/support-tickets/' + id, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: adminEmail })
+        });
+        const result = await response.json();
+        if(response.ok) {
+          showToast('Ticket deleted.', 'success');
+          fetchTickets();
+        } else {
+          showToast(result.error || 'Failed to delete ticket.', 'error');
+        }
+      } catch (err) {
+        showToast('Error connecting to server.', 'error');
+      }
+    }
+
+    function selectItem(id) {
+      selectedItemId = id;
+      document.querySelectorAll('.query-item').forEach(el => el.classList.remove('active'));
+      renderList();
+    }
+
+    async function updateStatus(id, newStatus) {
+      try {
+        const response = await fetch('/api/admin/support-tickets/' + id, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminEmail, status: newStatus })
+        });
+        const result = await response.json();
+        
+        if (response.ok) {
+          showToast('Ticket status updated to ' + newStatus, 'success');
+          loadData();
+        } else {
+          showToast(result.error || 'Failed to update status', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Error connecting to server', 'error');
+      }
+    }
+
+    // Input listeners
+    searchBox.addEventListener('input', renderList);
+    statusFilter.addEventListener('change', renderList);
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', loadData);
+  </script>
+</body>
+
+</html>

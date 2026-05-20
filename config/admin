@@ -1,0 +1,26 @@
+The `config/admins.json` file is where you define who gets Administrator access in the portal (which gives them access to the Submission Tracker, HR Queries, Support Queries, etc.).
+
+You should list the email addresses of all your admins in that file. Just make sure to format it like a list, separating each email with a comma, and wrapping the emails in quotes.
+
+For example, you should replace `"[EMAIL_ADDRESS]"` with a real email, and it should look something like this:
+
+```json
+{
+  "admins": [
+    "gnanasree.ponnuru@gantecusa.com",
+    "hemalatha.malem@gantecusa.com",
+    "another.admin@gantecusa.com"
+  ]
+}
+```
+
+Once you save that file, the server will automatically detect those emails and grant those users Admin privileges when they log in!
+
+
+When someone logs into the portal:
+* **Admins** (the emails listed in your `admins.json` file) will see the **Submission Tracker** in their sidebar menu, which allows them to view HR and Support queries.
+* **Standard Employees** (everyone else) will see all of the normal tools (like Leave, Holidays, Idea Hub, Contact HR, etc.) but the **Submission Tracker** will be completely hidden from their menu.
+
+It dynamically adjusts the menu based on who is logged in!
+
+*(Note: It looks like you accidentally pasted my last response into a new file named `config/admin`. You can safely delete that file—you just need to edit the actual `config/admins.json` file!)*

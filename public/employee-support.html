@@ -233,6 +233,116 @@
         grid-template-columns: 1fr;
       }
     }
+
+    /* Support page container */
+    .support-container {
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      display: block;
+    }
+
+    @media (max-width: 900px) {
+      .support-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Support Profile Card */
+    .support-profile-card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 24px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .support-profile-card:hover {
+      border-color: rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .support-avatar-wrap {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 20px;
+      position: relative;
+    }
+
+    .support-avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid var(--surface);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .status-badge {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      background: #27ae60;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 3px solid var(--surface);
+    }
+
+    .support-name {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .support-title {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 24px;
+    }
+
+    .support-details-list {
+      text-align: left;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .detail-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .detail-icon {
+      width: 32px;
+      height: 32px;
+      background: rgba(29, 52, 97, 0.05);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+    }
+
+    .support-actions {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
   </style>
 </head>
 
@@ -397,8 +507,10 @@
             </p>
           </div>
 
-          <!-- Premium Support Ticket Form -->
-          <div class="support-card-container" style="max-width: 750px; margin: 0 auto;">
+          <!-- Support Form Container -->
+          <div class="support-container" style="width: 100%; max-width: 800px; margin: 0 auto;">
+
+            <!-- Right Column: Ticket Form -->
             <div class="form-card"
               style="background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 24px; padding: 32px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04); transition: all 0.3s ease;">
               <h2 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 8px; color: var(--text-primary);">Report
@@ -417,25 +529,6 @@
                   <input type="email" id="support-email" required placeholder="john@gantecusa.com"
                     style="padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); outline: none;" />
                 </div>
-
-                <!-- <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
-                  <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">Inquiry Category</label>
-                  <select id="support-category" style="padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: #fff; cursor: pointer; outline: none;">
-                    <option value="IT Support">💻 IT & Technical Support</option>
-                    <option value="HR Support">👥 HR Support</option>
-                    <option value="Payroll & Benefits">💵 Payroll & Benefits</option>
-                    <option value="Training Resources">📚 Training Resources</option>
-                    <option value="Other">❓ Other General Inquiry</option>
-                  </select>
-                </div> -->
-                <!-- <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
-                  <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">Priority Level</label>
-                  <select id="support-priority" style="padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: #fff; cursor: pointer; outline: none;">
-                    <option value="Low">🟢 Low</option>
-                    <option value="Medium" selected>🟡 Medium</option>
-                    <option value="High">🔴 High</option>
-                  </select>
-                </div> -->
 
                 <div class="form-group" style="grid-column: span 2; display: flex; flex-direction: column; gap: 8px;">
                   <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">Subject</label>
@@ -476,48 +569,52 @@
       if (name) document.getElementById('support-name').value = name;
       if (email) document.getElementById('support-email').value = email;
 
+      // Ticket Form Submission
       const form = document.getElementById('support-ticket-form');
       const submitBtn = document.getElementById('support-submit-btn');
 
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
+      if (form) {
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
 
-        submitBtn.textContent = 'Submitting Ticket...';
-        submitBtn.disabled = true;
+          submitBtn.textContent = 'Submitting...';
+          submitBtn.disabled = true;
 
-        const payload = {
-          name: document.getElementById('support-name').value,
-          email: document.getElementById('support-email').value,
-          category: document.getElementById('support-category').value,
-          priority: document.getElementById('support-priority').value,
-          subject: document.getElementById('support-subject').value,
-          description: document.getElementById('support-description').value
-        };
+          const nameVal = document.getElementById('support-name').value;
+          const emailVal = document.getElementById('support-email').value;
+          const subjectVal = document.getElementById('support-subject').value;
+          const descVal = document.getElementById('support-description').value;
 
-        fetch('/api/employee-support/ticket', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        })
-          .then(res => res.json())
-          .then(data => {
-            if (data.success) {
-              showToast('Ticket submitted successfully! Admin notified.', 'success');
+          const payload = {
+            name: nameVal,
+            email: emailVal,
+            category: 'General',
+            priority: 'Medium',
+            subject: subjectVal,
+            description: descVal
+          };
+
+          fetch('/api/employee-support/ticket', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+            .then(res => res.json())
+            .then(data => {
+              showToast('Ticket logged successfully in dashboard!', 'success');
               document.getElementById('support-subject').value = '';
               document.getElementById('support-description').value = '';
-            } else {
-              showToast(data.error || 'Failed to submit ticket.', 'error');
-            }
-          })
-          .catch(err => {
-            console.error(err);
-            showToast('Error submitting support ticket.', 'error');
-          })
-          .finally(() => {
-            submitBtn.textContent = 'Submit Support Ticket';
-            submitBtn.disabled = false;
-          });
-      });
+            })
+            .catch(err => {
+              console.error('Local database logging issue:', err);
+              showToast('Error logging ticket.', 'error');
+            })
+            .finally(() => {
+              submitBtn.textContent = 'Submit For Support';
+              submitBtn.disabled = false;
+            });
+        });
+      }
     });
   </script>
 </body>

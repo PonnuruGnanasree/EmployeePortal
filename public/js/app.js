@@ -874,9 +874,13 @@ function initSidebarLogic() {
     });
   }
 
-  // 4. Link Click Handler (Navigate vs Symbols-only Toggle)
-  links.forEach(link => {
-    link.addEventListener('click', (e) => {
+  // 4. Link Click Handler (Navigate vs Symbols-only Toggle) using Event Delegation
+  const navContainer = document.querySelector('.sidebar-nav');
+  if (navContainer) {
+    navContainer.addEventListener('click', (e) => {
+      const link = e.target.closest('.sidebar-link, .submenu-link');
+      if (!link) return;
+
       const isDropdownTrigger = link.classList.contains('sidebar-dropdown-trigger');
       const isActive = link.classList.contains('active');
       const hasActiveChild = link.classList.contains('active-child');
@@ -915,7 +919,7 @@ function initSidebarLogic() {
       } else {
         // NAVIGATING TO NEW PAGE
         const href = link.getAttribute('href');
-        if (href === '#') {
+        if (href === '#' || !href) {
           e.preventDefault();
           if (isDropdownTrigger) {
             const parent = link.closest('.sidebar-dropdown');
@@ -926,7 +930,7 @@ function initSidebarLogic() {
         }
       }
     });
-  });
+  }
 }
 
 function initFolderSidebarToggle() {
@@ -987,39 +991,91 @@ async function syncLeavePortalLink() {
 function injectAdminHRInbox() {
   try {
     const role = localStorage.getItem('gantec_user_role') || 'employee';
-    if (role === 'admin') {
-      const nav = document.querySelector('.sidebar-nav');
-      if (nav && !document.getElementById('nav-hr-inbox')) {
-        const link = document.createElement('a');
-        link.href = 'hr-inbox.html';
-        link.id = 'nav-hr-inbox';
-        link.className = 'sidebar-link';
-        
-        // Match active page
-        const path = window.location.pathname;
-        if (path.endsWith('hr-inbox.html')) {
-          link.className += ' active';
-        }
-        
-        link.innerHTML = `
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-            <polyline points="22,6 12,13 2,6" />
+    const email = localStorage.getItem('gantec_user_email');
+    
+    // Non-blocking background check to ensure role is in sync with server's config
+    if (email) {
+      fetch(`/api/auth/profile?email=${encodeURIComponent(email)}&t=${Date.now()}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.user) {
+            const currentCachedRole = localStorage.getItem('gantec_user_role');
+            const actualRole = data.user.role || 'employee';
+            if (currentCachedRole !== actualRole) {
+              localStorage.setItem('gantec_user_role', actualRole);
+              // Dynamically rebuild sidebar links
+              renderAdminSidebarLinks(actualRole);
+            }
+          }
+        }).catch(err => console.warn("Background role sync failed:", err));
+    }
+
+    renderAdminSidebarLinks(role);
+  } catch (err) {
+    console.warn('Failed to dynamically inject Admin links:', err);
+  }
+}
+
+function renderAdminSidebarLinks(role) {
+  const nav = document.querySelector('.sidebar-nav');
+  if (!nav) return;
+
+  if (role === 'admin') {
+    // 1. (Removed HR Inbox link)
+
+    // 2. Inject Submission Tracker Dropdown
+    if (!document.getElementById('nav-submission-tracker-dropdown')) {
+      const dropdown = document.createElement('div');
+      dropdown.id = 'nav-submission-tracker-dropdown';
+      dropdown.className = 'sidebar-dropdown';
+      
+      const path = window.location.pathname;
+      const isSupportActive = path.endsWith('support-queries.html');
+      const isHrActive = path.endsWith('hr-queries.html');
+
+      dropdown.innerHTML = `
+        <a href="#" class="sidebar-link sidebar-dropdown-trigger" id="nav-submission-tracker">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+            <path d="M3 12h3l2-3 2 6 2-3h3" opacity="0.65" />
           </svg>
-          <span class="link-text">HR Inbox</span>
-        `;
-        
-        // Insert right before "Contact HR" (which typically exists in all pages)
-        const contactLink = nav.querySelector('a[href="contact-hr.html"]');
-        if (contactLink) {
-          nav.insertBefore(link, contactLink);
-        } else {
-          nav.appendChild(link);
-        }
+          <span class="link-text">Submission Tracker</span>
+        </a>
+        <div class="sidebar-submenu">
+          <a href="support-queries.html" class="submenu-link ${isSupportActive ? 'active' : ''}">Support Queries</a>
+          <a href="hr-queries.html" class="submenu-link ${isHrActive ? 'active' : ''}">HR Queries</a>
+        </div>
+      `;
+
+      if (isSupportActive || isHrActive) {
+        dropdown.classList.add('open');
+        const trigger = dropdown.querySelector('.sidebar-dropdown-trigger');
+        if (trigger) trigger.classList.add('active-child');
+      }
+
+      // Insert right before "Contact HR"
+      const contactLink = nav.querySelector('a[href="contact-hr.html"]');
+      if (contactLink) {
+        nav.insertBefore(dropdown, contactLink);
+      } else {
+        nav.appendChild(dropdown);
       }
     }
-  } catch (err) {
-    console.warn('Failed to dynamically inject Admin HR Inbox link:', err);
+  } else {
+    // If the role is not admin (e.g. standard employee), ensure all admin links are cleaned up if present
+    const trackerDropdown = document.getElementById('nav-submission-tracker-dropdown');
+    
+    // Cleanup old standalone links just in case
+    const trackerLink = document.getElementById('nav-submission-tracker');
+    const supportLink = document.getElementById('nav-support-queries');
+    const hrQueriesLink = document.getElementById('nav-hr-queries');
+    
+    if (trackerDropdown) trackerDropdown.remove();
+    // Only remove standalone tracker if it's an anchor (not the trigger inside the dropdown)
+    if (trackerLink && trackerLink.parentElement === nav) trackerLink.remove();
+    if (supportLink) supportLink.remove();
+    if (hrQueriesLink) hrQueriesLink.remove();
   }
 }
 function syncFeedbackMenu() {

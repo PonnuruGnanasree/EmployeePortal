@@ -1,6 +1,6 @@
-// Gantec Social - Global State
+// Gantec Idea Hub - Global State
 var globalSocialPosts = [];
-var socialLastSeenCount = parseInt(localStorage.getItem('social_seen_count') || '0');
+var socialLastSeenActivityCount = parseInt(localStorage.getItem('social_seen_activity_count') || localStorage.getItem('social_seen_count') || '0');
 
 async function loadSocialFeed() {
   try {
@@ -16,11 +16,28 @@ async function loadSocialFeed() {
   }
 }
 
+function getActivityCount() {
+  var count = globalSocialPosts.length;
+  for (var i = 0; i < globalSocialPosts.length; i++) {
+    var post = globalSocialPosts[i];
+    count += (post.comments ? post.comments.length : 0);
+    count += (post.likesCount || 0);
+  }
+  return count;
+}
+
 function updateSocialBadge() {
   var badge = document.getElementById('social-badge');
   if (!badge) return;
-  var totalPosts = globalSocialPosts.length;
-  var newCount = totalPosts - socialLastSeenCount;
+  var totalActivity = getActivityCount();
+
+  // If the social widget is actively open, dynamically mark loaded posts as seen
+  if (typeof instaWidgetOpen !== 'undefined' && instaWidgetOpen) {
+    socialLastSeenActivityCount = totalActivity;
+    localStorage.setItem('social_seen_activity_count', String(socialLastSeenActivityCount));
+  }
+
+  var newCount = totalActivity - socialLastSeenActivityCount;
   if (newCount > 0) {
     badge.textContent = newCount;
     badge.style.display = 'flex';
@@ -30,10 +47,48 @@ function updateSocialBadge() {
 }
 
 function markPostsAsSeen() {
-  socialLastSeenCount = globalSocialPosts.length;
-  localStorage.setItem('social_seen_count', String(socialLastSeenCount));
+  socialLastSeenActivityCount = getActivityCount();
+  localStorage.setItem('social_seen_activity_count', String(socialLastSeenActivityCount));
   var badge = document.getElementById('social-badge');
   if (badge) badge.style.display = 'none';
+}
+
+function formatPostText(text) {
+  if (!text) return '';
+  
+  // 1. Escape HTML to prevent XSS
+  var tempDiv = document.createElement('div');
+  tempDiv.textContent = text;
+  var escaped = tempDiv.innerHTML;
+
+  // 2. Parse Gantec email IDs inside markdown link syntax: @[user@gantecusa.com](mailto:user@gantecusa.com)
+  escaped = escaped.replace(/@\[([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\]\(mailto:\1\)/gi, function(match, email) {
+    return '<span class="social-tag-email" style="color:#3b82f6;font-weight:650;cursor:pointer;" title="' + email + '">@' + email + '</span>';
+  });
+
+  // 3. Parse plain Gantec email IDs preceded by @: e.g. @user@gantecusa.com
+  escaped = escaped.replace(/(^|\s)@([a-zA-Z0-9._%+-]+@gantecusa\.com)/gi, function(match, space, email) {
+    return space + '<span class="social-tag-email" style="color:#3b82f6;font-weight:650;cursor:pointer;" title="' + email + '">@' + email + '</span>';
+  });
+
+  // 4. Parse regular @mentions (e.g. @john_doe, @mary)
+  escaped = escaped.replace(/(^|\s)@([a-zA-Z0-9._@-]+)/g, function(match, space, username) {
+    return space + '<span class="social-tag-mention" style="color:#3b82f6;font-weight:650;cursor:pointer;">@' + username + '</span>';
+  });
+
+  // 5. Parse #tags (e.g. #gantec, #ideas) and #email tags
+  // Email-like hashtags (e.g. #user@gantecusa.com)
+  escaped = escaped.replace(/(^|\s)#([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi, function(match, space, email) {
+    return space + '<span class="social-tag-hashtag" style="color:#10b981;font-weight:650;cursor:pointer;" title="' + email + '">#' + email + '</span>';
+  });
+  // Regular hashtags (e.g. #gantec, #ideas) - exclude email tags
+  escaped = escaped.replace(/(^|\s)#([a-zA-Z0-9._@-]+)/g, function(match, space, tag) {
+    // Skip if tag looks like an email (contains @ and a dot after)
+    if (/@/.test(tag) && /\./.test(tag)) return match;
+    return space + '<span class="social-tag-hashtag" style="color:#10b981;font-weight:650;cursor:pointer;">#' + tag + '</span>';
+  });
+
+  return escaped;
 }
 
 function renderSocialFeed() {
@@ -48,7 +103,7 @@ function renderSocialFeed() {
     return;
   }
 
-  var userEmail = (localStorage.getItem('gantec_user_email') || '').toLowerCase();
+  var userEmail = (localStorage.getItem('gantec_user_email') || '').trim().toLowerCase();
   var html = '';
 
   for (var i = 0; i < globalSocialPosts.length; i++) {
@@ -58,7 +113,7 @@ function renderSocialFeed() {
     var heartStroke = isLiked ? '#ff2442' : 'currentColor';
     var displayName = post.fullname || (post.user_email ? post.user_email.split('@')[0] : 'User');
     var initials = displayName.substring(0, 2).toUpperCase();
-    var isOwner = post.user_email && post.user_email.toLowerCase() === userEmail;
+    var isOwner = userEmail && post.user_email && post.user_email.trim().toLowerCase() === userEmail;
 
     var avatarHtml;
     if (post.profile_image) {
@@ -80,7 +135,7 @@ function renderSocialFeed() {
       for (var j = 0; j < post.comments.length; j++) {
         var c = post.comments[j];
         var cName = c.user_name || (c.user_email ? c.user_email.split('@')[0] : 'user');
-        commentsHtml += '<div class="comment-item" style="font-size:0.85rem;margin-bottom:4px;"><span class="comment-username" style="font-weight:600;margin-right:5px;">' + cName + '</span>' + c.comment_text + '</div>';
+        commentsHtml += '<div class="comment-item" style="font-size:0.85rem;margin-bottom:4px;"><span class="comment-username" style="font-weight:600;margin-right:5px;">' + cName + '</span>' + formatPostText(c.comment_text) + '</div>';
       }
     }
 
@@ -105,7 +160,7 @@ function renderSocialFeed() {
       '</div>' +
       imageSection +
       '<div class="post-details" style="padding:10px 14px;">' +
-        (post.caption ? '<div class="post-caption" style="margin-bottom:8px;"><span class="caption-username" style="font-weight:700;margin-right:5px;">' + displayName + '</span>' + post.caption + '</div>' : '') +
+        (post.caption ? '<div class="post-caption" style="margin-bottom:8px;"><span class="caption-username" style="font-weight:700;margin-right:5px;">' + displayName + '</span>' + formatPostText(post.caption) + '</div>' : '') +
         '<div class="post-actions" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">' +
           '<button onclick="toggleSocialLike(\'' + post.id + '\')" style="background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px;">' +
             '<svg viewBox="0 0 24 24" fill="' + heartFill + '" stroke="' + heartStroke + '" stroke-width="2" style="width:22px;height:22px;transition:all 0.2s;">' +
@@ -271,5 +326,7 @@ async function submitSocialCreate() {
 document.addEventListener('DOMContentLoaded', function() {
   if (document.getElementById('insta-widget-container')) {
     loadSocialFeed();
+    // Start background polling for dynamic notification count updates
+    setInterval(loadSocialFeed, 10000);
   }
 });

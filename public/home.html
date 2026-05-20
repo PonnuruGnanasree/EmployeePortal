@@ -87,20 +87,20 @@
       right: 30px;
       width: 60px;
       height: 60px;
-      background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
       cursor: pointer;
-      box-shadow: 0 8px 24px rgba(220, 39, 67, 0.4);
+      box-shadow: 0 8px 24px rgba(30, 41, 59, 0.25), 0 4px 10px rgba(59, 130, 246, 0.2);
       z-index: 1000;
       transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     #insta-floating-bubble:hover {
       transform: scale(1.1) translateY(-4px);
-      box-shadow: 0 12px 28px rgba(220, 39, 67, 0.5);
+      box-shadow: 0 12px 28px rgba(30, 41, 59, 0.35), 0 6px 14px rgba(59, 130, 246, 0.3);
     }
     .insta-bubble-badge {
       position: absolute;
@@ -169,13 +169,13 @@
     .header-insta-logo {
       width: 22px;
       height: 22px;
-      color: #dc2743;
+      color: var(--accent);
     }
     .insta-header-title {
       font-family: 'Outfit', sans-serif;
       font-weight: 800;
       font-size: 1.15rem;
-      background: linear-gradient(45deg, #f09433, #dc2743, #bc1888);
+      background: linear-gradient(135deg, var(--primary) 20%, var(--accent) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -218,7 +218,7 @@
       height: 58px;
       border-radius: 50%;
       padding: 2.5px;
-      background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+      background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -570,7 +570,7 @@
 
 
       <nav class="sidebar-nav">
-        <a href="home.html" class="sidebar-link active">
+        <a href="home.html" class="sidebar-link active" onclick="location.reload();">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             <polyline points="9 22 9 12 15 12 15 22" />
@@ -901,13 +901,12 @@
   </div>
 
   <!-- Floating Instagram Widget -->
-  <div id="insta-floating-bubble" onclick="toggleInstaWidget()" title="Gantec Social Stories & Feed">
+  <div id="insta-floating-bubble" onclick="toggleInstaWidget()" title="Gantec Idea Hub">
     <div class="insta-bubble-glow"></div>
     <div class="insta-bubble-badge" id="social-badge" style="display:none;"></div>
-    <svg class="insta-camera-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+    <svg class="insta-camera-icon" viewBox="0 0 100 100">
+      <path d="M 74.4 32 A 28 28 0 1 0 74.4 68" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" />
+      <circle cx="53" cy="50" r="12" fill="currentColor" />
     </svg>
   </div>
 
@@ -915,10 +914,11 @@
     <!-- Header -->
     <div class="insta-widget-header">
       <div class="header-left">
-        <svg class="header-insta-logo" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"></path>
+        <svg class="header-insta-logo" viewBox="0 0 100 100">
+          <path d="M 74.4 32 A 28 28 0 1 0 74.4 68" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" />
+          <circle cx="53" cy="50" r="12" fill="currentColor" />
         </svg>
-        <span class="insta-header-title">Gantec Social</span>
+        <span class="insta-header-title">Gantec Idea Hub</span>
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
         <button onclick="openSocialCreateModal('post')" title="New Post" style="background:linear-gradient(135deg,#4f46e5,#0ea5e9);color:white;border:none;border-radius:8px;padding:5px 12px;font-size:0.8rem;font-weight:600;cursor:pointer;">+ Post</button>
@@ -981,6 +981,7 @@
       if (instaWidgetOpen) {
         container.style.display = 'flex';
         if (badge) badge.style.display = 'none';
+        if (typeof markPostsAsSeen === 'function') markPostsAsSeen();
         if (typeof loadSocialFeed === 'function') loadSocialFeed();
       } else {
         container.style.display = 'none';

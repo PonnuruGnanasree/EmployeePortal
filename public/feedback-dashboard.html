@@ -259,8 +259,8 @@
           </a>
           <div class="sidebar-submenu">
             <a href="monthly-feedback.html" class="submenu-link">Feedback Insights</a>
-            <a href="insights.html" class="submenu-link">Reportee Insights</a>
-            <a href="feedback-dashboard.html" class="submenu-link active">Dashboard</a>
+            <a href="insights.html" class="submenu-link" onclick="location.reload();">Reportee Insights</a>
+            <a href="feedback-dashboard.html" class="submenu-link active">Monthly Dashboard</a>
             <a href="analysis.html" class="submenu-link">Performance Analysis</a>
           </div>
         </div>
@@ -474,7 +474,7 @@
           const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
           const periodEl = document.getElementById('stat-period');
           if (periodEl) periodEl.textContent = currentMonth;
-          
+
           const reviewedEl = document.getElementById('stat-reviewed');
           if (reviewedEl) reviewedEl.textContent = `${submittedItems.length} Months`;
 

@@ -7,6 +7,34 @@ const bcrypt = require('bcryptjs');
 const Database = require('better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
+
+// Helper to dynamically read variables from .env to avoid requiring a server restart
+function getDynamicEnv(key, defaultValue) {
+  try {
+    const envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf-8');
+      const lines = content.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+          const parts = trimmed.split('=');
+          const currentKey = parts[0].trim();
+          if (currentKey === key) {
+            const val = parts.slice(1).join('=').trim();
+            if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+              return val.slice(1, -1);
+            }
+            return val;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error reading dynamic .env:', err);
+  }
+  return process.env[key] || defaultValue;
+}
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
@@ -710,9 +738,17 @@ app.get('/api/users/profile-image', async (req, res) => {
 // GET /api/hr/config – Fetch dynamic HR configuration
 app.get('/api/hr/config', (req, res) => {
   res.json({
-    hr_email: process.env.HR_EMAIL || 'hemalatha.malem@gantecusa.com'
+    hr_email: getDynamicEnv('HR_EMAIL', 'hemalatha.malem@gantecusa.com')
   });
 });
+
+// GET /api/support/config – Fetch dynamic Support configuration
+app.get('/api/support/config', (req, res) => {
+  res.json({
+    support_email: getDynamicEnv('SUPPORT_EMAIL', 'gnanasree.ponnuru@gantecusa.com')
+  });
+});
+
 
 // PUT /api/auth/profile – Update user profile
 app.put('/api/auth/profile', async (req, res) => {
@@ -2252,8 +2288,9 @@ app.post('/api/contact-hr', async (req, res) => {
     }
 
     // 3. Silent Email Forwarding if SMTP is configured
-    const recipientEmail = process.env.HR_EMAIL;
-    if (recipientEmail && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    const recipientEmail = getDynamicEnv('HR_EMAIL', 'hemalatha.malem@gantecusa.com');
+    // DISABLED: User requested to handle queries via dashboard divs only
+    if (false && recipientEmail && process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
         const mailOptions = {
           from: `"HR Portal" <${process.env.SMTP_USER}>`,
@@ -2305,6 +2342,11 @@ app.post('/api/contact-hr', async (req, res) => {
 // ─── HR Inbox Dashboard APIs ──────────────────────────────────────────────────
 app.get('/api/hr/queries', async (req, res) => {
   try {
+    const { email } = req.query;
+    if (!email || !(await checkIsAdmin(email))) {
+      return res.status(403).json({ error: 'Access Denied: You are not authorized to view HR inquiries.' });
+    }
+
     // 1. Fetch from Supabase if active
     if (supabase) {
       try {
@@ -2332,7 +2374,11 @@ app.get('/api/hr/queries', async (req, res) => {
 app.patch('/api/hr/queries/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // 'pending', 'in-progress', 'resolved'
+    const { adminEmail, status } = req.body; // 'pending', 'in-progress', 'resolved'
+
+    if (!adminEmail || !(await checkIsAdmin(adminEmail))) {
+      return res.status(403).json({ error: 'Access Denied: You are not authorized.' });
+    }
 
     if (!['pending', 'in-progress', 'resolved'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
@@ -2355,6 +2401,123 @@ app.patch('/api/hr/queries/:id', async (req, res) => {
     }
 
     res.json({ success: true, message: 'Status updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/hr/queries/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.body;
+
+    if (!email || !(await checkIsAdmin(email))) {
+      return res.status(403).json({ error: 'Access Denied: You are not authorized.' });
+    }
+
+    db.prepare('DELETE FROM hr_queries WHERE id = ?').run(id);
+
+    if (supabase) {
+      try {
+        await supabase.from('hr_queries').delete().eq('id', id);
+      } catch (err) {
+        console.error('Supabase delete error:', err.message);
+      }
+    }
+
+    res.json({ success: true, message: 'HR query deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Admin Support Tickets Tracker APIs ──────────────────────────────────────
+app.get('/api/admin/support-tickets', async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email || !(await checkIsAdmin(email))) {
+      return res.status(403).json({ error: 'Access Denied: You are not authorized to view support tickets.' });
+    }
+
+    // 1. Fetch from Supabase if active
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('support_tickets')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!error && data) {
+          return res.json(data);
+        }
+        console.warn('Supabase support_tickets fetch issue, falling back to SQLite:', error?.message);
+      } catch (err) {
+        console.warn('Supabase fetch failed, falling back to SQLite:', err.message);
+      }
+    }
+
+    // 2. Fetch from SQLite fallback
+    const tickets = db.prepare('SELECT * FROM support_tickets ORDER BY created_at DESC').all();
+    res.json(tickets);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/support-tickets/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { adminEmail, status } = req.body; // 'pending', 'in-progress', 'resolved'
+
+    if (!adminEmail || !(await checkIsAdmin(adminEmail))) {
+      return res.status(403).json({ error: 'Access Denied: You are not authorized.' });
+    }
+
+    if (!['pending', 'in-progress', 'resolved'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    // 1. Update in local SQLite
+    db.prepare('UPDATE support_tickets SET status = ? WHERE id = ?').run(status, id);
+
+    // 2. Update in Supabase if active
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('support_tickets')
+          .update({ status })
+          .eq('id', id);
+        if (error) console.error('Supabase support ticket status update error:', error.message);
+      } catch (err) {
+        console.error('Supabase status sync error:', err.message);
+      }
+    }
+
+    res.json({ success: true, message: 'Status updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/support-tickets/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.body;
+
+    if (!email || !(await checkIsAdmin(email))) {
+      return res.status(403).json({ error: 'Access Denied: You are not authorized.' });
+    }
+
+    db.prepare('DELETE FROM support_tickets WHERE id = ?').run(id);
+
+    if (supabase) {
+      try {
+        await supabase.from('support_tickets').delete().eq('id', id);
+      } catch (err) {
+        console.error('Supabase delete error:', err.message);
+      }
+    }
+
+    res.json({ success: true, message: 'Support ticket deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2411,8 +2574,9 @@ app.post('/api/employee-support/ticket', async (req, res) => {
     }
 
     // 3. Silent Email Forwarding if SMTP is configured
-    const recipientEmail = process.env.SUPPORT_EMAIL;
-    if (recipientEmail && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    const recipientEmail = getDynamicEnv('SUPPORT_EMAIL', 'gnanasree.ponnuru@gantecusa.com');
+    // DISABLED: User requested to handle queries via dashboard divs only
+    if (false && recipientEmail && process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
         const mailOptions = {
           from: `"Support Portal" <${process.env.SMTP_USER}>`,
@@ -3233,6 +3397,34 @@ app.post('/api/sub-mails', async (req, res) => {
     }
 
     res.json({ success: true, message: 'Sub mail added and profile synced successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/sub-mails', async (req, res) => {
+  const { main_email, sub_email } = req.body;
+  if (!main_email || !sub_email) {
+    return res.status(400).json({ error: 'main_email and sub_email are required' });
+  }
+
+  try {
+    if (supabase) {
+      const { error } = await supabase
+        .from('main_sub_mails')
+        .delete()
+        .eq('main_email', main_email.toLowerCase())
+        .eq('sub_email', sub_email.toLowerCase());
+      if (error) {
+        console.warn('Supabase main_sub_mails delete failed:', error.message);
+      }
+    }
+
+    db.prepare(
+      'DELETE FROM main_sub_mails WHERE LOWER(main_email) = ? AND LOWER(sub_email) = ?'
+    ).run(main_email.toLowerCase(), sub_email.toLowerCase());
+
+    res.json({ success: true, message: 'Sub mail deleted successfully' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
