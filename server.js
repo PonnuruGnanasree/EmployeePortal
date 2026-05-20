@@ -237,6 +237,14 @@ db.exec(`
     FOREIGN KEY(post_id) REFERENCES social_posts(id)
   );
 
+  CREATE TABLE IF NOT EXISTS weekly_connect_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    team TEXT NOT NULL,
+    email TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS social_stories (
     id TEXT PRIMARY KEY,
     user_email TEXT NOT NULL,
@@ -337,6 +345,27 @@ try {
   }
 } catch (e) {
   console.warn('⚠️ Certifications migration skipped or failed:', e.message);
+}
+
+// ─── Weekly Connect Members Table Seeding ─────────────────────────────────────
+try {
+  const count = db.prepare('SELECT COUNT(*) as count FROM weekly_connect_members').get().count;
+  if (count === 0) {
+    console.log('🌱 Seeding initial weekly connect members into SQLite...');
+    const initialMembers = [
+      { name: "Gnana Sree", team: "VibeTribe", email: "gnana.sree@gantec.com" },
+      { name: "Vikram Raj", team: "CtrlAltDefeat", email: "vikram.raj@gantec.com" },
+      { name: "Anita Sharma", team: "Titans", email: "anita.s@gantec.com" },
+      { name: "Rahul Singh", team: "CtrlAltDefeat", email: "rahul.s@gantec.com" }
+    ];
+    const insert = db.prepare('INSERT INTO weekly_connect_members (name, team, email) VALUES (?, ?, ?)');
+    for (const m of initialMembers) {
+      insert.run(m.name, m.team, m.email);
+    }
+    console.log('✅ Seeded initial weekly connect members.');
+  }
+} catch (e) {
+  console.warn('⚠️ Weekly connect members check/seeding failed or skipped:', e.message);
 }
 
 // ─── Admin Configuration & Sync ──────────────────────────────────────────────
@@ -2627,6 +2656,125 @@ app.post('/api/employee-support/ticket', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to process support ticket' });
+  }
+});
+
+// ─── Weekly Connect Team Members APIs ──────────────────────────────────────────
+app.get('/api/team-members', async (req, res) => {
+  try {
+    // 1. Fetch from Supabase if active
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('weekly_connect_members')
+          .select('*')
+          .order('created_at', { ascending: true });
+        if (!error && data && data.length > 0) {
+          return res.json(data);
+        }
+        if (error) {
+          console.warn('Supabase weekly_connect_members fetch issue, falling back to SQLite:', error.message);
+        }
+      } catch (err) {
+        console.warn('Supabase fetch failed, falling back to SQLite:', err.message);
+      }
+    }
+
+    // 2. Fetch from SQLite fallback
+    const members = db.prepare('SELECT * FROM weekly_connect_members ORDER BY created_at ASC').all();
+    res.json(members);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/team-members', express.json(), async (req, res) => {
+  try {
+    const { name, team, email } = req.body;
+    if (!name || !team) {
+      return res.status(400).json({ error: 'Name and Team are required.' });
+    }
+
+    // 1. Store in SQLite
+    let localId;
+    try {
+      const result = db.prepare(`
+        INSERT INTO weekly_connect_members (name, team, email)
+        VALUES (?, ?, ?)
+      `).run(name, team, email || 'N/A');
+      localId = result.lastInsertRowid;
+      console.log('✅ Team member saved to local SQLite database.');
+    } catch (sqlErr) {
+      console.error('❌ SQLite team member storage error:', sqlErr.message);
+    }
+
+    // 2. Sync to Supabase if active
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('weekly_connect_members').insert({
+          name,
+          team,
+          email: email || 'N/A',
+          created_at: new Date()
+        });
+        if (error) {
+          console.warn('Supabase weekly_connect_members sync issue:', error.message);
+        } else {
+          console.log('✅ Team member synced to cloud database.');
+        }
+      } catch (dbErr) {
+        console.warn('Supabase weekly_connect_members DB error:', dbErr.message);
+      }
+    }
+
+    res.json({ success: true, message: 'Member added successfully!', id: localId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to add team member' });
+  }
+});
+
+app.delete('/api/team-members/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch the member from SQLite before deleting so we can sync delete with Supabase
+    let memberToDelete = null;
+    try {
+      memberToDelete = db.prepare('SELECT * FROM weekly_connect_members WHERE id = ?').get(id);
+    } catch (sqlErr) {
+      console.error('❌ SQLite error fetching team member before deletion:', sqlErr.message);
+    }
+
+    // 1. Delete from SQLite
+    try {
+      db.prepare('DELETE FROM weekly_connect_members WHERE id = ?').run(id);
+      console.log('✅ Team member deleted from local SQLite.');
+    } catch (sqlErr) {
+      console.error('❌ SQLite team member delete error:', sqlErr.message);
+    }
+
+    // 2. Delete from Supabase if active
+    if (supabase && memberToDelete) {
+      try {
+        const { error } = await supabase
+          .from('weekly_connect_members')
+          .delete()
+          .eq('email', memberToDelete.email)
+          .eq('name', memberToDelete.name);
+        if (error) {
+          console.warn('Supabase weekly_connect_members delete sync issue:', error.message);
+        } else {
+          console.log('✅ Team member deleted from cloud database.');
+        }
+      } catch (dbErr) {
+        console.warn('Supabase weekly_connect_members delete DB error:', dbErr.message);
+      }
+    }
+
+    res.json({ success: true, message: 'Member deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
