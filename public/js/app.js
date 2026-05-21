@@ -320,6 +320,9 @@ function renderUserProfileUI(userSection, userName, userEmail) {
   const defaultProfile = 'images/default-avatar.png';
   const profileImgSrc = customProfile || defaultProfile;
   
+  userSection.style.display = 'flex';
+  userSection.style.alignItems = 'center';
+  
   userSection.innerHTML = `
       <div class="user-profile-wrap nav-dropdown" id="profile-dropdown-wrap" style="display: flex; align-items: center; gap: 12px; margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--border); cursor: pointer; position: relative;">
         <img src="${profileImgSrc}" alt="Profile" id="profile-trigger-img" class="header-profile-img" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-glow);">
@@ -387,6 +390,86 @@ function renderUserProfileUI(userSection, userName, userEmail) {
        'gantec_user_profile', 'gantec_user_role'].forEach(k => localStorage.removeItem(k));
       window.location.href = 'login.html';
     });
+
+    // Initialize manager notifications — injected as a sibling element, no profile code touched
+    fetchManagerNotifications(userEmail);
+}
+
+async function fetchManagerNotifications(email) {
+  if (!email) return;
+  try {
+    const month = document.getElementById('month-picker')?.value;
+    const periodParam = month ? `&period=${encodeURIComponent(month)}` : '';
+    const res = await fetch(`/api/notifications?email=${encodeURIComponent(email)}${periodParam}`);
+    const data = await res.json();
+
+    // Always inject the bell element next to the profile dropdown (if not already present)
+    const profileWrap = document.getElementById('profile-dropdown-wrap');
+    if (!profileWrap) return;
+
+    // Remove any previously injected bell to avoid duplicates
+    const existingBell = document.getElementById('manager-notification-bell');
+    if (existingBell) existingBell.remove();
+
+    if (!data.success || data.count === 0) return;
+
+    // Create bell element
+    const bell = document.createElement('div');
+    bell.id = 'manager-notification-bell';
+    bell.title = 'Notifications';
+    // Style the bell to match UI theme
+    bell.style.cssText = 'position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; transition: background 0.2s; flex-shrink: 0; color: var(--text-primary); margin-left: 8px;';
+    bell.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+      </svg>
+      `;
+    
+    // Create badge element
+    const badge = document.createElement('span');
+    badge.id = 'notification-badge';
+    badge.textContent = data.count;
+    badge.style.cssText = 'position:absolute; top:-4px; right:-4px; background:#e53e3e; color:white; border-radius:50%; min-width:18px; height:18px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; line-height:1;';
+    
+    // Insert bell and badge
+    profileWrap.parentNode.insertBefore(bell, profileWrap.nextSibling);
+    bell.appendChild(badge);
+
+    // Hover effect
+    bell.addEventListener('mouseenter', () => { bell.style.background = 'rgba(0,0,0,0.06)'; });
+    bell.addEventListener('mouseleave', () => { bell.style.background = 'transparent'; });
+
+    // Click handler
+    bell.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        await fetch('/api/notifications/read', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        // Remove badge
+        const badge = document.getElementById('notification-badge');
+        if (badge) badge.remove();
+
+        // Show toast
+        const msg = data.count === 1
+          ? data.notifications[0].message
+          : `${data.count} new reportees have been assigned to you.`;
+        showToast(msg, 'info', 5000);
+
+        // Redirect
+        setTimeout(() => { window.location.href = 'insights.html'; }, 800);
+      } catch (err) {
+        console.error('Failed to mark notifications read:', err);
+      }
+    });
+
+  } catch (err) {
+    console.error('Failed to fetch manager notifications:', err);
+  }
 }
 
 function renderGuestUI(userSection) {
@@ -749,7 +832,8 @@ function showProfileModal(name, email, src) {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 24px; height: 24px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </div>
             <h3 style="margin-top: 0; color: var(--text-primary); font-size: 1.25rem; font-weight: 700; margin-bottom: 8px;">Remove Profile Photo</h3>
-            <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 0.95rem;">Are you sure you want to remove your profile photo? This action cannot be undone.</p>
+            <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 0.95rem;">// Removed Add Reportee modal functionality per user request.
+em;">Are you sure you want to remove your profile photo? This action cannot be undone.</p>
             <div style="display: flex; gap: 12px; justify-content: center;">
               <button id="confirm-cancel-btn" class="btn btn-secondary" style="flex: 1; text-align: center; justify-content: center;">Cancel</button>
               <button id="confirm-ok-btn" class="btn btn-primary" style="flex: 1; background: var(--danger); border-color: var(--danger); text-align: center; justify-content: center;">Remove</button>

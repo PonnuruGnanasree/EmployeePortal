@@ -209,6 +209,16 @@ db.exec(`
     id TEXT PRIMARY KEY,
     main_email TEXT NOT NULL,
     sub_email TEXT NOT NULL,
+    period TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS manager_notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    manager_email TEXT NOT NULL,
+    reportee_email TEXT NOT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -252,6 +262,18 @@ db.exec(`
     story_text TEXT,
     expires_at DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS monthly_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_email TEXT NOT NULL,
+    role TEXT NOT NULL,
+    period TEXT NOT NULL,
+    selections TEXT,
+    remarks TEXT,
+    is_submitted INTEGER DEFAULT 0,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_email, role, period)
   );
 `);
 
@@ -317,8 +339,36 @@ try {
 try { db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'employee'"); } catch (e) {}
 try { db.exec("ALTER TABLE users ADD COLUMN profile_image TEXT"); } catch (e) {}
 try { db.exec("ALTER TABLE public_documents ADD COLUMN original_name TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE main_sub_mails ADD COLUMN period TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE manager_notifications ADD COLUMN type TEXT DEFAULT 'assign_reportee'"); } catch (e) {}
 // Back‑fill existing rows where original_name is null
 try { db.exec("UPDATE public_documents SET original_name = filename WHERE original_name IS NULL"); } catch (e) {}
+
+// Robust mention/tag parser supporting @username and @email, checking DB user existence
+function extractMentions(text) {
+  if (!text) return [];
+  const matches = text.match(/@([a-zA-Z0-9._%+-]+(?:@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})?)/g) || [];
+  const emails = [];
+  matches.forEach(m => {
+    const raw = m.slice(1); // strip leading @
+    let email;
+    if (raw.includes('@')) {
+      email = raw.toLowerCase().trim();
+    } else {
+      email = `${raw}@gantecusa.com`.toLowerCase().trim();
+    }
+    try {
+      const user = db.prepare('SELECT email FROM users WHERE LOWER(email) = ?').get(email);
+      if (user) {
+        emails.push(user.email.toLowerCase());
+      }
+    } catch (dbErr) {
+      console.warn('DB check failed in extractMentions:', dbErr.message);
+      emails.push(email);
+    }
+  });
+  return [...new Set(emails)];
+}
 
 // ─── Certifications Table Migration ───────────────────────────────────────────
 // If certifications table has old schema (name, category), migrate to new schema
@@ -395,7 +445,12 @@ async function getAdminEmails() {
         data.forEach(row => adminEmails.add(row.email.toLowerCase().trim()));
       }
     } catch (err) {
-      console.warn('Could not fetch admins from Supabase:', err.message);
+      // If the table does not exist, log debug and continue
+      if (err.message && err.message.includes('admin_emails')) {
+        console.debug('Supabase admin_emails table missing, skipping admin fetch.');
+      } else {
+        console.warn('Could not fetch admins from Supabase:', err.message);
+      }
     }
   }
 
@@ -417,14 +472,14 @@ async function syncAdminEmails() {
   // Update Supabase
   if (supabase) {
     try {
-      // Create table if not exists in Supabase (PostgreSQL)
-      await supabase.rpc('create_admin_emails_table_if_not_exists'); 
-      // Note: If RPC doesn't exist, we'll try a direct query or just assume it exists
-      
+      // Attempt to upsert admin emails; if the table does not exist in Supabase, this will fail silently
       const payload = emails.map(email => ({ email }));
       const { error } = await supabase.from('admin_emails').upsert(payload, { onConflict: 'email' });
-      if (error) console.error('Supabase admin sync error:', error.message);
-      else console.log('✅ Supabase admin emails synced.');
+      if (error) {
+        console.debug('Supabase admin sync skipped (table may not exist):', error.message);
+      } else {
+        console.log('✅ Supabase admin emails synced.');
+      }
     } catch (err) {
       console.warn('Supabase admin sync failed (might need table creation):', err.message);
     }
@@ -2755,7 +2810,7 @@ app.delete('/api/team-members/:id', async (req, res) => {
     }
 
     // 2. Delete from Supabase if active
-    if (supabase && memberToDelete) {
+    if (supabase && memberToDelete && !process.env.SOFT_DELETE) {
       try {
         const { error } = await supabase
           .from('weekly_connect_members')
@@ -3160,7 +3215,7 @@ app.delete('/api/weekly-sessions/:id', async (req, res) => {
     db.prepare('DELETE FROM weekly_sessions WHERE id = ?').run(sessionId);
 
     // Delete from Supabase
-    if (supabase) {
+    if (supabase && !process.env.SOFT_DELETE) {
       try {
         await supabase.from('weekly_sessions').delete().eq('id', sessionId);
       } catch (e) { console.warn('⚠️ Supabase weekly session delete error:', e.message); }
@@ -3336,15 +3391,38 @@ app.get('/api/feedback/data', async (req, res) => {
 
       console.log(`[DEBUG] Query finished in ${Date.now() - startTime}ms. Success: ${!error}`);
       if (error) {
-        console.error('[DEBUG] Supabase error:', error);
-        throw error;
+        console.error('[DEBUG] Supabase error (falling back to SQLite):', error.message);
+      } else {
+        console.log(`[DEBUG] Returning ${data ? data.length : 0} feedback items.`);
+        const parsedData = data.map(row => {
+          let parsedSelections = row.selections;
+          let parsedRemarks = row.remarks;
+          if (typeof parsedSelections === 'string') {
+            try { parsedSelections = JSON.parse(parsedSelections); } catch(e) { parsedSelections = {}; }
+          }
+          if (typeof parsedRemarks === 'string') {
+            try { parsedRemarks = JSON.parse(parsedRemarks); } catch(e) { parsedRemarks = {}; }
+          }
+          return { ...row, selections: parsedSelections, remarks: parsedRemarks };
+        });
+        return res.json({ success: true, feedback: parsedData });
       }
-      console.log(`[DEBUG] Returning ${data ? data.length : 0} feedback items.`);
-      return res.json({ success: true, feedback: data });
-    } else {
-      console.log('[DEBUG] No Supabase initialized, returning empty feedback');
-      return res.json({ success: true, feedback: [] });
     }
+    
+    // SQLite fallback
+    const rows = db.prepare('SELECT * FROM monthly_feedback WHERE LOWER(user_email) = LOWER(?) ORDER BY period DESC').all(email.toLowerCase());
+    const parsedRows = rows.map(row => {
+      let parsedSelections = row.selections;
+      let parsedRemarks = row.remarks;
+      if (typeof parsedSelections === 'string') {
+        try { parsedSelections = JSON.parse(parsedSelections); } catch(e) { parsedSelections = {}; }
+      }
+      if (typeof parsedRemarks === 'string') {
+        try { parsedRemarks = JSON.parse(parsedRemarks); } catch(e) { parsedRemarks = {}; }
+      }
+      return { ...row, selections: parsedSelections, remarks: parsedRemarks, is_submitted: Boolean(row.is_submitted) };
+    });
+    return res.json({ success: true, feedback: parsedRows });
   } catch (err) {
     console.error('[DEBUG] Failed to fetch feedback data:', err.message);
     res.status(500).json({ error: 'Failed to fetch feedback: ' + err.message });
@@ -3358,29 +3436,28 @@ app.post('/api/feedback/save', async (req, res) => {
     return res.status(400).json({ error: 'Missing required feedback fields' });
   }
 
-  // Clean selections: strip any _remarks that were bundled in the old fallback format
+  // Clean selections
   let cleanSelections = selections || {};
   if (typeof cleanSelections === 'string') {
-    try { cleanSelections = JSON.parse(cleanSelections); } catch(e) { cleanSelections = {}; }
+    try { cleanSelections = JSON.parse(cleanSelections); } catch (e) { cleanSelections = {}; }
   }
-  // Remove legacy bundled remarks key if present
-  if (cleanSelections._remarks) {
-    delete cleanSelections._remarks;
-  }
+  // Remove legacy bundled remarks if present
+  if (cleanSelections._remarks) delete cleanSelections._remarks;
+
+  // Prepare payload for both Supabase and SQLite
+  const payload = {
+    user_email,
+    role,
+    period,
+    selections: cleanSelections,
+    remarks: remarks || {},
+    is_submitted: is_submitted ? 1 : 0,
+    updated_at: new Date()
+  };
 
   try {
     if (supabase) {
-      console.log(`Cloud Syncing feedback for ${user_email} [${period}]...`);
-      const payload = {
-        user_email,
-        role,
-        period,
-        selections: cleanSelections,
-        remarks: remarks || {},
-        is_submitted,
-        updated_at: new Date()
-      };
-
+      // Upsert in Supabase
       const { data: existing } = await supabase
         .from('monthly_feedback')
         .select('id')
@@ -3389,18 +3466,39 @@ app.post('/api/feedback/save', async (req, res) => {
         .eq('period', period)
         .maybeSingle();
 
-      if (existing) {
+      if (existing && existing.id) {
         const { error } = await supabase.from('monthly_feedback').update(payload).eq('id', existing.id);
-        if (error) throw error;
+        if (error) console.error('Supabase feedback update error:', error.message);
       } else {
         const { error } = await supabase.from('monthly_feedback').insert(payload);
-        if (error) throw error;
+        if (error) console.error('Supabase feedback insert error:', error.message);
       }
     }
-    res.json({ success: true, message: 'Feedback synced successfully' });
+
+    // SQLite upsert (ON CONFLICT)
+    const insertStmt = `
+      INSERT INTO monthly_feedback (user_email, role, period, selections, remarks, is_submitted, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_email, role, period) DO UPDATE SET
+        selections = excluded.selections,
+        remarks = excluded.remarks,
+        is_submitted = excluded.is_submitted,
+        updated_at = excluded.updated_at`;
+    db.prepare(insertStmt).run(
+      user_email,
+      role,
+      period,
+      JSON.stringify(cleanSelections),
+      JSON.stringify(remarks || {}),
+      payload.is_submitted,
+      payload.updated_at.toISOString()
+    );
+
+    // Return response with saved data
+    res.json({ success: true, message: 'Feedback synced successfully', feedback: payload });
   } catch (err) {
     console.error('Feedback sync error:', err.message);
-    res.status(500).json({ error: 'Cloud Sync Failed: ' + err.message });
+    res.status(500).json({ error: 'Sync Failed: ' + err.message });
   }
 });
 
@@ -3409,26 +3507,34 @@ app.get('/api/sub-mails', async (req, res) => {
   if (!email) return res.status(400).json({ error: 'Email is required' });
 
   try {
-    let subMails = [];
+    const emailToPeriod = {};
     if (supabase) {
       const { data, error } = await supabase
         .from('main_sub_mails')
-        .select('sub_email')
+        .select('sub_email, period')
         .eq('main_email', email.toLowerCase());
       
       if (!error && data) {
-        subMails = data.map(item => item.sub_email);
+        data.forEach(item => {
+          if (item.sub_email) {
+            emailToPeriod[item.sub_email.toLowerCase()] = item.period;
+          }
+        });
       } else if (error) {
         console.warn('Supabase fetch sub-mails failed, falling back to SQLite:', error.message);
       }
     }
     
     // SQLite fallback / merge
-    const rows = db.prepare('SELECT sub_email FROM main_sub_mails WHERE main_email = ?').all(email.toLowerCase());
-    const sqliteSubs = rows.map(r => r.sub_email);
+    const rows = db.prepare('SELECT sub_email, period FROM main_sub_mails WHERE main_email = ?').all(email.toLowerCase());
+    rows.forEach(r => {
+      if (r.sub_email) {
+        emailToPeriod[r.sub_email.toLowerCase()] = r.period || emailToPeriod[r.sub_email.toLowerCase()];
+      }
+    });
     
     // Combine unique sub_emails
-    const allSubs = Array.from(new Set([...subMails, ...sqliteSubs]));
+    const allSubs = Object.keys(emailToPeriod);
 
     // Fetch profile name and profile image for each sub-email to support actual profile pictures!
     const subsData = [];
@@ -3464,7 +3570,8 @@ app.get('/api/sub-mails', async (req, res) => {
       subsData.push({
         email: subEmail,
         fullname,
-        profile_image: profile_image || null
+        profile_image: profile_image || null,
+        period: emailToPeriod[subEmail] || null
       });
     }
 
@@ -3475,11 +3582,12 @@ app.get('/api/sub-mails', async (req, res) => {
 });
 
 app.post('/api/sub-mails', async (req, res) => {
-  const { main_email, sub_email } = req.body;
+  const { main_email, sub_email, period, month } = req.body;
   if (!main_email || !sub_email) {
     return res.status(400).json({ error: 'main_email and sub_email are required' });
   }
 
+  const targetPeriod = period || month;
   const id = uuidv4();
   const created_at = new Date();
 
@@ -3487,15 +3595,15 @@ app.post('/api/sub-mails', async (req, res) => {
     if (supabase) {
       const { error } = await supabase
         .from('main_sub_mails')
-        .insert([{ id, main_email: main_email.toLowerCase(), sub_email: sub_email.toLowerCase(), created_at }]);
+        .insert([{ id, main_email: main_email.toLowerCase(), sub_email: sub_email.toLowerCase(), period: targetPeriod || null, created_at }]);
       if (error) {
         console.warn('Supabase main_sub_mails insert failed, trying locally:', error.message);
       }
     }
 
     db.prepare(
-      'INSERT INTO main_sub_mails (id, main_email, sub_email, created_at) VALUES (?, ?, ?, ?)'
-    ).run(id, main_email.toLowerCase(), sub_email.toLowerCase(), created_at.toISOString());
+      'INSERT INTO main_sub_mails (id, main_email, sub_email, period, created_at) VALUES (?, ?, ?, ?, ?)'
+    ).run(id, main_email.toLowerCase(), sub_email.toLowerCase(), targetPeriod || null, created_at.toISOString());
 
     // Sync / ensure sub-user exists in the users table so their profile is active
     let userExists = false;
@@ -3544,6 +3652,27 @@ app.post('/api/sub-mails', async (req, res) => {
       }
     }
 
+    // Insert Notification
+    try {
+      const recentNotif = db.prepare(`
+        SELECT id FROM manager_notifications 
+        WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND is_read = 0
+      `).get(main_email.toLowerCase(), sub_email.toLowerCase());
+
+      if (!recentNotif) {
+        const notifMsg = targetPeriod
+          ? `A new reportee (${sub_email}) has been assigned to you for ${targetPeriod}.`
+          : `A new reportee (${sub_email}) has been assigned to you.`;
+
+        db.prepare(`
+          INSERT INTO manager_notifications (manager_email, reportee_email, message) 
+          VALUES (?, ?, ?)
+        `).run(main_email.toLowerCase(), sub_email.toLowerCase(), notifMsg);
+      }
+    } catch (e) {
+      console.warn('Failed to insert manager notification:', e.message);
+    }
+
     res.json({ success: true, message: 'Sub mail added and profile synced successfully' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -3577,6 +3706,88 @@ app.delete('/api/sub-mails', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+app.get('/api/notifications', (req, res) => {
+  const { email } = req.query;
+  if (!email) {
+    return res.status(400).json({ error: 'email is required' });
+  }
+
+  try {
+    const notifications = db.prepare(`
+      SELECT id, message, created_at FROM manager_notifications
+      WHERE LOWER(manager_email) = LOWER(?) AND is_read = 0 AND (type IS NULL OR type = 'assign_reportee')
+      ORDER BY created_at DESC
+    `).all(email.toLowerCase());
+
+    res.json({ success: true, count: notifications.length, notifications });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/notifications/read', (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'email is required' });
+  }
+
+  try {
+    db.prepare(`
+      UPDATE manager_notifications 
+      SET is_read = 1 
+      WHERE LOWER(manager_email) = LOWER(?) AND is_read = 0 AND (type IS NULL OR type = 'assign_reportee')
+    `).run(email.toLowerCase());
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/social/notifications', (req, res) => {
+  const { email } = req.query;
+  if (!email) {
+    return res.status(400).json({ error: 'email is required' });
+  }
+
+  try {
+    const notifications = db.prepare(`
+      SELECT id, message, created_at, is_read FROM manager_notifications
+      WHERE LOWER(manager_email) = LOWER(?) AND type = 'mention'
+      ORDER BY created_at DESC
+    `).all(email.toLowerCase());
+
+    const unreadCount = db.prepare(`
+      SELECT COUNT(*) as count FROM manager_notifications
+      WHERE LOWER(manager_email) = LOWER(?) AND type = 'mention' AND is_read = 0
+    `).get(email.toLowerCase()).count;
+
+    res.json({ success: true, count: unreadCount, notifications });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/social/notifications/read', (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'email is required' });
+  }
+
+  try {
+    db.prepare(`
+      UPDATE manager_notifications 
+      SET is_read = 1 
+      WHERE LOWER(manager_email) = LOWER(?) AND type = 'mention' AND is_read = 0
+    `).run(email.toLowerCase());
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ─── Gantec Social API ────────────────────────────────────────────────────────
 app.get('/api/social/feed', async (req, res) => {
   try {
@@ -3625,6 +3836,28 @@ app.post('/api/social/posts', (req, res) => {
     const id = uuidv4();
     db.prepare('INSERT INTO social_posts (id, user_email, image_url, caption) VALUES (?, ?, ?, ?)')
       .run(id, user_email, image_url || '', caption || '');
+    // --- Mention Notification Logic ---
+    if (caption) {
+      const mentionedEmails = extractMentions(caption);
+      mentionedEmails.forEach(mentionedEmail => {
+        // Avoid notifying the author
+        if (mentionedEmail !== user_email.toLowerCase()) {
+          try {
+            // Prevent duplicate recent notifications
+            const recent = db.prepare(`
+              SELECT id FROM manager_notifications
+              WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND type = 'mention' AND is_read = 0
+            `).get(mentionedEmail, user_email);
+            if (!recent) {
+              const msg = `${user_email} mentioned you in a post.`;
+              db.prepare('INSERT INTO manager_notifications (manager_email, reportee_email, message, type) VALUES (?, ?, ?, ?)')
+                .run(mentionedEmail, user_email, msg, 'mention');
+            }
+          } catch (e) { console.warn('Mention notification error:', e.message); }
+        }
+      });
+    }
+    // ---------------------------------------
     
     res.json({ success: true, post_id: id });
   } catch (err) {
@@ -3640,7 +3873,27 @@ app.post('/api/social/comments', (req, res) => {
     const id = uuidv4();
     db.prepare('INSERT INTO social_comments (id, post_id, user_email, comment_text) VALUES (?, ?, ?, ?)')
       .run(id, post_id, user_email, comment_text);
-      
+    // --- Mention Notification Logic for Comments ---
+    if (comment_text) {
+      const mentionedEmails = extractMentions(comment_text);
+      mentionedEmails.forEach(mentionedEmail => {
+        // Avoid notifying the author
+        if (mentionedEmail !== user_email.toLowerCase()) {
+          try {
+            const recent = db.prepare(`
+              SELECT id FROM manager_notifications
+              WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND type = 'mention' AND is_read = 0
+            `).get(mentionedEmail, user_email);
+            if (!recent) {
+              const msg = `${user_email} mentioned you in a comment.`;
+              db.prepare('INSERT INTO manager_notifications (manager_email, reportee_email, message, type) VALUES (?, ?, ?, ?)')
+                .run(mentionedEmail, user_email, msg, 'mention');
+            }
+          } catch (e) { console.warn('Mention notification error (comment):', e.message); }
+        }
+      });
+    }
+    // ---------------------------------------
     res.json({ success: true, comment_id: id });
   } catch (err) {
     res.status(500).json({ error: err.message });

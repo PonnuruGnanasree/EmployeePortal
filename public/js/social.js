@@ -1,6 +1,8 @@
 // Gantec Idea Hub - Global State
 var globalSocialPosts = [];
-var socialLastSeenActivityCount = parseInt(localStorage.getItem('social_seen_activity_count') || localStorage.getItem('social_seen_count') || '0');
+var globalUnreadMentionsCount = 0;
+var globalMentionsList = [];
+var socialLastSeenPostCount = parseInt(localStorage.getItem('social_seen_post_count') || '0');
 
 async function loadSocialFeed() {
   try {
@@ -8,7 +10,7 @@ async function loadSocialFeed() {
     var data = await res.json();
     if (data.success) {
       globalSocialPosts = data.posts;
-      updateSocialBadge();
+      await loadSocialNotifications();
       renderSocialFeed();
     }
   } catch(e) {
@@ -16,39 +18,83 @@ async function loadSocialFeed() {
   }
 }
 
-function getActivityCount() {
-  var count = globalSocialPosts.length;
-  for (var i = 0; i < globalSocialPosts.length; i++) {
-    var post = globalSocialPosts[i];
-    count += (post.comments ? post.comments.length : 0);
-    count += (post.likesCount || 0);
+function getNewPostsCount() {
+  // Count posts from others that have not been seen yet
+  var total = globalSocialPosts.length;
+  return Math.max(0, total - socialLastSeenPostCount);
+}
+
+async function loadSocialNotifications() {
+  var userEmail = (localStorage.getItem('gantec_user_email') || '').trim().toLowerCase();
+  if (!userEmail) return;
+
+  try {
+    var res = await fetch('/api/social/notifications?email=' + encodeURIComponent(userEmail));
+    var data = await res.json();
+    if (data.success) {
+      globalUnreadMentionsCount = data.count;
+      globalMentionsList = data.notifications;
+      updateSocialBadge();
+    }
+  } catch (e) {
+    console.error('Failed to load social notifications:', e);
+    updateSocialBadge();
   }
-  return count;
 }
 
 function updateSocialBadge() {
   var badge = document.getElementById('social-badge');
   if (!badge) return;
-  var totalActivity = getActivityCount();
 
-  // If the social widget is actively open, dynamically mark loaded posts as seen
+  // If widget is open, clear the new-posts counter (mark posts as seen)
   if (typeof instaWidgetOpen !== 'undefined' && instaWidgetOpen) {
-    socialLastSeenActivityCount = totalActivity;
-    localStorage.setItem('social_seen_activity_count', String(socialLastSeenActivityCount));
+    socialLastSeenPostCount = globalSocialPosts.length;
+    localStorage.setItem('social_seen_post_count', String(socialLastSeenPostCount));
+    if (globalUnreadMentionsCount > 0) {
+      markMentionsAsRead();
+    }
+    badge.style.display = 'none';
+    return;
   }
 
-  var newCount = totalActivity - socialLastSeenActivityCount;
-  if (newCount > 0) {
-    badge.textContent = newCount;
+  // Badge = new posts from others + unread mentions/tags
+  var newPostCount = getNewPostsCount();
+  var totalBadge = newPostCount + globalUnreadMentionsCount;
+
+  if (totalBadge > 0) {
+    badge.textContent = totalBadge;
     badge.style.display = 'flex';
   } else {
     badge.style.display = 'none';
   }
 }
 
+async function markMentionsAsRead() {
+  var userEmail = (localStorage.getItem('gantec_user_email') || '').trim().toLowerCase();
+  if (!userEmail) return;
+
+  try {
+    var res = await fetch('/api/social/notifications/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: userEmail })
+    });
+    var data = await res.json();
+    if (data.success) {
+      globalUnreadMentionsCount = 0;
+      globalMentionsList.forEach(function(m) { m.is_read = 1; });
+      var badge = document.getElementById('social-badge');
+      if (badge) badge.style.display = 'none';
+    }
+  } catch (e) {
+    console.error('Failed to mark mentions as read:', e);
+  }
+}
+
 function markPostsAsSeen() {
-  socialLastSeenActivityCount = getActivityCount();
-  localStorage.setItem('social_seen_activity_count', String(socialLastSeenActivityCount));
+  // Called when Gantec Idea Hub widget is opened
+  socialLastSeenPostCount = globalSocialPosts.length;
+  localStorage.setItem('social_seen_post_count', String(socialLastSeenPostCount));
   var badge = document.getElementById('social-badge');
   if (badge) badge.style.display = 'none';
 }
@@ -95,16 +141,59 @@ function renderSocialFeed() {
   var container = document.getElementById('social-feed-scroll');
   if (!container) return;
 
+  var userEmail = (localStorage.getItem('gantec_user_email') || '').trim().toLowerCase();
+  var html = '';
+
+  // Render Mentions and Tags card at the top if there are any mentions
+  var mentionsHtml = '';
+  if (globalMentionsList && globalMentionsList.length > 0) {
+    mentionsHtml += '<div class="mentions-card-container" style="background:#ffffff;margin:12px;padding:16px;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.06);border:1px solid #f1f5f9;">' +
+      '<div style="display:flex;align-items:center;justify-content:between;margin-bottom:12px;">' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.85rem;box-shadow:0 4px 10px rgba(99,102,241,0.2);">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;"><circle cx="12" cy="12" r="4"></circle><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"></path></svg>' +
+          '</div>' +
+          '<span style="font-size:0.9rem;font-weight:750;color:#1e293b;letter-spacing:-0.2px;">Mentions & Tags</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:10px;">';
+
+    var maxMentions = Math.min(globalMentionsList.length, 5);
+    for (var mIdx = 0; mIdx < maxMentions; mIdx++) {
+      var m = globalMentionsList[mIdx];
+      var isUnread = !m.is_read;
+      var dateStr = '';
+      try {
+        dateStr = new Date(m.created_at).toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      } catch(e) {}
+
+      mentionsHtml += '<div style="display:flex;align-items:start;gap:10px;padding:8px 0;' + (mIdx < maxMentions - 1 ? 'border-bottom:1px dashed #f1f5f9;' : '') + '">' +
+        '<div style="margin-top:4px;">' +
+          (isUnread 
+            ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#8b5cf6;box-shadow:0 0 8px #8b5cf6;"></span>'
+            : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#cbd5e1;"></span>') +
+        '</div>' +
+        '<div style="flex:1;">' +
+          '<div style="font-size:0.82rem;color:#334155;line-height:1.35;font-weight:500;">' + formatPostText(m.message) + '</div>' +
+          '<div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">' + dateStr + '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    mentionsHtml += '</div>' +
+    '</div>';
+  }
+
+  html += mentionsHtml;
+
   if (globalSocialPosts.length === 0) {
-    container.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#888;">' +
+    html += '<div style="padding:40px 20px;text-align:center;color:#888;">' +
       '<div style="font-size:3rem;margin-bottom:12px;">📸</div>' +
       '<p style="margin:0;font-size:0.95rem;">No posts yet.<br>Click <b>+ Post</b> to share an update!</p>' +
       '</div>';
+    container.innerHTML = html;
     return;
   }
-
-  var userEmail = (localStorage.getItem('gantec_user_email') || '').trim().toLowerCase();
-  var html = '';
 
   for (var i = 0; i < globalSocialPosts.length; i++) {
     var post = globalSocialPosts[i];

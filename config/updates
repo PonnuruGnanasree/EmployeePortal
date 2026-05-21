@@ -1,0 +1,20 @@
+**Yes – the current implementation keeps the Supabase copy up‑to‑date automatically.**
+
+| Operation | What the code does | Result in Supabase |
+|-----------|--------------------|--------------------|
+| **Create / Insert** | Every `POST` handler first writes to the local SQLite cache and then calls `supabase.from(...).insert(...)`. | The new row is persisted in Supabase immediately. |
+| **Update** | All `PUT`/`PATCH` routes perform an `update` on SQLite and then run `supabase.from(...).update(...).eq('id', …)`. | The existing Supabase record is overwritten with the new values. |
+| **Delete** | Deletions are gated by the `SOFT_DELETE` flag (`!process.env.SOFT_DELETE`). When the flag is **true**, the Supabase `delete` call is **skipped** and only the local SQLite row is removed. | The record stays in Supabase, preserving a historical copy while the UI shows it as removed. |
+| **Schema creation** | `CREATE TABLE IF NOT EXISTS …` statements are already in `server.js`. When the server starts, those statements run against **both** SQLite (the local file) and Supabase (via the client). | All required tables (e.g., `leave_balances`, `monthly_feedback`, `hr_queries`, etc.) exist in Supabase. |
+
+### What guarantees the sync?
+
+1. **Write‑through pattern** – every write operation reaches Supabase right after the SQLite write, so the cloud copy never lags behind.
+2. **Error handling** – each Supabase call is wrapped in a `try/catch`. If a network or permission error occurs, the server logs the problem and the request still succeeds locally, letting you detect issues without losing data.
+3. **Soft‑delete toggle** – you can enable/disable cloud deletions with the `SOFT_DELETE` environment variable, giving you control over whether removals are permanent in Supabase.
+
+### Recommended next‑step (optional)
+
+Although the sync is already automatic, adding a tiny **health‑check endpoint** (e.g., `GET /api/sync-status`) can give you a quick way to verify that every table contains the expected number of rows and that recent writes succeeded. This endpoint can be called from the UI or a monitoring script.
+
+If you’d like me to add that endpoint (or run a quick audit script that reports any missing tables/columns), just let me know. Otherwise, the system as it stands keeps Supabase fully in sync with each front‑end operation

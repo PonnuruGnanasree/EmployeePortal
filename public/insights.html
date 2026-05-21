@@ -219,7 +219,7 @@
     .sub-mail-directory-card:hover .delete-sub-btn {
       opacity: 0.8;
     }
-    
+
     .sub-mail-directory-card:hover .delete-sub-btn:hover {
       opacity: 1;
     }
@@ -249,11 +249,29 @@
     .sub-mail-directory-card:hover .link-sub-btn {
       opacity: 0.8;
     }
-    
+
     .sub-mail-directory-card:hover .link-sub-btn:hover {
       opacity: 1;
     }
-  </style>
+  .tag-dropdown {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 2000;
+  }
+  .tag-item {
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .tag-item:hover {
+    background: var(--primary);
+    color: #fff;
+  }
+</style>
 </head>
 
 <body>
@@ -403,7 +421,12 @@
           <span class="gantec-logo-text" style="font-size: 1.25rem;">GANTEC <span class="gantec-logo-gradient">Employee
               Portal</span></span>
         </a>
-        <div id="user-profile-section"></div>
+        <div id="user-profile-section">
+          <button id="reportee-bell" class="btn-notify" title="Reportees" style="background:none;border:none;color:var(--text-primary);position:relative;font-size:1.5rem;cursor:pointer;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span id="reportee-count" class="badge" style="position:absolute;top:-6px;right:-6px;background:red;color:white;border-radius:50%;padding:2px 6px;font-size:0.75rem;display:none;">0</span>
+          </button>
+        </div>
       </header>
 
       <main class="app-main">
@@ -418,13 +441,17 @@
 
           <!-- Sub Mails Controller -->
           <div class="sub-mails-card">
-            <div class="sub-mails-top">
+            <div class="sub-mails-top"
+              style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
               <div class="sub-mails-title">
                 👥 Reportee Insights
               </div>
-              <button type="button" class="action-btn btn-primary" id="add-reportee-btn" onclick="openAddReporteeModal()">
-                ➕ Add Reportee
-              </button>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button type="button" class="action-btn btn-primary" id="add-reportee-btn"
+                  onclick="openAddReporteeModal()">
+                  ➕ Add Reportee
+                </button>
+              </div>
             </div>
 
             <!-- Beautiful Directory Grid where sub emails are listed and can be clicked to go to monthly-feedback.html! -->
@@ -461,6 +488,8 @@
         if (addBtn) addBtn.style.display = 'none';
 
         const banner = document.getElementById('target-employee-banner');
+        // Initialize reportee bell badge count
+        updateReporteeBadge(0);
         if (banner) {
           banner.style.display = 'block';
           banner.innerHTML = `
@@ -491,6 +520,7 @@
             const email = typeof subObj === 'string' ? subObj : subObj.email;
             const name = (typeof subObj === 'object' && subObj.fullname) ? subObj.fullname : email.split('@')[0].split('.').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
             const profileImage = (typeof subObj === 'object' && subObj.profile_image) ? subObj.profile_image : null;
+            const period = (typeof subObj === 'object' && subObj.period) ? subObj.period : null;
 
             const initials = name.split(' ').map(part => part[0]).join('').toUpperCase().slice(0, 2);
 
@@ -512,6 +542,7 @@
               <div class="sub-mail-info">
                 <span class="sub-mail-name">${name}</span>
                 <span class="sub-mail-email">${email}</span>
+                ${period ? `<span class="sub-mail-period" style="font-size: 0.75rem; color: #a855f7; font-weight: 700; margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; background: rgba(168, 85, 247, 0.1); padding: 2px 8px; border-radius: 20px; width: fit-content;">📅 ${period}</span>` : ''}
               </div>
               <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
                 <button class="link-sub-btn" onclick="openShareReporteeModal(event, '${email}')" title="Link to Another Manager">
@@ -585,7 +616,7 @@
         const cancelBtn = document.getElementById('delete-confirm-cancel-btn');
 
         confirmMsg.textContent = `Are you sure you want to unlink ${email} from your reportees? This will not delete their profile or feedback data.`;
-        
+
         setTimeout(() => {
           modal.classList.add('active');
         }, 10);
@@ -641,6 +672,7 @@
       }
     }
 
+
     function openAddReporteeModal() {
       let modal = document.getElementById('add-reportee-modal');
       if (!modal) {
@@ -660,12 +692,29 @@
             <div class="confirm-body">
               <h3 style="font-size: 1.4rem; margin-bottom: 8px;">Add New Reportee</h3>
               <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">
-                Enter the official employee email address below to link them to your dashboard.
+                Enter the employee email and select the month they are being added for.
               </p>
-              
-              <div style="text-align: left; margin-bottom: 24px;">
+              <div style="text-align: left; margin-bottom: 16px;">
                 <label for="modal-sub-email" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 8px;">Employee Email</label>
                 <input type="email" id="modal-sub-email" class="add-input" placeholder="e.g. employee@gantecusa.com" style="width: 100%; box-sizing: border-box; padding: 12px 16px; border-radius: 12px;" />
+              </div>
+              <div style="text-align: left; margin-bottom: 24px;">
+                <label for="modal-sub-month" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 8px;">📅 Month Added For</label>
+                <select id="modal-sub-month" class="add-input" style="width: 100%; box-sizing: border-box; padding: 12px 16px; border-radius: 12px; appearance: none; cursor: pointer; background: white;">
+                  <option value="">-- Select Month --</option>
+                  <option value="January">January</option>
+                  <option value="February">February</option>
+                  <option value="March">March</option>
+                  <option value="April">April</option>
+                  <option value="May">May</option>
+                  <option value="June">June</option>
+                  <option value="July">July</option>
+                  <option value="August">August</option>
+                  <option value="September">September</option>
+                  <option value="October">October</option>
+                  <option value="November">November</option>
+                  <option value="December">December</option>
+                </select>
               </div>
             </div>
             <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -675,11 +724,25 @@
           </div>
         `;
         document.body.appendChild(modal);
+
+        // Allow Enter key to submit
+        const emailInput = modal.querySelector('#modal-sub-email');
+        if (emailInput) {
+          emailInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') handleAddSubMail();
+          });
+        }
       }
-      
+
       const input = document.getElementById('modal-sub-email');
       if (input) input.value = '';
-      
+      const monthSelect = document.getElementById('modal-sub-month');
+      if (monthSelect) {
+        // Default to current month
+        const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+        monthSelect.value = currentMonth;
+      }
+
       setTimeout(() => {
         modal.classList.add('active');
         if (input) input.focus();
@@ -697,26 +760,36 @@
       const input = document.getElementById('modal-sub-email');
       if (!input) return;
       const subEmail = input.value.trim();
- 
+      const monthSelect = document.getElementById('modal-sub-month');
+      const selectedMonth = monthSelect ? monthSelect.value : '';
+
       if (!subEmail) {
         showToast('Please enter a valid email address', 'error');
         return;
       }
- 
+      if (!selectedMonth) {
+        showToast('Please select the month for this reportee', 'error');
+        if (monthSelect) monthSelect.focus();
+        return;
+      }
+
       try {
         const res = await fetch('/api/sub-mails', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             main_email: mainUserEmail,
-            sub_email: subEmail
+            sub_email: subEmail,
+            period: selectedMonth,
+            month: selectedMonth
           })
         });
- 
+
         const data = await res.json();
         if (data.success) {
-          showToast('Reportee added successfully!', 'success');
+          showToast(`✅ ${subEmail} added as reportee for ${selectedMonth}!`, 'success');
           input.value = '';
+          if (monthSelect) monthSelect.value = '';
           closeAddReporteeModal();
           loadSubMailsList();
         } else {
@@ -742,7 +815,7 @@
       }
 
       modal.innerHTML = `
-        <div class="confirm-dialog" style="max-width: 440px; padding: 32px;">
+      <div class="confirm-dialog" style="max-width: 440px; padding: 32px;">
           <div class="confirm-icon-wrap" style="background: linear-gradient(135deg, var(--primary), var(--accent));">
             <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px;">
               <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -757,9 +830,28 @@
               Enter the manager's email address below to link <strong>${subEmail}</strong> to their dashboard.
             </p>
             
-            <div style="text-align: left; margin-bottom: 24px;">
+            <div style="text-align: left; margin-bottom: 20px;">
               <label for="share-manager-email" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 8px;">Manager Email</label>
               <input type="email" id="share-manager-email" class="add-input" placeholder="e.g. manager@gantecusa.com" style="width: 100%; box-sizing: border-box; padding: 12px 16px; border-radius: 12px;" />
+            </div>
+
+            <div style="text-align: left; margin-bottom: 24px;">
+              <label for="share-manager-month" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 8px;">📅 Month Added For</label>
+              <select id="share-manager-month" class="add-input" style="width: 100%; box-sizing: border-box; padding: 12px 16px; border-radius: 12px; appearance: none; cursor: pointer; background: white;">
+                <option value="">-- Select Month --</option>
+                <option value="January">January</option>
+                <option value="February">February</option>
+                <option value="March">March</option>
+                <option value="April">April</option>
+                <option value="May">May</option>
+                <option value="June">June</option>
+                <option value="July">July</option>
+                <option value="August">August</option>
+                <option value="September">September</option>
+                <option value="October">October</option>
+                <option value="November">November</option>
+                <option value="December">December</option>
+              </select>
             </div>
           </div>
           <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -770,12 +862,32 @@
       `;
 
       const input = document.getElementById('share-manager-email');
+      const monthSelect = document.getElementById('share-manager-month');
       const submitBtn = document.getElementById('share-submit-btn');
+
+      // Default to current month
+      if (monthSelect) {
+        const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+        monthSelect.value = currentMonth;
+      }
+
+      // Allow Enter key to submit
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitBtn.click();
+      });
 
       submitBtn.onclick = async () => {
         const mainEmail = input.value.trim();
+        const selectedMonth = monthSelect ? monthSelect.value : '';
+
         if (!mainEmail) {
           showToast('Please enter a manager email address', 'error');
+          return;
+        }
+
+        if (!selectedMonth) {
+          showToast('Please select the month for this reportee', 'error');
+          if (monthSelect) monthSelect.focus();
           return;
         }
 
@@ -785,13 +897,15 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               main_email: mainEmail,
-              sub_email: subEmail
+              sub_email: subEmail,
+              period: selectedMonth,
+              month: selectedMonth
             })
           });
 
           const data = await res.json();
           if (data.success) {
-            showToast(`Successfully linked ${subEmail} under ${mainEmail}!`, 'success');
+            showToast(`Successfully linked ${subEmail} under ${mainEmail} for ${selectedMonth}!`, 'success');
             closeShareReporteeModal();
             loadSubMailsList();
           } else {
@@ -814,7 +928,70 @@
         modal.classList.remove('active');
       }
     }
-  </script>
+      // Tagging feature
+    const users = [
+      { id: 1, name: 'ganna' },
+      { id: 2, name: 'george' },
+      { id: 3, name: 'gary' },
+      { id: 4, name: 'alice' }
+    ];
+    function initTagging(textarea) {
+      const dropdown = document.createElement('div');
+      dropdown.className = 'tag-dropdown';
+      dropdown.style.position = 'absolute';
+      dropdown.style.border = '1px solid #ccc';
+      dropdown.style.background = '#fff';
+      dropdown.style.zIndex = 1000;
+      dropdown.style.display = 'none';
+      document.body.appendChild(dropdown);
+      textarea.addEventListener('keyup', (e) => {
+        const caretPos = textarea.selectionStart;
+        const text = textarea.value.substring(0, caretPos);
+        const match = /@(\w*)$/.exec(text);
+        if (match) {
+          const query = match[1].toLowerCase();
+          const filtered = users.filter(u => u.name.toLowerCase().startsWith(query));
+          if (filtered.length) {
+            dropdown.innerHTML = filtered.map(u => `<div class="tag-item" data-id="${u.id}" data-name="${u.name}">@${u.name}</div>`).join('');
+            const rect = textarea.getBoundingClientRect();
+            dropdown.style.left = `${rect.left + window.scrollX}px`;
+            dropdown.style.top = `${rect.bottom + window.scrollY}px`;
+            dropdown.style.display = 'block';
+          } else {
+            dropdown.style.display = 'none';
+          }
+        } else {
+          dropdown.style.display = 'none';
+        }
+      });
+      dropdown.addEventListener('click', (e) => {
+        if (e.target.classList.contains('tag-item')) {
+          const name = e.target.dataset.name;
+          const before = textarea.value.substring(0, textarea.selectionStart);
+          const after = textarea.value.substring(textarea.selectionEnd);
+          const newText = before.replace(/@\w*$/, `@${name} `);
+          textarea.value = newText + after;
+          dropdown.style.display = 'none';
+          textarea.focus();
+        }
+      });
+    }
+    // Initialize tagging on any textarea with class 'comment-input'
+    document.querySelectorAll('textarea.comment-input').forEach(initTagging);
+
+  // Reportee badge update function
+  function updateReporteeBadge(count) {
+    const badge = document.getElementById('reportee-count');
+    if (badge) {
+      if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'inline';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  }
+</script>
 </body>
 
 </html>

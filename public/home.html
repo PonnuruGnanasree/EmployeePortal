@@ -982,6 +982,7 @@
         container.style.display = 'flex';
         if (badge) badge.style.display = 'none';
         if (typeof markPostsAsSeen === 'function') markPostsAsSeen();
+        if (typeof markMentionsAsRead === 'function') markMentionsAsRead();
         if (typeof loadSocialFeed === 'function') loadSocialFeed();
       } else {
         container.style.display = 'none';
