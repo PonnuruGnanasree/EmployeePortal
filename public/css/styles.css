@@ -3918,3 +3918,23 @@ html, body {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+
+/* --- Notification Bell & Menu Custom Premium Styling --- */
+.notification-menu {
+  width: 320px;
+  max-width: 400px;
+  right: 0;
+  left: auto;
+}
+
+.notification-item:hover {
+  background-color: var(--surface-hover) !important;
+}
+
+.notification-item:active {
+  background-color: rgba(59, 130, 246, 0.08) !important;
+}
+
+#manager-notification-bell:hover {
+  background: var(--surface-hover);
+}

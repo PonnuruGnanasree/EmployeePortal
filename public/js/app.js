@@ -395,12 +395,30 @@ function renderUserProfileUI(userSection, userName, userEmail) {
     fetchManagerNotifications(userEmail);
 }
 
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return '';
+  let formattedStr = dateStr;
+  if (formattedStr && !formattedStr.includes('T') && !formattedStr.includes('Z')) {
+    formattedStr = formattedStr.replace(' ', 'T') + 'Z';
+  }
+  const d = new Date(formattedStr);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 30) return `${diffDays}d ago`;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 async function fetchManagerNotifications(email) {
   if (!email) return;
   try {
-    const month = document.getElementById('month-picker')?.value;
-    const periodParam = month ? `&period=${encodeURIComponent(month)}` : '';
-    const res = await fetch(`/api/notifications?email=${encodeURIComponent(email)}${periodParam}`);
+    const res = await fetch(`/api/notifications?email=${encodeURIComponent(email)}&t=${Date.now()}`);
     const data = await res.json();
 
     // Always inject the bell element next to the profile dropdown (if not already present)
@@ -408,64 +426,145 @@ async function fetchManagerNotifications(email) {
     if (!profileWrap) return;
 
     // Remove any previously injected bell to avoid duplicates
-    const existingBell = document.getElementById('manager-notification-bell');
-    if (existingBell) existingBell.remove();
+    let bellWrap = document.getElementById('bell-dropdown-wrap');
+    if (bellWrap) bellWrap.remove();
 
-    if (!data.success || data.count === 0) return;
+    bellWrap = document.createElement('div');
+    bellWrap.id = 'bell-dropdown-wrap';
+    bellWrap.className = 'nav-dropdown';
+    bellWrap.style.cssText = 'position: relative; margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--border); display: flex; align-items: center;';
 
-    // Create bell element
-    const bell = document.createElement('div');
-    bell.id = 'manager-notification-bell';
-    bell.title = 'Notifications';
-    // Style the bell to match UI theme
-    bell.style.cssText = 'position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; transition: background 0.2s; flex-shrink: 0; color: var(--text-primary); margin-left: 8px;';
-    bell.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-      </svg>
+    bellWrap.innerHTML = `
+      <div id="manager-notification-bell" title="Notifications" style="position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; transition: background 0.2s; flex-shrink: 0; color: var(--text-primary);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+      </div>
+      <div class="dropdown-menu notification-menu right" style="min-width: 320px; max-width: 400px; padding: 12px 0; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12); z-index: 1000;">
+        <div class="notification-header" style="display:flex; justify-content:space-between; align-items:center; padding: 8px 16px 12px; border-bottom:1px solid var(--border);">
+          <span style="font-weight:700; color:var(--text-primary);">Notifications</span>
+          <button id="mark-all-read-btn" style="background:none; border:none; color:var(--accent); font-size:0.8rem; font-weight:600; padding:0; cursor:pointer;">Mark all as read</button>
+        </div>
+        <div class="notification-list" id="bell-notification-list" style="max-height: 300px; overflow-y: auto; padding: 4px 0;">
+        </div>
+      </div>
+    `;
+
+    profileWrap.parentNode.insertBefore(bellWrap, profileWrap.nextSibling);
+
+    const bellIcon = bellWrap.querySelector('#manager-notification-bell');
+    if (data.success && data.count > 0) {
+      const badge = document.createElement('span');
+      badge.id = 'notification-badge';
+      badge.textContent = data.count;
+      badge.style.cssText = 'position:absolute; top:-2px; right:-2px; background:#e53e3e; color:white; border-radius:50%; min-width:18px; height:18px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; line-height:1; border: 2px solid var(--surface); font-weight:700;';
+      bellIcon.appendChild(badge);
+    }
+
+    const listContainer = bellWrap.querySelector('#bell-notification-list');
+    const notifs = data.notifications || [];
+
+    if (notifs.length === 0) {
+      listContainer.innerHTML = `
+        <div style="padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+          <div style="font-size: 1.5rem; margin-bottom: 8px;">🔔</div>
+          No notifications yet
+        </div>
       `;
-    
-    // Create badge element
-    const badge = document.createElement('span');
-    badge.id = 'notification-badge';
-    badge.textContent = data.count;
-    badge.style.cssText = 'position:absolute; top:-4px; right:-4px; background:#e53e3e; color:white; border-radius:50%; min-width:18px; height:18px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; line-height:1;';
-    
-    // Insert bell and badge
-    profileWrap.parentNode.insertBefore(bell, profileWrap.nextSibling);
-    bell.appendChild(badge);
+      const markAllBtn = bellWrap.querySelector('#mark-all-read-btn');
+      if (markAllBtn) markAllBtn.style.display = 'none';
+    } else {
+      listContainer.innerHTML = notifs.map(n => {
+        const timeStr = formatRelativeTime(n.created_at);
+        const unreadIndicator = !n.is_read 
+          ? `<span class="unread-dot" style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent); display: inline-block; flex-shrink: 0; margin-left: auto;"></span>`
+          : '';
+        const itemBg = !n.is_read ? 'rgba(59, 130, 246, 0.04)' : 'transparent';
+        
+        return `
+          <div class="notification-item" data-id="${n.id}" data-message="${escapeHTML(n.message)}" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; cursor: pointer; transition: background 0.2s; background: ${itemBg}; border-bottom: 1px solid rgba(0,0,0,0.02);">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(59, 130, 246, 0.1); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.95rem;">
+              👤
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+              <span style="font-size: 0.85rem; color: var(--text-primary); font-weight: ${!n.is_read ? '600' : '400'}; line-height: 1.35;">${escapeHTML(n.message)}</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted);">${timeStr}</span>
+            </div>
+            ${unreadIndicator}
+          </div>
+        `;
+      }).join('');
+      
+      const hasUnread = notifs.some(n => !n.is_read);
+      const markAllBtn = bellWrap.querySelector('#mark-all-read-btn');
+      if (markAllBtn && !hasUnread) {
+        markAllBtn.style.display = 'none';
+      }
+    }
 
-    // Hover effect
-    bell.addEventListener('mouseenter', () => { bell.style.background = 'rgba(0,0,0,0.06)'; });
-    bell.addEventListener('mouseleave', () => { bell.style.background = 'transparent'; });
+    bellIcon.addEventListener('mouseenter', () => { bellIcon.style.background = 'rgba(0,0,0,0.06)'; });
+    bellIcon.addEventListener('mouseleave', () => { bellIcon.style.background = 'transparent'; });
 
-    // Click handler
-    bell.addEventListener('click', async (e) => {
+    bellIcon.addEventListener('click', (e) => {
       e.stopPropagation();
-      try {
-        await fetch('/api/notifications/read', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-
-        // Remove badge
-        const badge = document.getElementById('notification-badge');
-        if (badge) badge.remove();
-
-        // Show toast
-        const msg = data.count === 1
-          ? data.notifications[0].message
-          : `${data.count} new reportees have been assigned to you.`;
-        showToast(msg, 'info', 5000);
-
-        // Redirect
-        setTimeout(() => { window.location.href = 'insights.html'; }, 800);
-      } catch (err) {
-        console.error('Failed to mark notifications read:', err);
+      const isOpen = bellWrap.classList.contains('open');
+      
+      document.querySelectorAll('.nav-dropdown.open').forEach(el => {
+        if (el !== bellWrap) el.classList.remove('open');
+      });
+      
+      if (!isOpen) {
+        bellWrap.classList.add('open');
+      } else {
+        bellWrap.classList.remove('open');
       }
     });
+
+    bellWrap.querySelectorAll('.notification-item').forEach(item => {
+      item.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = item.dataset.id;
+        
+        try {
+          await fetch('/api/notifications/read', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, id })
+          });
+          
+          fetchManagerNotifications(email);
+          
+          const msg = item.dataset.message || '';
+          const match = msg.match(/\(([^)]+)\)/);
+          const reporteeEmail = match ? match[1] : '';
+          const redirectUrl = reporteeEmail ? `insights.html?email=${encodeURIComponent(reporteeEmail)}` : 'insights.html';
+          
+          window.location.href = redirectUrl;
+        } catch (err) {
+          console.error('Failed to mark notification read:', err);
+        }
+      });
+    });
+
+    const markAllBtn = bellWrap.querySelector('#mark-all-read-btn');
+    if (markAllBtn) {
+      markAllBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+          await fetch('/api/notifications/read', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          });
+          
+          fetchManagerNotifications(email);
+          showToast('All notifications marked as read', 'success');
+        } catch (err) {
+          console.error('Failed to mark all notifications read:', err);
+        }
+      });
+    }
 
   } catch (err) {
     console.error('Failed to fetch manager notifications:', err);

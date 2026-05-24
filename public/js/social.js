@@ -214,9 +214,34 @@ function renderSocialFeed() {
     // Only show image container if there is an image
     var imageSection = '';
     if (post.image_url) {
-      imageSection = '<div class="post-image-container">' +
-        '<img src="' + post.image_url + '" class="post-image" ondblclick="toggleSocialLike(\'' + post.id + '\')" style="width:100%;display:block;max-height:300px;object-fit:cover;">' +
-      '</div>';
+      var images = [];
+      if (post.image_url.startsWith('[') && post.image_url.endsWith(']')) {
+        try {
+          images = JSON.parse(post.image_url);
+        } catch(e) {
+          images = [post.image_url];
+        }
+      } else {
+        images = [post.image_url];
+      }
+
+      if (images.length > 1) {
+        var slidesHtml = '';
+        for (var imgIdx = 0; imgIdx < images.length; imgIdx++) {
+          slidesHtml += '<div style="flex:0 0 100%; scroll-snap-align:start; position:relative; overflow:hidden; height:250px;">' +
+            '<img src="' + images[imgIdx] + '" class="post-image" ondblclick="toggleSocialLike(\'' + post.id + '\')" style="width:100%; height:250px; object-fit:cover; display:block;" />' +
+            '<span style="position:absolute; top:12px; right:12px; background:rgba(0,0,0,0.65); color:white; font-size:0.75rem; font-weight:700; padding:4px 8px; border-radius:10px; backdrop-filter:blur(4px);">' + (imgIdx + 1) + '/' + images.length + '</span>' +
+          '</div>';
+        }
+
+        imageSection = '<div class="post-image-carousel" style="display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scroll-behavior:smooth; -webkit-overflow-scrolling:touch; width:100%; height:250px;">' +
+          slidesHtml +
+        '</div>';
+      } else if (images.length === 1 && images[0]) {
+        imageSection = '<div class="post-image-container">' +
+          '<img src="' + images[0] + '" class="post-image" ondblclick="toggleSocialLike(\'' + post.id + '\')" style="width:100%; display:block; max-height:300px; object-fit:cover;">' +
+        '</div>';
+      }
     }
 
     var commentsHtml = '';
@@ -371,12 +396,21 @@ function openSocialCreateModal(type) {
   modal.innerHTML = '<div style="background:white;width:90%;max-width:420px;border-radius:18px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.25);">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #f0f0f0;background:linear-gradient(135deg,#4f46e5,#0ea5e9);">' +
       '<h3 style="margin:0;font-size:1.1rem;color:white;font-weight:700;">Create Post</h3>' +
-      '<button onclick="document.getElementById(\'social-create-modal\').style.display=\'none\'" style="background:rgba(255,255,255,0.2);border:none;color:white;font-size:1.3rem;cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;">&times;</button>' +
+      '<button onclick="document.getElementById(\'social-create-modal\').remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;font-size:1.3rem;cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;">&times;</button>' +
     '</div>' +
     '<div style="padding:20px;">' +
       '<div style="margin-bottom:14px;">' +
-        '<label style="display:block;margin-bottom:6px;font-size:0.875rem;color:#374151;font-weight:600;">Image URL <span style="color:#9ca3af;font-weight:400;">(optional)</span></label>' +
-        '<input type="text" id="social-image-url" placeholder="https://example.com/photo.jpg" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:8px;outline:none;font-size:0.9rem;box-sizing:border-box;" />' +
+        '<label style="display:block;margin-bottom:6px;font-size:0.875rem;color:#374151;font-weight:600;">Images</label>' +
+        '<input type="file" id="social-image-file" accept="image/*" multiple style="display:none;" />' +
+        '<div id="social-upload-area" style="border:1.5px dashed #cbd5e1; border-radius:10px; padding:20px; text-align:center; cursor:pointer; background:#fafafa; transition:all 0.2s;">' +
+          '<div id="social-upload-placeholder">' +
+            '<span style="font-size:1.5rem; display:block; margin-bottom:6px;">📷</span>' +
+            '<span style="font-size:0.85rem; color:#6b7280; font-weight:600;">Upload images from your device</span>' +
+          '</div>' +
+          '<div id="social-upload-preview-container" style="display:none;">' +
+            '<div id="social-create-preview-row" style="display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; align-items:center;"></div>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
       '<div style="margin-bottom:18px;">' +
         '<label style="display:block;margin-bottom:6px;font-size:0.875rem;color:#374151;font-weight:600;">Caption</label>' +
@@ -387,20 +421,121 @@ function openSocialCreateModal(type) {
   '</div>';
 
   document.body.appendChild(modal);
+
+  // Setup upload elements
+  var uploadArea = document.getElementById('social-upload-area');
+  var fileInput = document.getElementById('social-image-file');
+  var placeholder = document.getElementById('social-upload-placeholder');
+  var previewContainer = document.getElementById('social-upload-preview-container');
+  var previewRow = document.getElementById('social-create-preview-row');
+
+  window.socialUploadedImages = [];
+
+  function updateUploadedImagesPreview() {
+    if (window.socialUploadedImages.length === 0) {
+      placeholder.style.display = 'block';
+      previewContainer.style.display = 'none';
+      uploadArea.style.borderColor = '#cbd5e1';
+      uploadArea.style.padding = '20px';
+      return;
+    }
+
+    placeholder.style.display = 'none';
+    previewContainer.style.display = 'block';
+    uploadArea.style.borderColor = '#10b981';
+    uploadArea.style.padding = '12px';
+
+    var previewHtml = '';
+    for (var i = 0; i < window.socialUploadedImages.length; i++) {
+      previewHtml += '<div style="position:relative; width:80px; height:80px; flex-shrink:0;">' +
+        '<img src="' + window.socialUploadedImages[i] + '" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border:1px solid #e2e8f0;" />' +
+        '<button class="social-remove-thumb-btn" data-index="' + i + '" style="position:absolute; top:-6px; right:-6px; background:#ef4444; color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">&times;</button>' +
+      '</div>';
+    }
+
+    // Add More Card
+    previewHtml += '<div id="social-add-more-thumb" style="width:80px; height:80px; border:1.5px dashed #cbd5e1; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#ffffff; flex-shrink:0; cursor:pointer; transition:all 0.2s;">' +
+      '<span style="font-size:1.2rem; color:#6b7280;">+</span>' +
+      '<span style="font-size:0.65rem; color:#6b7280; font-weight:600;">Add More</span>' +
+    '</div>';
+
+    previewRow.innerHTML = previewHtml;
+
+    // Attach listener for delete buttons
+    previewRow.querySelectorAll('.social-remove-thumb-btn').forEach(function(btn) {
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        var index = parseInt(btn.dataset.index);
+        window.socialUploadedImages.splice(index, 1);
+        updateUploadedImagesPreview();
+      };
+    });
+
+    // Attach listener for add more button
+    var addMoreCard = document.getElementById('social-add-more-thumb');
+    if (addMoreCard) {
+      addMoreCard.onclick = function(e) {
+        e.stopPropagation();
+        fileInput.click();
+      };
+    }
+  }
+
+  uploadArea.onclick = function(e) {
+    if (e.target.closest('#social-create-preview-row')) return;
+    fileInput.click();
+  };
+
+  fileInput.onchange = function(e) {
+    var files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    var loadedCount = 0;
+    var totalFiles = files.length;
+
+    for (var fIdx = 0; fIdx < totalFiles; fIdx++) {
+      var file = files[fIdx];
+      if (file.size > 2 * 1024 * 1024) {
+        if (typeof showToast === 'function') {
+          showToast('File "' + file.name + '" is too large. Max size is 2MB.', 'error');
+        } else {
+          alert('File "' + file.name + '" is too large. Max size is 2MB.');
+        }
+        continue;
+      }
+
+      var reader = new FileReader();
+      reader.onload = (function(currFile) {
+        return function(ev) {
+          window.socialUploadedImages.push(ev.target.result);
+          loadedCount++;
+          if (loadedCount === totalFiles || loadedCount + window.socialUploadedImages.length >= 10) {
+            updateUploadedImagesPreview();
+          }
+        };
+      })(file);
+      reader.readAsDataURL(file);
+    }
+    fileInput.value = '';
+  };
 }
 
 async function submitSocialCreate() {
   var user_email = localStorage.getItem('gantec_user_email');
-  var image_url = (document.getElementById('social-image-url') || {}).value || '';
   var text = (document.getElementById('social-caption-text') || {}).value || '';
-  image_url = image_url.trim();
   text = text.trim();
 
   if (!user_email) { alert('Please log in'); return; }
-  if (!text && !image_url) { alert('Please add an image URL or some text.'); return; }
+  
+  var image_url = '';
+  if (window.socialUploadedImages && window.socialUploadedImages.length > 0) {
+    image_url = JSON.stringify(window.socialUploadedImages);
+  }
+
+  if (!text && !image_url) { alert('Please upload at least one image or write a caption.'); return; }
 
   var modal = document.getElementById('social-create-modal');
-  if (modal) modal.style.display = 'none';
+  if (modal) modal.remove();
 
   try {
     await fetch('/api/social/posts', {
@@ -412,10 +547,19 @@ async function submitSocialCreate() {
   } catch(e) { console.error(e); }
 }
 
+(function() {
+  var style = document.createElement('style');
+  style.innerHTML = 
+    '.post-image-carousel::-webkit-scrollbar { display: none !important; }\n' +
+    '.post-image-carousel { -ms-overflow-style: none; scrollbar-width: none; }\n' +
+    '#social-create-preview-row::-webkit-scrollbar { display: none !important; }\n' +
+    '#social-create-preview-row { -ms-overflow-style: none; scrollbar-width: none; }';
+  document.head.appendChild(style);
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
   if (document.getElementById('insta-widget-container')) {
     loadSocialFeed();
-    // Start background polling for dynamic notification count updates
     setInterval(loadSocialFeed, 10000);
   }
 });

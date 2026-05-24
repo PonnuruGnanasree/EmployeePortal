@@ -3714,30 +3714,46 @@ app.get('/api/notifications', (req, res) => {
   }
 
   try {
+    // Maintain notification history for up to one month
+    db.prepare(`
+      DELETE FROM manager_notifications 
+      WHERE created_at < datetime('now', '-30 days')
+    `).run();
+
     const notifications = db.prepare(`
-      SELECT id, message, created_at FROM manager_notifications
-      WHERE LOWER(manager_email) = LOWER(?) AND is_read = 0 AND (type IS NULL OR type = 'assign_reportee')
+      SELECT id, message, created_at, is_read FROM manager_notifications
+      WHERE LOWER(manager_email) = LOWER(?) AND (type IS NULL OR type = 'assign_reportee')
       ORDER BY created_at DESC
     `).all(email.toLowerCase());
 
-    res.json({ success: true, count: notifications.length, notifications });
+    const unreadCount = notifications.filter(n => !n.is_read).length;
+
+    res.json({ success: true, count: unreadCount, notifications });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 app.put('/api/notifications/read', (req, res) => {
-  const { email } = req.body;
+  const { email, id } = req.body;
   if (!email) {
     return res.status(400).json({ error: 'email is required' });
   }
 
   try {
-    db.prepare(`
-      UPDATE manager_notifications 
-      SET is_read = 1 
-      WHERE LOWER(manager_email) = LOWER(?) AND is_read = 0 AND (type IS NULL OR type = 'assign_reportee')
-    `).run(email.toLowerCase());
+    if (id) {
+      db.prepare(`
+        UPDATE manager_notifications 
+        SET is_read = 1 
+        WHERE LOWER(manager_email) = LOWER(?) AND id = ? AND (type IS NULL OR type = 'assign_reportee')
+      `).run(email.toLowerCase(), id);
+    } else {
+      db.prepare(`
+        UPDATE manager_notifications 
+        SET is_read = 1 
+        WHERE LOWER(manager_email) = LOWER(?) AND is_read = 0 AND (type IS NULL OR type = 'assign_reportee')
+      `).run(email.toLowerCase());
+    }
 
     res.json({ success: true });
   } catch (err) {
