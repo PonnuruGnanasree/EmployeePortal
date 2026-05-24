@@ -446,6 +446,29 @@
     window.onunhandledrejection = function (event) {
       console.error('UNHANDLED PROMISE REJECTION:', event.reason);
     };
+    /* ── Safe JSON parser + sanitizer (strips numeric-index corruption) ── */
+    function safeParseJSON(val, fallback) {
+      if (fallback === undefined) fallback = {};
+      if (val === null || val === undefined) return fallback;
+      if (typeof val === 'object' && !Array.isArray(val)) return cleanObj(val);
+      if (typeof val !== 'string') return fallback;
+      try {
+        const parsed = JSON.parse(val);
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) return cleanObj(parsed);
+        return fallback;
+      } catch (e) { return fallback; }
+    }
+    function cleanObj(obj) {
+      if (!obj || typeof obj !== 'object') return {};
+      const cleaned = {};
+      for (const key of Object.keys(obj)) {
+        if (/^\d+$/.test(key)) continue;           // strip numeric-index pollution
+        if (typeof obj[key] === 'string' && obj[key].length === 1 && '{}":, '.includes(obj[key])) continue; // strip single-char junk from string spreading
+        cleaned[key] = obj[key];
+      }
+      return cleaned;
+    }
+
     let allFeedbackData = [];
     const charts = {};
 
@@ -546,11 +569,10 @@
           throw new Error(result.error || `Server returned ${response.status}`);
         }
 
-        // Parse data
+        // Parse data — use safeParseJSON to strip corrupted numeric-index keys
         allFeedbackData = (result.feedback || []).map(record => {
-          if (typeof record.selections === 'string') {
-            try { record.selections = JSON.parse(record.selections); } catch (e) { record.selections = {}; }
-          }
+          record.selections = safeParseJSON(record.selections, {});
+          if (record.remarks !== undefined) record.remarks = safeParseJSON(record.remarks, {});
           return record;
         });
 
@@ -693,13 +715,10 @@
 
     function calculateOverallAvg(record) {
       if (!record || !record.selections) return null;
-      let selections = record.selections;
-      if (typeof selections === 'string') {
-        try { selections = JSON.parse(selections); } catch (e) { selections = {}; }
-      }
+      const selections = safeParseJSON(record.selections, {});
       // Exclude _remarks (object) and any non-numeric values
       const vals = Object.entries(selections)
-        .filter(([k]) => k !== '_remarks')
+        .filter(([k]) => k !== '_remarks' && !/^\d+$/.test(k))
         .map(([, v]) => Number(v))
         .filter(v => !isNaN(v) && isFinite(v));
       return vals.length === 0 ? null : (vals.reduce((a, b) => a + b, 0) / vals.length) + 1;
@@ -914,10 +933,8 @@
 
     function calculateAverage(selections, rowIds) {
       if (!selections) return null;
-      if (typeof selections === 'string') {
-        try { selections = JSON.parse(selections); } catch (e) { selections = {}; }
-      }
-      const vals = rowIds.map(id => Number(selections[id])).filter(v => !isNaN(v) && isFinite(v));
+      const sel = safeParseJSON(selections, {});
+      const vals = rowIds.map(id => Number(sel[id])).filter(v => !isNaN(v) && isFinite(v));
       if (vals.length === 0) return null;
       return (vals.reduce((a, b) => a + b, 0) / vals.length) + 1; // 1-7 scale
     }
@@ -1126,7 +1143,7 @@
       const container = document.getElementById('drilldown-grid');
       container.innerHTML = '';
 
-      const selections = record ? record.selections : {};
+      const selections = record ? safeParseJSON(record.selections, {}) : {};
       currentDrilldownData = selections;
 
       const levelNames = ['Stagnant', 'Fluctuating', 'Steady', 'Proactive', 'High-Perf', 'Multiplier', 'Engine'];

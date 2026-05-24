@@ -1525,13 +1525,36 @@
 
         if (periodData && periodData.length > 0) {
           periodData.forEach(row => {
-            const s = { ...(row.selections || {}) };
+            let s = row.selections || {};
+            if (typeof s === 'string') {
+              try { s = JSON.parse(s); } catch (e) { s = {}; }
+            }
+            let r = row.remarks || {};
+            if (typeof r === 'string') {
+              try { r = JSON.parse(r); } catch (e) { r = {}; }
+            }
+
+            // Self-healing: clean up corrupted character map keys from previous bugs
+            const cleanObj = (obj) => {
+              if (!obj || typeof obj !== 'object') return {};
+              const cleaned = {};
+              for (const [key, value] of Object.entries(obj)) {
+                if (!/^\d+$/.test(key)) {
+                  cleaned[key] = value;
+                }
+              }
+              return cleaned;
+            };
+
+            s = cleanObj(s);
+            r = cleanObj(r);
+
             // Extract bundled remarks if they exist
             if (s._remarks) {
-              remarks[row.role] = s._remarks;
+              remarks[row.role] = cleanObj(s._remarks);
               delete s._remarks;
             } else {
-              remarks[row.role] = row.remarks || {};
+              remarks[row.role] = r;
             }
             selections[row.role] = s;
             locked[row.role] = row.is_submitted === true;
@@ -1559,12 +1582,35 @@
 
     function _loadFromLocalStorage(email) {
       if (!email) return;
+      const cleanObj = (obj) => {
+        if (!obj || typeof obj !== 'object') return {};
+        const cleaned = {};
+        for (const [key, value] of Object.entries(obj)) {
+          if (!/^\d+$/.test(key)) cleaned[key] = value;
+        }
+        return cleaned;
+      };
+
       const saved = localStorage.getItem(`gantec_rubric_selections_${email}_${period}`);
-      if (saved) selections = JSON.parse(saved);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          selections.user = cleanObj(parsed.user || {});
+          selections.admin = cleanObj(parsed.admin || {});
+        } catch(e) { selections = { user: {}, admin: {} }; }
+      }
       const savedRem = localStorage.getItem(`gantec_rubric_remarks_${email}_${period}`);
-      if (savedRem) remarks = JSON.parse(savedRem);
+      if (savedRem) {
+        try {
+          const parsed = JSON.parse(savedRem);
+          remarks.user = cleanObj(parsed.user || {});
+          remarks.admin = cleanObj(parsed.admin || {});
+        } catch(e) { remarks = { user: {}, admin: {} }; }
+      }
       const savedLocked = localStorage.getItem(`gantec_rubric_locked_${email}_${period}`);
-      if (savedLocked) locked = JSON.parse(savedLocked);
+      if (savedLocked) {
+        try { locked = JSON.parse(savedLocked); } catch(e) { locked = { user: false, admin: false }; }
+      }
     }
 
     // ── Role & Period switchers ──────────────────────────────────────────────

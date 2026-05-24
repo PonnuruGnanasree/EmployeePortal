@@ -57,9 +57,8 @@ function updateSocialBadge() {
     return;
   }
 
-  // Badge = new posts from others + unread mentions/tags
-  var newPostCount = getNewPostsCount();
-  var totalBadge = newPostCount + globalUnreadMentionsCount;
+  // Badge = unread notifications (mentions, comments, messages)
+  var totalBadge = globalUnreadMentionsCount;
 
   if (totalBadge > 0) {
     badge.textContent = totalBadge;
@@ -109,29 +108,17 @@ function formatPostText(text) {
 
   // 2. Parse Gantec email IDs inside markdown link syntax: @[user@gantecusa.com](mailto:user@gantecusa.com)
   escaped = escaped.replace(/@\[([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\]\(mailto:\1\)/gi, function(match, email) {
-    return '<span class="social-tag-email" style="color:#3b82f6;font-weight:650;cursor:pointer;" title="' + email + '">@' + email + '</span>';
+    return '<span class="social-tag-email" style="color:#3b82f6;font-weight:650;cursor:pointer;" title="' + email + '" onclick="window.location.href=\'insights.html?email=\' + encodeURIComponent(\'' + email + '\')">@' + email + '</span>';
   });
 
   // 3. Parse plain Gantec email IDs preceded by @: e.g. @user@gantecusa.com
   escaped = escaped.replace(/(^|\s)@([a-zA-Z0-9._%+-]+@gantecusa\.com)/gi, function(match, space, email) {
-    return space + '<span class="social-tag-email" style="color:#3b82f6;font-weight:650;cursor:pointer;" title="' + email + '">@' + email + '</span>';
+    return space + '<span class="social-tag-email" style="color:#3b82f6;font-weight:650;cursor:pointer;" title="' + email + '" onclick="window.location.href=\'insights.html?email=\' + encodeURIComponent(\'' + email + '\')">@' + email + '</span>';
   });
 
   // 4. Parse regular @mentions (e.g. @john_doe, @mary)
-  escaped = escaped.replace(/(^|\s)@([a-zA-Z0-9._@-]+)/g, function(match, space, username) {
-    return space + '<span class="social-tag-mention" style="color:#3b82f6;font-weight:650;cursor:pointer;">@' + username + '</span>';
-  });
-
-  // 5. Parse #tags (e.g. #gantec, #ideas) and #email tags
-  // Email-like hashtags (e.g. #user@gantecusa.com)
-  escaped = escaped.replace(/(^|\s)#([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi, function(match, space, email) {
-    return space + '<span class="social-tag-hashtag" style="color:#10b981;font-weight:650;cursor:pointer;" title="' + email + '">#' + email + '</span>';
-  });
-  // Regular hashtags (e.g. #gantec, #ideas) - exclude email tags
-  escaped = escaped.replace(/(^|\s)#([a-zA-Z0-9._@-]+)/g, function(match, space, tag) {
-    // Skip if tag looks like an email (contains @ and a dot after)
-    if (/@/.test(tag) && /\./.test(tag)) return match;
-    return space + '<span class="social-tag-hashtag" style="color:#10b981;font-weight:650;cursor:pointer;">#' + tag + '</span>';
+  escaped = escaped.replace(/(^|\s)@([a-zA-Z0-9._-]+)/g, function(match, space, username) {
+    return space + '<span class="social-tag-mention" style="color:#3b82f6;font-weight:650;cursor:pointer;" title="@' + username + '" onclick="window.location.href=\'insights.html?email=\' + encodeURIComponent(\'' + username + '@gantecusa.com\')">@' + username + '</span>';
   });
 
   return escaped;
@@ -153,7 +140,7 @@ function renderSocialFeed() {
           '<div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.85rem;box-shadow:0 4px 10px rgba(99,102,241,0.2);">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;"><circle cx="12" cy="12" r="4"></circle><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"></path></svg>' +
           '</div>' +
-          '<span style="font-size:0.9rem;font-weight:750;color:#1e293b;letter-spacing:-0.2px;">Mentions & Tags</span>' +
+          '<span style="font-size:0.9rem;font-weight:750;color:#1e293b;letter-spacing:-0.2px;">Idea Hub Notifications</span>' +
         '</div>' +
       '</div>' +
       '<div style="display:flex;flex-direction:column;gap:10px;">';
@@ -167,14 +154,32 @@ function renderSocialFeed() {
         dateStr = new Date(m.created_at).toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
       } catch(e) {}
 
-      mentionsHtml += '<div style="display:flex;align-items:start;gap:10px;padding:8px 0;' + (mIdx < maxMentions - 1 ? 'border-bottom:1px dashed #f1f5f9;' : '') + '">' +
-        '<div style="margin-top:4px;">' +
+      var displayMsg = m.message;
+      if (m.reportee_email) {
+        var senderEmail = m.reportee_email.toLowerCase();
+        var senderUsername = senderEmail.split('@')[0];
+        var emailRegex = new RegExp(senderEmail.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+        displayMsg = displayMsg.replace(emailRegex, senderUsername);
+      }
+
+      var senderName = m.sender_name || (m.reportee_email ? m.reportee_email.split('@')[0] : 'User');
+      var initials = senderName.substring(0, 2).toUpperCase();
+      var avatarHtml = '';
+      if (m.sender_image) {
+        avatarHtml = '<img src="' + m.sender_image + '" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:1.5px solid #e2e8f0;box-shadow:0 2px 5px rgba(0,0,0,0.05);">';
+      } else {
+        avatarHtml = '<div style="background:linear-gradient(135deg,#6366f1,#ec4899);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:11px;border:1.5px solid #e2e8f0;box-shadow:0 2px 5px rgba(0,0,0,0.05);">' + initials + '</div>';
+      }
+
+      mentionsHtml += '<div style="display:flex;align-items:start;gap:12px;padding:10px 0;' + (mIdx < maxMentions - 1 ? 'border-bottom:1px dashed #f1f5f9;' : '') + '">' +
+        '<div style="position:relative;flex-shrink:0;">' +
+          avatarHtml +
           (isUnread 
-            ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#8b5cf6;box-shadow:0 0 8px #8b5cf6;"></span>'
-            : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#cbd5e1;"></span>') +
+            ? '<span style="position:absolute;top:-2px;right:-2px;display:block;width:8px;height:8px;border-radius:50%;background:#8b5cf6;box-shadow:0 0 6px #8b5cf6;border:1.5px solid #ffffff;"></span>'
+            : '') +
         '</div>' +
         '<div style="flex:1;">' +
-          '<div style="font-size:0.82rem;color:#334155;line-height:1.35;font-weight:500;">' + formatPostText(m.message) + '</div>' +
+          '<div style="font-size:0.83rem;color:#1e293b;line-height:1.4;font-weight:550;">' + formatPostText(displayMsg) + '</div>' +
           '<div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">' + dateStr + '</div>' +
         '</div>' +
       '</div>';
@@ -297,7 +302,27 @@ function renderSocialFeed() {
     '</div>';
   }
 
+  // Save any in-progress comment text before re-rendering
+  var activeCommentId = null;
+  var activeCommentValue = '';
+  var activeEl = document.activeElement;
+  if (activeEl && activeEl.id && activeEl.id.startsWith('cmt-')) {
+    activeCommentId = activeEl.id;
+    activeCommentValue = activeEl.value || '';
+  }
+
   container.innerHTML = html;
+
+  // Restore in-progress comment text after re-render
+  if (activeCommentId && activeCommentValue) {
+    var restored = document.getElementById(activeCommentId);
+    if (restored) {
+      restored.value = activeCommentValue;
+      restored.focus();
+      // Place cursor at the end
+      restored.setSelectionRange(activeCommentValue.length, activeCommentValue.length);
+    }
+  }
 }
 
 function focusSocialComment(postId) {
@@ -543,7 +568,11 @@ async function submitSocialCreate() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_email: user_email, image_url: image_url, caption: text })
     });
-    loadSocialFeed();
+    await loadSocialFeed();
+    var scrollContainer = document.getElementById('social-feed-scroll');
+    if (scrollContainer) {
+      scrollContainer.scrollTop = 0;
+    }
   } catch(e) { console.error(e); }
 }
 
@@ -553,7 +582,14 @@ async function submitSocialCreate() {
     '.post-image-carousel::-webkit-scrollbar { display: none !important; }\n' +
     '.post-image-carousel { -ms-overflow-style: none; scrollbar-width: none; }\n' +
     '#social-create-preview-row::-webkit-scrollbar { display: none !important; }\n' +
-    '#social-create-preview-row { -ms-overflow-style: none; scrollbar-width: none; }';
+    '#social-create-preview-row { -ms-overflow-style: none; scrollbar-width: none; }\n' +
+    '#social-mention-dropdown { position:fixed; z-index:999999; background:white; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.15); max-height:220px; overflow-y:auto; min-width:220px; }\n' +
+    '.social-mention-item { display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; font-size:0.88rem; transition:background 0.15s; }\n' +
+    '.social-mention-item:hover, .social-mention-item.active { background:#f0f4ff; }\n' +
+    '.social-mention-avatar { width:32px; height:32px; border-radius:50%; object-fit:cover; background:linear-gradient(135deg,#4f46e5,#ec4899); display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:0.78rem; flex-shrink:0; }\n' +
+    '.social-mention-info { display:flex; flex-direction:column; }\n' +
+    '.social-mention-name { font-weight:600; color:#1e293b; }\n' +
+    '.social-mention-handle { color:#64748b; font-size:0.78rem; }';
   document.head.appendChild(style);
 })();
 
@@ -563,3 +599,176 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(loadSocialFeed, 10000);
   }
 });
+
+// ─── @Mention Autocomplete Engine ────────────────────────────────────────────
+(function() {
+  var dropdown = null;
+  var activeInput = null;
+  var mentionStart = -1;
+  var activeIndex = -1;
+  var currentSuggestions = [];
+  var debounceTimer = null;
+
+  function createDropdown() {
+    var el = document.getElementById('social-mention-dropdown');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'social-mention-dropdown';
+    document.body.appendChild(el);
+    dropdown = el;
+    return el;
+  }
+
+  function hideDropdown() {
+    var el = document.getElementById('social-mention-dropdown');
+    if (el) el.style.display = 'none';
+    activeInput = null;
+    mentionStart = -1;
+    activeIndex = -1;
+    currentSuggestions = [];
+  }
+
+  function positionDropdown(inputEl) {
+    var rect = inputEl.getBoundingClientRect();
+    var dd = document.getElementById('social-mention-dropdown');
+    if (!dd) return;
+    var spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow > 220) {
+      dd.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+      dd.style.bottom = 'auto';
+    } else {
+      dd.style.top = 'auto';
+      dd.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+    }
+    dd.style.left = Math.min(rect.left, window.innerWidth - 240) + 'px';
+  }
+
+  function renderSuggestions(users) {
+    currentSuggestions = users;
+    activeIndex = -1;
+    var dd = createDropdown();
+    if (!users || users.length === 0) {
+      dd.style.display = 'none';
+      return;
+    }
+    dd.innerHTML = users.map(function(u, i) {
+      var avatar = u.profile_image
+        ? '<img class="social-mention-avatar" src="' + u.profile_image + '" />'
+        : '<div class="social-mention-avatar">' + (u.fullname || u.username || '?').substring(0, 2).toUpperCase() + '</div>';
+      return '<div class="social-mention-item" data-index="' + i + '">' +
+        avatar +
+        '<div class="social-mention-info">' +
+          '<span class="social-mention-name">' + (u.fullname || u.username) + '</span>' +
+          '<span class="social-mention-handle">@' + u.username + '</span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    dd.style.display = 'block';
+    if (activeInput) positionDropdown(activeInput);
+
+    dd.querySelectorAll('.social-mention-item').forEach(function(item) {
+      item.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        var idx = parseInt(item.dataset.index);
+        insertMention(currentSuggestions[idx]);
+      });
+    });
+  }
+
+  function insertMention(user) {
+    if (!activeInput) return;
+    var val = activeInput.value;
+    var before = val.substring(0, mentionStart);
+    var after = val.substring(activeInput.selectionStart);
+    var inserted = '@' + user.username + ' ';
+    activeInput.value = before + inserted + after;
+    var newCursor = (before + inserted).length;
+    activeInput.setSelectionRange(newCursor, newCursor);
+    activeInput.focus();
+    hideDropdown();
+  }
+
+  function getMentionQuery(input) {
+    var val = input.value;
+    var pos = input.selectionStart;
+    var textBefore = val.substring(0, pos);
+    // Find the last @ before cursor that is at start or preceded by whitespace
+    var match = textBefore.match(/(^|\s)@([a-zA-Z0-9._-]*)$/);
+    if (match) {
+      mentionStart = textBefore.lastIndexOf('@');
+      return match[2]; // the query part after @
+    }
+    return null;
+  }
+
+  async function fetchSuggestions(query) {
+    try {
+      var res = await fetch('/api/social/users/search?q=' + encodeURIComponent(query));
+      var data = await res.json();
+      return data.users || [];
+    } catch(e) {
+      return [];
+    }
+  }
+
+  // Global input handler using event delegation
+  document.addEventListener('input', function(e) {
+    var target = e.target;
+    if (!target) return;
+    var isCaptionOrComment = (
+      target.id === 'social-caption-text' ||
+      (target.id && target.id.startsWith('cmt-'))
+    );
+    if (!isCaptionOrComment) { hideDropdown(); return; }
+
+    activeInput = target;
+    var query = getMentionQuery(target);
+    if (query === null) {
+      hideDropdown();
+      return;
+    }
+
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async function() {
+      var users = await fetchSuggestions(query);
+      renderSuggestions(users);
+    }, 180);
+  });
+
+  // Keyboard navigation
+  document.addEventListener('keydown', function(e) {
+    var dd = document.getElementById('social-mention-dropdown');
+    if (!dd || dd.style.display === 'none') return;
+    var items = dd.querySelectorAll('.social-mention-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = Math.min(activeIndex + 1, items.length - 1);
+      items.forEach(function(it, i) { it.classList.toggle('active', i === activeIndex); });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = Math.max(activeIndex - 1, 0);
+      items.forEach(function(it, i) { it.classList.toggle('active', i === activeIndex); });
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      insertMention(currentSuggestions[activeIndex]);
+    } else if (e.key === 'Escape') {
+      hideDropdown();
+    }
+  });
+
+  // Hide when clicking outside
+  document.addEventListener('mousedown', function(e) {
+    var dd = document.getElementById('social-mention-dropdown');
+    if (dd && !dd.contains(e.target)) {
+      hideDropdown();
+    }
+  });
+
+  // Reposition on scroll/resize
+  window.addEventListener('scroll', function() {
+    if (activeInput) positionDropdown(activeInput);
+  }, true);
+  window.addEventListener('resize', function() {
+    if (activeInput) positionDropdown(activeInput);
+  });
+})();

@@ -419,6 +419,28 @@
 
   <script src="js/app.js?v=7"></script>
   <script>
+    function safeParseJSON(val) {
+      if (!val) return {};
+      let parsed = val;
+      while (typeof parsed === 'string') {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch(e) {
+          return {};
+        }
+      }
+      if (parsed && typeof parsed === 'object') {
+        const cleaned = {};
+        for (const [key, value] of Object.entries(parsed)) {
+          if (!/^\d+$/.test(key)) {
+            cleaned[key] = value;
+          }
+        }
+        return cleaned;
+      }
+      return {};
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       const urlEmail = params.get('email');
@@ -484,7 +506,7 @@
           let latestFeedback = feedback[0]; // Descending order
 
           submittedItems.forEach(item => {
-            const sels = typeof item.selections === 'string' ? JSON.parse(item.selections) : item.selections;
+            const sels = safeParseJSON(item.selections);
             let sum = 0, keys = 0;
             for (let k in sels) {
               if (typeof sels[k] === 'number') {
@@ -521,7 +543,7 @@
             const formattedMonth = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
 
             // Calculate item average
-            const sels = typeof item.selections === 'string' ? JSON.parse(item.selections) : item.selections;
+            const sels = safeParseJSON(item.selections);
             let sum = 0, keys = 0;
             for (let k in sels) {
               if (typeof sels[k] === 'number') {

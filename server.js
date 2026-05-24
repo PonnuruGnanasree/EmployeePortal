@@ -3379,14 +3379,28 @@ app.get('/api/feedback/data', async (req, res) => {
     return res.status(400).json({ error: 'Email is required' });
   }
 
+  const emailLower = email.toLowerCase();
+
   try {
+    // Self-healing backend sanitizer (strip numeric character keys)
+    const cleanObj = (obj) => {
+      if (!obj || typeof obj !== 'object') return {};
+      const cleaned = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (!/^\d+$/.test(key)) {
+          cleaned[key] = value;
+        }
+      }
+      return cleaned;
+    };
+
     if (supabase) {
-      console.log(`[DEBUG] Fetching all feedback for ${email} from cloud...`);
+      console.log(`[DEBUG] Fetching all feedback for ${emailLower} from cloud...`);
       const startTime = Date.now();
       const { data, error } = await supabase
         .from('monthly_feedback')
         .select('*')
-        .eq('user_email', email.toLowerCase())
+        .eq('user_email', emailLower)
         .order('period', { ascending: false });
 
       console.log(`[DEBUG] Query finished in ${Date.now() - startTime}ms. Success: ${!error}`);
@@ -3403,14 +3417,18 @@ app.get('/api/feedback/data', async (req, res) => {
           if (typeof parsedRemarks === 'string') {
             try { parsedRemarks = JSON.parse(parsedRemarks); } catch(e) { parsedRemarks = {}; }
           }
-          return { ...row, selections: parsedSelections, remarks: parsedRemarks };
+          return { 
+            ...row, 
+            selections: cleanObj(parsedSelections), 
+            remarks: cleanObj(parsedRemarks) 
+          };
         });
         return res.json({ success: true, feedback: parsedData });
       }
     }
     
     // SQLite fallback
-    const rows = db.prepare('SELECT * FROM monthly_feedback WHERE LOWER(user_email) = LOWER(?) ORDER BY period DESC').all(email.toLowerCase());
+    const rows = db.prepare('SELECT * FROM monthly_feedback WHERE LOWER(user_email) = LOWER(?) ORDER BY period DESC').all(emailLower);
     const parsedRows = rows.map(row => {
       let parsedSelections = row.selections;
       let parsedRemarks = row.remarks;
@@ -3420,7 +3438,12 @@ app.get('/api/feedback/data', async (req, res) => {
       if (typeof parsedRemarks === 'string') {
         try { parsedRemarks = JSON.parse(parsedRemarks); } catch(e) { parsedRemarks = {}; }
       }
-      return { ...row, selections: parsedSelections, remarks: parsedRemarks, is_submitted: Boolean(row.is_submitted) };
+      return { 
+        ...row, 
+        selections: cleanObj(parsedSelections), 
+        remarks: cleanObj(parsedRemarks), 
+        is_submitted: Boolean(row.is_submitted) 
+      };
     });
     return res.json({ success: true, feedback: parsedRows });
   } catch (err) {
@@ -3436,6 +3459,8 @@ app.post('/api/feedback/save', async (req, res) => {
     return res.status(400).json({ error: 'Missing required feedback fields' });
   }
 
+  const emailLower = user_email.toLowerCase();
+
   // Clean selections
   let cleanSelections = selections || {};
   if (typeof cleanSelections === 'string') {
@@ -3444,24 +3469,45 @@ app.post('/api/feedback/save', async (req, res) => {
   // Remove legacy bundled remarks if present
   if (cleanSelections._remarks) delete cleanSelections._remarks;
 
+  // Clean remarks
+  let cleanRemarks = remarks || {};
+  if (typeof cleanRemarks === 'string') {
+    try { cleanRemarks = JSON.parse(cleanRemarks); } catch (e) { cleanRemarks = {}; }
+  }
+
+  // Self-healing backend sanitizer (strip numeric character keys)
+  const sanitizeJSONField = (obj) => {
+    if (!obj || typeof obj !== 'object') return {};
+    const cleaned = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (!/^\d+$/.test(key)) {
+        cleaned[key] = value;
+      }
+    }
+    return cleaned;
+  };
+
+  cleanSelections = sanitizeJSONField(cleanSelections);
+  cleanRemarks = sanitizeJSONField(cleanRemarks);
+
   // Prepare payload for both Supabase and SQLite
   const payload = {
-    user_email,
+    user_email: emailLower,
     role,
     period,
     selections: cleanSelections,
-    remarks: remarks || {},
+    remarks: cleanRemarks,
     is_submitted: is_submitted ? 1 : 0,
     updated_at: new Date()
   };
 
   try {
     if (supabase) {
-      // Upsert in Supabase
+      // Upsert in Supabase (case-insensitive check by lowercasing)
       const { data: existing } = await supabase
         .from('monthly_feedback')
         .select('id')
-        .eq('user_email', user_email)
+        .eq('user_email', emailLower)
         .eq('role', role)
         .eq('period', period)
         .maybeSingle();
@@ -3475,7 +3521,7 @@ app.post('/api/feedback/save', async (req, res) => {
       }
     }
 
-    // SQLite upsert (ON CONFLICT)
+    // SQLite upsert (ON CONFLICT) - case-insensitive using LOWER or lowercase email
     const insertStmt = `
       INSERT INTO monthly_feedback (user_email, role, period, selections, remarks, is_submitted, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -3485,11 +3531,11 @@ app.post('/api/feedback/save', async (req, res) => {
         is_submitted = excluded.is_submitted,
         updated_at = excluded.updated_at`;
     db.prepare(insertStmt).run(
-      user_email,
+      emailLower,
       role,
       period,
       JSON.stringify(cleanSelections),
-      JSON.stringify(remarks || {}),
+      JSON.stringify(cleanRemarks),
       payload.is_submitted,
       payload.updated_at.toISOString()
     );
@@ -3659,15 +3705,54 @@ app.post('/api/sub-mails', async (req, res) => {
         WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND is_read = 0
       `).get(main_email.toLowerCase(), sub_email.toLowerCase());
 
-      if (!recentNotif) {
-        const notifMsg = targetPeriod
-          ? `A new reportee (${sub_email}) has been assigned to you for ${targetPeriod}.`
-          : `A new reportee (${sub_email}) has been assigned to you.`;
+      const notifMsg = targetPeriod
+        ? `A new reportee (${sub_email}) has been assigned to you for ${targetPeriod}.`
+        : `A new reportee (${sub_email}) has been assigned to you.`;
 
+      if (!recentNotif) {
         db.prepare(`
           INSERT INTO manager_notifications (manager_email, reportee_email, message) 
           VALUES (?, ?, ?)
         `).run(main_email.toLowerCase(), sub_email.toLowerCase(), notifMsg);
+      }
+
+      // Sync notification to Supabase reportee_notifications table
+      if (supabase) {
+        try {
+          let managerId = null;
+          let reporteeId = null;
+          let reporteeName = sub_email.split('@')[0];
+
+          const managerRow = await getUserByEmail(main_email);
+          if (managerRow) {
+            managerId = managerRow.id;
+          }
+
+          const reporteeRow = await getUserByEmail(sub_email);
+          if (reporteeRow) {
+            reporteeId = reporteeRow.id;
+            if (reporteeRow.fullname) reporteeName = reporteeRow.fullname;
+          }
+
+          if (managerId && reporteeId) {
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 30); // 30 days expiry
+
+            await supabase.from('reportee_notifications').insert([{
+              user_id: managerId,
+              reportee_id: reporteeId,
+              reportee_name: reporteeName,
+              assigned_by: managerId,
+              notification_message: notifMsg,
+              notification_type: 'assign_reportee',
+              is_read: false,
+              expires_at: expiresAt.toISOString()
+            }]);
+            console.log(`✅ Supabase reportee notification created successfully!`);
+          }
+        } catch (sbNotifErr) {
+          console.warn('Supabase reportee notification insert failed:', sbNotifErr.message);
+        }
       }
     } catch (e) {
       console.warn('Failed to insert manager notification:', e.message);
@@ -3707,26 +3792,63 @@ app.delete('/api/sub-mails', async (req, res) => {
   }
 });
 
-app.get('/api/notifications', (req, res) => {
+app.get('/api/notifications', async (req, res) => {
   const { email } = req.query;
   if (!email) {
     return res.status(400).json({ error: 'email is required' });
   }
 
   try {
-    // Maintain notification history for up to one month
+    // Delete expired local notifications (older than 30 days)
     db.prepare(`
       DELETE FROM manager_notifications 
       WHERE created_at < datetime('now', '-30 days')
     `).run();
 
-    const notifications = db.prepare(`
-      SELECT id, message, created_at, is_read FROM manager_notifications
-      WHERE LOWER(manager_email) = LOWER(?) AND (type IS NULL OR type = 'assign_reportee')
-      ORDER BY created_at DESC
-    `).all(email.toLowerCase());
+    let notifications = [];
+    let unreadCount = 0;
 
-    const unreadCount = notifications.filter(n => !n.is_read).length;
+    if (supabase) {
+      try {
+        const managerRow = await getUserByEmail(email);
+        if (managerRow) {
+          // Clean up expired notifications in Supabase (older than 30 days)
+          const oneMonthAgo = new Date();
+          oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+          
+          await supabase.from('reportee_notifications')
+            .delete()
+            .lt('created_at', oneMonthAgo.toISOString());
+
+          const { data, error } = await supabase
+            .from('reportee_notifications')
+            .select('*')
+            .eq('user_id', managerRow.id)
+            .order('created_at', { ascending: false });
+
+          if (!error && data) {
+            notifications = data.map(n => ({
+              id: n.id,
+              message: n.notification_message,
+              created_at: n.created_at,
+              is_read: n.is_read ? 1 : 0
+            }));
+            unreadCount = notifications.filter(n => !n.is_read).length;
+          }
+        }
+      } catch (sbErr) {
+        console.warn('Supabase notifications fetch failed, falling back to SQLite:', sbErr.message);
+      }
+    }
+
+    if (notifications.length === 0) {
+      notifications = db.prepare(`
+        SELECT id, message, created_at, is_read FROM manager_notifications
+        WHERE LOWER(manager_email) = LOWER(?) AND (type IS NULL OR type = 'assign_reportee')
+        ORDER BY created_at DESC
+      `).all(email.toLowerCase());
+      unreadCount = notifications.filter(n => !n.is_read).length;
+    }
 
     res.json({ success: true, count: unreadCount, notifications });
   } catch (err) {
@@ -3734,25 +3856,54 @@ app.get('/api/notifications', (req, res) => {
   }
 });
 
-app.put('/api/notifications/read', (req, res) => {
+app.put('/api/notifications/read', async (req, res) => {
   const { email, id } = req.body;
   if (!email) {
     return res.status(400).json({ error: 'email is required' });
   }
 
   try {
+    const isUuid = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[45][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+
     if (id) {
-      db.prepare(`
-        UPDATE manager_notifications 
-        SET is_read = 1 
-        WHERE LOWER(manager_email) = LOWER(?) AND id = ? AND (type IS NULL OR type = 'assign_reportee')
-      `).run(email.toLowerCase(), id);
+      if (isUuid) {
+        if (supabase) {
+          try {
+            await supabase.from('reportee_notifications')
+              .update({ is_read: true })
+              .eq('id', id);
+          } catch (sbErr) {
+            console.warn('Failed to mark Supabase notification as read:', sbErr.message);
+          }
+        }
+      } else {
+        db.prepare(`
+          UPDATE manager_notifications 
+          SET is_read = 1 
+          WHERE LOWER(manager_email) = LOWER(?) AND id = ? AND (type IS NULL OR type = 'assign_reportee')
+        `).run(email.toLowerCase(), id);
+      }
     } else {
+      // Mark all as read
       db.prepare(`
         UPDATE manager_notifications 
         SET is_read = 1 
         WHERE LOWER(manager_email) = LOWER(?) AND is_read = 0 AND (type IS NULL OR type = 'assign_reportee')
       `).run(email.toLowerCase());
+
+      if (supabase) {
+        try {
+          const managerRow = await getUserByEmail(email);
+          if (managerRow) {
+            await supabase.from('reportee_notifications')
+              .update({ is_read: true })
+              .eq('user_id', managerRow.id)
+              .eq('is_read', false);
+          }
+        } catch (sbErr) {
+          console.warn('Failed to mark all Supabase notifications as read:', sbErr.message);
+        }
+      }
     }
 
     res.json({ success: true });
@@ -3769,14 +3920,17 @@ app.get('/api/social/notifications', (req, res) => {
 
   try {
     const notifications = db.prepare(`
-      SELECT id, message, created_at, is_read FROM manager_notifications
-      WHERE LOWER(manager_email) = LOWER(?) AND type = 'mention'
-      ORDER BY created_at DESC
+      SELECT n.id, n.message, n.created_at, n.is_read, n.type, n.reportee_email,
+             u.fullname as sender_name, u.profile_image as sender_image
+      FROM manager_notifications n
+      LEFT JOIN users u ON LOWER(n.reportee_email) = LOWER(u.email)
+      WHERE LOWER(n.manager_email) = LOWER(?) AND n.type IN ('mention', 'comment', 'message', 'like')
+      ORDER BY n.created_at DESC
     `).all(email.toLowerCase());
 
     const unreadCount = db.prepare(`
       SELECT COUNT(*) as count FROM manager_notifications
-      WHERE LOWER(manager_email) = LOWER(?) AND type = 'mention' AND is_read = 0
+      WHERE LOWER(manager_email) = LOWER(?) AND type IN ('mention', 'comment', 'message', 'like') AND is_read = 0
     `).get(email.toLowerCase()).count;
 
     res.json({ success: true, count: unreadCount, notifications });
@@ -3795,7 +3949,7 @@ app.post('/api/social/notifications/read', (req, res) => {
     db.prepare(`
       UPDATE manager_notifications 
       SET is_read = 1 
-      WHERE LOWER(manager_email) = LOWER(?) AND type = 'mention' AND is_read = 0
+      WHERE LOWER(manager_email) = LOWER(?) AND type IN ('mention', 'comment', 'message', 'like') AND is_read = 0
     `).run(email.toLowerCase());
 
     res.json({ success: true });
@@ -3805,31 +3959,111 @@ app.post('/api/social/notifications/read', (req, res) => {
 });
 
 // ─── Gantec Social API ────────────────────────────────────────────────────────
+app.get('/api/social/users/search', (req, res) => {
+  const { q } = req.query;
+  if (!q) return res.json({ success: true, users: [] });
+  try {
+    const query = `%${q}%`;
+    const users = db.prepare(`
+      SELECT fullname, email, profile_image 
+      FROM users 
+      WHERE fullname LIKE ? OR email LIKE ?
+      LIMIT 10
+    `).all(query, query);
+    
+    // Map to return just the prefix as username
+    const formattedUsers = users.map(u => ({
+      username: u.email.split('@')[0],
+      fullname: u.fullname,
+      email: u.email,
+      profile_image: u.profile_image
+    }));
+    
+    res.json({ success: true, users: formattedUsers });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/social/feed', async (req, res) => {
   try {
-    // Get posts with user info
-    const posts = db.prepare(`
-      SELECT p.*, u.fullname, u.profile_image 
-      FROM social_posts p 
-      LEFT JOIN users u ON LOWER(p.user_email) = LOWER(u.email)
-      ORDER BY p.created_at DESC
-    `).all();
-
-    // Attach comments and likes
-    for (let post of posts) {
-      post.comments = db.prepare(`
-        SELECT c.*, u.fullname as user_name 
-        FROM social_comments c 
-        LEFT JOIN users u ON LOWER(c.user_email) = LOWER(u.email)
-        WHERE c.post_id = ? 
-        ORDER BY c.created_at ASC
-      `).all(post.id);
-
-      const likes = db.prepare('SELECT user_email FROM social_likes WHERE post_id = ?').all(post.id);
-      post.likedBy = likes.map(l => l.user_email.toLowerCase());
-      post.likesCount = post.likedBy.length;
+    let posts = [];
+    
+    if (supabase) {
+      try {
+        const { data: sbPosts, error: sbErr } = await supabase
+          .from('gantec_idea_hub_posts')
+          .select('*')
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false });
+          
+        if (sbErr) throw sbErr;
+        
+        if (sbPosts) {
+          posts = sbPosts.map(p => ({
+            id: p.id,
+            user_email: p.user_email,
+            image_url: p.image_url,
+            caption: p.post_content,
+            created_at: p.created_at,
+            fullname: p.username,
+            profile_image: null,
+            likesCount: p.likes_count || 0,
+            comments_count: p.comments_count || 0,
+            likedBy: [],
+            comments: []
+          }));
+        }
+      } catch (sbFeedErr) {
+        console.warn('Supabase feed fetch failed, falling back to SQLite:', sbFeedErr.message);
+      }
     }
-
+    
+    if (posts.length === 0) {
+      posts = db.prepare(`
+        SELECT p.*, u.fullname, u.profile_image 
+        FROM social_posts p 
+        LEFT JOIN users u ON LOWER(p.user_email) = LOWER(u.email)
+        ORDER BY p.created_at DESC
+      `).all();
+      
+      for (let post of posts) {
+        post.comments = db.prepare(`
+          SELECT c.*, u.fullname as user_name 
+          FROM social_comments c 
+          LEFT JOIN users u ON LOWER(c.user_email) = LOWER(u.email)
+          WHERE c.post_id = ? 
+          ORDER BY c.created_at ASC
+        `).all(post.id);
+        
+        const likes = db.prepare('SELECT user_email FROM social_likes WHERE post_id = ?').all(post.id);
+        post.likedBy = likes.map(l => l.user_email.toLowerCase());
+        post.likesCount = post.likedBy.length;
+      }
+    } else {
+      for (let post of posts) {
+        try {
+          const userRow = await getUserByEmail(post.user_email);
+          if (userRow) {
+            post.fullname = userRow.fullname;
+            post.profile_image = userRow.profile_image;
+          }
+        } catch (errUser) {}
+        
+        post.comments = db.prepare(`
+          SELECT c.*, u.fullname as user_name 
+          FROM social_comments c 
+          LEFT JOIN users u ON LOWER(c.user_email) = LOWER(u.email)
+          WHERE c.post_id = ? 
+          ORDER BY c.created_at ASC
+        `).all(post.id);
+        
+        const likes = db.prepare('SELECT user_email FROM social_likes WHERE post_id = ?').all(post.id);
+        post.likedBy = likes.map(l => l.user_email.toLowerCase());
+        post.likesCount = post.likedBy.length;
+      }
+    }
+    
     const stories = db.prepare(`
       SELECT s.*, u.fullname as user_name, u.profile_image 
       FROM social_stories s 
@@ -3837,43 +4071,100 @@ app.get('/api/social/feed', async (req, res) => {
       WHERE s.expires_at > datetime('now')
       ORDER BY s.created_at DESC
     `).all();
-
+    
     res.json({ success: true, posts, stories });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post('/api/social/posts', (req, res) => {
+app.post('/api/social/posts', async (req, res) => {
   try {
     const { user_email, image_url, caption } = req.body;
     if (!user_email) return res.status(400).json({ error: 'Email required' });
     
     const id = uuidv4();
+    
     db.prepare('INSERT INTO social_posts (id, user_email, image_url, caption) VALUES (?, ?, ?, ?)')
       .run(id, user_email, image_url || '', caption || '');
-    // --- Mention Notification Logic ---
+      
+    if (supabase) {
+      try {
+        let userId = null;
+        let username = user_email.split('@')[0];
+        const userRow = await getUserByEmail(user_email);
+        if (userRow) {
+          userId = userRow.id;
+          if (userRow.fullname) username = userRow.fullname;
+        }
+        
+        const taggedList = extractMentions(caption);
+        
+        await supabase.from('gantec_idea_hub_posts').insert([{
+          id,
+          user_id: userId,
+          username,
+          user_email: user_email.toLowerCase(),
+          post_content: caption || '',
+          image_url: image_url || null,
+          tagged_users: taggedList,
+          likes_count: 0,
+          comments_count: 0,
+          post_visibility: 'public',
+          is_deleted: false,
+          attachments: [],
+          edited: false
+        }]);
+        console.log(`✅ Idea Hub post synced to Supabase: ${id}`);
+      } catch (sbErr) {
+        console.warn('Supabase post sync failed:', sbErr.message);
+      }
+    }
+    
     if (caption) {
       const mentionedEmails = extractMentions(caption);
-      mentionedEmails.forEach(mentionedEmail => {
-        // Avoid notifying the author
+      for (const mentionedEmail of mentionedEmails) {
         if (mentionedEmail !== user_email.toLowerCase()) {
           try {
-            // Prevent duplicate recent notifications
             const recent = db.prepare(`
               SELECT id FROM manager_notifications
               WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND type = 'mention' AND is_read = 0
             `).get(mentionedEmail, user_email);
+            
             if (!recent) {
-              const msg = `${user_email} mentioned you in a post.`;
+              const taggerName = user_email.split('@')[0];
+              const msg = `${taggerName} tagged you in a post.`;
               db.prepare('INSERT INTO manager_notifications (manager_email, reportee_email, message, type) VALUES (?, ?, ?, ?)')
                 .run(mentionedEmail, user_email, msg, 'mention');
+                
+              if (supabase) {
+                try {
+                  const managerRow = await getUserByEmail(mentionedEmail);
+                  const reporteeRow = await getUserByEmail(user_email);
+                  if (managerRow && reporteeRow) {
+                    const expiresAt = new Date();
+                    expiresAt.setDate(expiresAt.getDate() + 30);
+                    
+                    await supabase.from('reportee_notifications').insert([{
+                      user_id: managerRow.id,
+                      reportee_id: reporteeRow.id,
+                      reportee_name: reporteeRow.fullname || user_email.split('@')[0],
+                      assigned_by: reporteeRow.id,
+                      notification_message: msg,
+                      notification_type: 'mention',
+                      is_read: false,
+                      expires_at: expiresAt
+                    }]);
+                  }
+                } catch (sbNotifErr) {
+                  console.warn('Supabase mention notification sync failed:', sbNotifErr.message);
+                }
+              }
             }
           } catch (e) { console.warn('Mention notification error:', e.message); }
         }
-      });
+      }
     }
-    // ---------------------------------------
     
     res.json({ success: true, post_id: id });
   } catch (err) {
@@ -3881,7 +4172,7 @@ app.post('/api/social/posts', (req, res) => {
   }
 });
 
-app.post('/api/social/comments', (req, res) => {
+app.post('/api/social/comments', async (req, res) => {
   try {
     const { post_id, user_email, comment_text } = req.body;
     if (!post_id || !user_email || !comment_text) return res.status(400).json({ error: 'Missing data' });
@@ -3889,54 +4180,184 @@ app.post('/api/social/comments', (req, res) => {
     const id = uuidv4();
     db.prepare('INSERT INTO social_comments (id, post_id, user_email, comment_text) VALUES (?, ?, ?, ?)')
       .run(id, post_id, user_email, comment_text);
-    // --- Mention Notification Logic for Comments ---
+      
+    if (supabase) {
+      try {
+        const commentCount = db.prepare('SELECT COUNT(*) as count FROM social_comments WHERE post_id = ?').get(post_id).count;
+        await supabase.from('gantec_idea_hub_posts')
+          .update({ comments_count: commentCount })
+          .eq('id', post_id);
+      } catch (sbErr) {
+        console.warn('Failed to sync comment count to Supabase:', sbErr.message);
+      }
+    }
+    
+    try {
+      const post = db.prepare('SELECT user_email FROM social_posts WHERE id = ?').get(post_id);
+      if (post && post.user_email.toLowerCase() !== user_email.toLowerCase()) {
+        const commenterName = user_email.split('@')[0];
+        const commentMsg = `${commenterName} commented on your post.`;
+        db.prepare('INSERT INTO manager_notifications (manager_email, reportee_email, message, type) VALUES (?, ?, ?, ?)')
+          .run(post.user_email.toLowerCase(), user_email.toLowerCase(), commentMsg, 'comment');
+          
+        if (supabase) {
+          try {
+            const managerRow = await getUserByEmail(post.user_email);
+            const reporteeRow = await getUserByEmail(user_email);
+            if (managerRow && reporteeRow) {
+              const expiresAt = new Date();
+              expiresAt.setDate(expiresAt.getDate() + 30);
+              
+              await supabase.from('reportee_notifications').insert([{
+                user_id: managerRow.id,
+                reportee_id: reporteeRow.id,
+                reportee_name: reporteeRow.fullname || user_email.split('@')[0],
+                assigned_by: reporteeRow.id,
+                notification_message: commentMsg,
+                notification_type: 'comment',
+                is_read: false,
+                expires_at: expiresAt
+              }]);
+            }
+          } catch (sbNotifErr) {
+            console.warn('Supabase comment notification sync failed:', sbNotifErr.message);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Comment notification error:', e.message);
+    }
+    
     if (comment_text) {
       const mentionedEmails = extractMentions(comment_text);
-      mentionedEmails.forEach(mentionedEmail => {
-        // Avoid notifying the author
+      for (const mentionedEmail of mentionedEmails) {
         if (mentionedEmail !== user_email.toLowerCase()) {
           try {
             const recent = db.prepare(`
               SELECT id FROM manager_notifications
               WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND type = 'mention' AND is_read = 0
             `).get(mentionedEmail, user_email);
+            
             if (!recent) {
-              const msg = `${user_email} mentioned you in a comment.`;
+              const mentionerName = user_email.split('@')[0];
+              const msg = `${mentionerName} tagged you in a comment.`;
               db.prepare('INSERT INTO manager_notifications (manager_email, reportee_email, message, type) VALUES (?, ?, ?, ?)')
                 .run(mentionedEmail, user_email, msg, 'mention');
+                
+              if (supabase) {
+                try {
+                  const managerRow = await getUserByEmail(mentionedEmail);
+                  const reporteeRow = await getUserByEmail(user_email);
+                  if (managerRow && reporteeRow) {
+                    const expiresAt = new Date();
+                    expiresAt.setDate(expiresAt.getDate() + 30);
+                    
+                    await supabase.from('reportee_notifications').insert([{
+                      user_id: managerRow.id,
+                      reportee_id: reporteeRow.id,
+                      reportee_name: reporteeRow.fullname || user_email.split('@')[0],
+                      assigned_by: reporteeRow.id,
+                      notification_message: msg,
+                      notification_type: 'mention',
+                      is_read: false,
+                      expires_at: expiresAt
+                    }]);
+                  }
+                } catch (sbNotifErr) {
+                  console.warn('Supabase comment mention notification sync failed:', sbNotifErr.message);
+                }
+              }
             }
           } catch (e) { console.warn('Mention notification error (comment):', e.message); }
         }
-      });
+      }
     }
-    // ---------------------------------------
+    
     res.json({ success: true, comment_id: id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post('/api/social/likes', (req, res) => {
+app.post('/api/social/likes', async (req, res) => {
   try {
     const { post_id, user_email } = req.body;
     if (!post_id || !user_email) return res.status(400).json({ error: 'Missing data' });
     
     const emailLower = user_email.toLowerCase();
     const existing = db.prepare('SELECT * FROM social_likes WHERE post_id = ? AND LOWER(user_email) = ?').get(post_id, emailLower);
+    let action = 'liked';
     
     if (existing) {
       db.prepare('DELETE FROM social_likes WHERE post_id = ? AND LOWER(user_email) = ?').run(post_id, emailLower);
-      res.json({ success: true, action: 'unliked' });
+      action = 'unliked';
     } else {
       db.prepare('INSERT INTO social_likes (post_id, user_email) VALUES (?, ?)').run(post_id, emailLower);
-      res.json({ success: true, action: 'liked' });
+      
+      try {
+        const post = db.prepare('SELECT user_email FROM social_posts WHERE id = ?').get(post_id);
+        if (post && post.user_email.toLowerCase() !== emailLower) {
+          const recentLike = db.prepare(`
+            SELECT id FROM manager_notifications
+            WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?)
+              AND type = 'like' AND is_read = 0
+              AND message LIKE '%liked your post%'
+          `).get(post.user_email.toLowerCase(), emailLower);
+          
+          if (!recentLike) {
+            const likerName = emailLower.split('@')[0];
+            const likeMsg = `${likerName} liked your post.`;
+            db.prepare('INSERT INTO manager_notifications (manager_email, reportee_email, message, type) VALUES (?, ?, ?, ?)')
+              .run(post.user_email.toLowerCase(), emailLower, likeMsg, 'like');
+              
+            if (supabase) {
+              try {
+                const managerRow = await getUserByEmail(post.user_email);
+                const reporteeRow = await getUserByEmail(user_email);
+                if (managerRow && reporteeRow) {
+                  const expiresAt = new Date();
+                  expiresAt.setDate(expiresAt.getDate() + 30);
+                  
+                  await supabase.from('reportee_notifications').insert([{
+                    user_id: managerRow.id,
+                    reportee_id: reporteeRow.id,
+                    reportee_name: reporteeRow.fullname || user_email.split('@')[0],
+                    assigned_by: reporteeRow.id,
+                    notification_message: likeMsg,
+                    notification_type: 'like',
+                    is_read: false,
+                    expires_at: expiresAt
+                  }]);
+                }
+              } catch (sbNotifErr) {
+                console.warn('Supabase like notification sync failed:', sbNotifErr.message);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Like notification error:', e.message);
+      }
     }
+    
+    if (supabase) {
+      try {
+        const likeCount = db.prepare('SELECT COUNT(*) as count FROM social_likes WHERE post_id = ?').get(post_id).count;
+        await supabase.from('gantec_idea_hub_posts')
+          .update({ likes_count: likeCount })
+          .eq('id', post_id);
+      } catch (sbErr) {
+        console.warn('Failed to sync like count to Supabase:', sbErr.message);
+      }
+    }
+    
+    res.json({ success: true, action });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.delete('/api/social/posts/:id', (req, res) => {
+app.delete('/api/social/posts/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { user_email } = req.body;
@@ -3952,6 +4373,17 @@ app.delete('/api/social/posts/:id', (req, res) => {
     db.prepare('DELETE FROM social_likes WHERE post_id = ?').run(id);
     db.prepare('DELETE FROM social_posts WHERE id = ?').run(id);
 
+    if (supabase) {
+      try {
+        await supabase.from('gantec_idea_hub_posts')
+          .update({ is_deleted: true })
+          .eq('id', id);
+        console.log(`Post soft-deleted in Supabase: ${id}`);
+      } catch (sbErr) {
+        console.warn('Supabase post delete sync failed:', sbErr.message);
+      }
+    }
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -3964,7 +4396,6 @@ app.post('/api/social/stories', (req, res) => {
     if (!user_email) return res.status(400).json({ error: 'Missing user email' });
     
     const id = uuidv4();
-    // Stories expire in 24 hours
     db.prepare(`
       INSERT INTO social_stories (id, user_email, image_url, story_text, expires_at) 
       VALUES (?, ?, ?, ?, datetime('now', '+24 hours'))
