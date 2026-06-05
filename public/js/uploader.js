@@ -116,7 +116,14 @@ function buildTree(folders) {
 }
 
 function buildTreeDOM(node, container, level = 0, isModal = false) {
-  Object.values(node.children).forEach(child => {
+  const sortedChildren = Object.values(node.children).sort((a, b) => a.name.localeCompare(b.name));
+  
+  sortedChildren.forEach(child => {
+    const hasChildren = Object.keys(child.children).length > 0;
+    const hasFiles = child.files && child.files.length > 0;
+    const isExpanded = expandedFolders.has(child.fullPath);
+    const canExpand = hasChildren || hasFiles;
+
     const wrap = document.createElement('div');
     wrap.className = 'tree-node-wrap';
 
@@ -129,10 +136,7 @@ function buildTreeDOM(node, container, level = 0, isModal = false) {
     
     row.dataset.name = child.fullPath;
 
-    const hasChildren = Object.keys(child.children).length > 0;
-    const isExpanded = expandedFolders.has(child.fullPath);
-    
-    const chevronHtml = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tree-chevron ${isExpanded ? 'active' : ''}" style="transition: transform 0.2s; transform: ${isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'}; opacity: ${hasChildren ? '1' : '0.15'}; pointer-events: ${hasChildren ? 'auto' : 'none'}; width: 14px; height: 14px; flex-shrink: 0;"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+    const chevronHtml = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tree-chevron ${isExpanded ? 'active' : ''}" style="transition: transform 0.2s; transform: ${isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'}; opacity: ${canExpand ? '1' : '0.15'}; pointer-events: ${canExpand ? 'auto' : 'none'}; width: 14px; height: 14px; flex-shrink: 0; cursor: pointer;"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
 
     row.innerHTML = `
       ${chevronHtml}
@@ -140,7 +144,7 @@ function buildTreeDOM(node, container, level = 0, isModal = false) {
         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
       </svg>
       <span class="${isModal ? '' : 'folder-opt-name'}" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHTML(child.name)}</span>
-      <span class="${isModal ? 'modal-folder-count' : 'folder-file-count'}">${child.files.length}</span>
+      ${child.files.length > 0 ? `<span class="${isModal ? 'modal-folder-count' : 'folder-file-count'}">${child.files.length}</span>` : ''}
       ${!isModal ? `
       <button class="folder-delete-btn" title="Delete Folder" style="padding:4px; opacity:0.8;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px; height:14px;">
@@ -150,19 +154,34 @@ function buildTreeDOM(node, container, level = 0, isModal = false) {
       </button>` : ''}
     `;
 
-    // Render Files if expanded
-    if (!isModal && isExpanded && child.files.length > 0) {
+    if (!isModal) {
+      const label = row.querySelector('.folder-opt-name');
+      if (label) {
+        label.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          makeEditable(label, 'folder', child.fullPath);
+        });
+      }
+    }
+
+    // Children container holds both files and subfolders
+    const childrenContainer = document.createElement('div');
+    childrenContainer.className = 'tree-children';
+    childrenContainer.style.display = isExpanded ? 'block' : 'none';
+
+    // Render files inside the children container when expanded
+    if (!isModal && isExpanded && hasFiles) {
       child.files.forEach(file => {
         const fileRow = document.createElement('div');
         fileRow.className = 'tree-file-row';
-        fileRow.style.paddingLeft = `${(level * 20) + 38}px`;
+        fileRow.style.cssText = `padding-left: ${((level + 1) * 20) + 12}px; display: flex; align-items: center; gap: 4px; padding-top: 4px; padding-bottom: 4px;`;
         fileRow.innerHTML = `
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs" style="margin-right: 8px; opacity: 0.5;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; margin-right: 8px; opacity: 0.5; flex-shrink:0;">
             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
             <polyline points="13 2 13 9 20 9"></polyline>
           </svg>
-          <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.8rem; opacity:0.8;">${escapeHTML(file.name)}</span>
-          <button class="file-delete-btn" data-folder="${escapeHTML(child.fullPath)}" data-file="${escapeHTML(file.name)}" title="Delete File" style="padding:4px; opacity:0.6; background:none; border:none; color:var(--text-muted); cursor:pointer;">
+          <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.8rem; opacity:0.7;">${escapeHTML(file.name)}</span>
+          <button class="file-delete-btn" data-folder="${escapeHTML(child.fullPath)}" data-file="${escapeHTML(file.name)}" title="Delete File" style="padding:4px; opacity:0.6; background:none; border:none; color:var(--text-muted); cursor:pointer; flex-shrink:0;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px; height:12px;">
               <path d="M3 6h18"></path>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -177,18 +196,10 @@ function buildTreeDOM(node, container, level = 0, isModal = false) {
       });
     }
 
-
-    if (!isModal) {
-      const label = row.querySelector('.folder-opt-name');
-      label.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        makeEditable(label, 'folder', child.fullPath);
-      });
+    // Recursively render subfolders inside the same children container
+    if (hasChildren && isExpanded) {
+      buildTreeDOM(child, childrenContainer, level + 1, isModal);
     }
-
-    const childrenContainer = document.createElement('div');
-    childrenContainer.className = 'tree-children';
-    childrenContainer.style.display = isExpanded ? 'block' : 'none';
 
     row.addEventListener('click', (e) => {
       if (e.target.closest('.folder-delete-btn')) {
@@ -197,7 +208,7 @@ function buildTreeDOM(node, container, level = 0, isModal = false) {
         return;
       }
       
-      if (e.target.closest('.tree-chevron')) {  // only chevron toggles expand/collapse
+      if (e.target.closest('.tree-chevron')) {
         e.stopPropagation();
         if (expandedFolders.has(child.fullPath)) {
           expandedFolders.delete(child.fullPath);
@@ -219,10 +230,6 @@ function buildTreeDOM(node, container, level = 0, isModal = false) {
     wrap.appendChild(row);
     wrap.appendChild(childrenContainer);
     container.appendChild(wrap);
-
-    if (hasChildren) {
-      buildTreeDOM(child, childrenContainer, level + 1, isModal);
-    }
   });
 }
 
