@@ -133,12 +133,40 @@ function getMyFileUrl(folder, file) {
 async function loadFolders() {
   window.loadFolders = loadFolders; // Make it globally accessible for Real-time sync
   try {
-    const data = await apiFetch(`/folders?email=${userEmail}`);
-    allFolders = data.folders;
+    const res = await fetch(API + `/folders?email=${encodeURIComponent(userEmail)}`);
+    const data = await res.json();
+    if (!res.ok) {
+      // If user not found, it might be a sync issue — try to trigger profile fetch to heal
+      if (res.status === 404) {
+        console.warn('User not found in DB, attempting profile sync...');
+        try {
+          await fetch(`/api/auth/profile?email=${encodeURIComponent(userEmail)}`);
+          // Retry once after sync
+          const retryRes = await fetch(API + `/folders?email=${encodeURIComponent(userEmail)}`);
+          const retryData = await retryRes.json();
+          if (retryRes.ok) {
+            allFolders = retryData.folders || [];
+            renderFoldersTree();
+            renderDocs();
+            return;
+          }
+        } catch (syncErr) {
+          console.error('Profile sync failed:', syncErr);
+        }
+      }
+      throw new Error(data.error || 'Failed to load folders');
+    }
+    allFolders = data.folders || [];
     renderFoldersTree();
     renderDocs();
   } catch (err) {
-    docsGrid.innerHTML = `<p style="color:var(--danger);padding:24px;">Could not load documents: ${escapeHTML(err.message)}</p>`;
+    console.error('loadFolders error:', err);
+    allFolders = [];
+    renderFoldersTree();
+    renderDocs();
+    if (err.message && !err.message.includes('Failed to fetch')) {
+      showToast('Could not load folders: ' + err.message, 'error');
+    }
   }
 }
 
@@ -476,11 +504,31 @@ async function createSidebarFolder(mode) {
   if (createFolderBtn) createFolderBtn.disabled = true;
   if (createSubBtn) createSubBtn.disabled = true;
   try {
-    const result = await apiFetch('/folders', {
+    const res = await fetch(API + '/folders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: userEmail, name: fullPath })
     });
+    const result = await res.json();
+    if (!res.ok) {
+      // If user not found, try to trigger a profile sync then retry
+      if (res.status === 404) {
+        await fetch(`/api/auth/profile?email=${encodeURIComponent(userEmail)}`);
+        const retryRes = await fetch(API + '/folders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail, name: fullPath })
+        });
+        const retryResult = await retryRes.json();
+        if (!retryRes.ok) throw new Error(retryResult.error || 'Failed to create folder');
+        if (newFolderInput) newFolderInput.value = '';
+        await loadFolders();
+        showToast(`Folder "${retryResult.name}" created`, 'success');
+        setActiveFolder(retryResult.name);
+        return;
+      }
+      throw new Error(result.error || 'Failed to create folder');
+    }
     if (newFolderInput) newFolderInput.value = '';
     await loadFolders();
     showToast(`Folder "${result.name}" created`, 'success');

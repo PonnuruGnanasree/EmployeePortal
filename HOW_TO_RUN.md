@@ -3,8 +3,8 @@
 Follow these 3 simple steps to get your portal running.
 
 ## Step 1: Open the Project Folder
-Go to this location on your computer:
-`C:\Users\HP\Downloads\Antigravtiy_updated_v2 (1)\ant_fix`
+Go to the location where you downloaded or cloned the project, e.g.:
+`C:\Users\YourName\Documents\gantec\EmployeePortal`
 
 ## Step 2: Start the Server
 You have two options:
@@ -29,7 +29,7 @@ Once the black window says "Gantec Employee Portal running", open your browser a
 
 ### 1. "Cannot find module" error
 **Reason:** You are in the wrong folder (usually inside `public`).
-**Fix:** Make sure the top of your terminal says `...\ant_fix` and NOT `...\ant_fix\public`.
+**Fix:** Make sure the top of your terminal shows the project root folder and NOT the `public` subfolder.
 
 ### 2. "Port 3000 already in use"
 **Reason:** You have another window already running the server.

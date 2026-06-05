@@ -1,4 +1,20 @@
 const API_BASE = '/api';
+
+// Token management
+function getAuthToken() {
+  return localStorage.getItem('gantec_auth_token') || '';
+}
+function setAuthToken(token) {
+  if (token) localStorage.setItem('gantec_auth_token', token);
+}
+function clearAuthToken() {
+  localStorage.removeItem('gantec_auth_token');
+}
+function authHeaders() {
+  const token = getAuthToken();
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
 window.getSupabase = () => {
   if (window.supabaseClient) return Promise.resolve(window.supabaseClient);
   return new Promise(resolve => { window._sbResolve = resolve; });
@@ -26,7 +42,8 @@ async function createFolder(name) {
 async function deleteFile(folder, filename) {
   const email = localStorage.getItem('gantec_user_email') || '';
   const res = await fetch(`${API_BASE}/file?folder=${encodeURIComponent(folder)}&file=${encodeURIComponent(filename)}&email=${encodeURIComponent(email)}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: { ...authHeaders() }
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to delete file');
@@ -229,9 +246,23 @@ function initUserProfile() {
   if (!window.supabaseClient) {
     const script = document.createElement('script');
     script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-    script.onload = () => {
-      const SUPABASE_URL = 'https://pbicghsmejqlnksdtjzo.supabase.co';
-      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiaWNnaHNtZWpxbG5rc2R0anpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NjM2MjEsImV4cCI6MjA5MjIzOTYyMX0.sI38ou9HZHK7vjLF8dTaEtvBvmMNx6u8LxBvOKFlwew';
+    script.onload = async () => {
+      // Fetch Supabase config from server (never hardcode keys in client)
+      let SUPABASE_URL = '';
+      let SUPABASE_KEY = '';
+      try {
+        const cfgRes = await fetch('/api/config/supabase');
+        const cfg = await cfgRes.json();
+        SUPABASE_URL = cfg.url || '';
+        SUPABASE_KEY = cfg.anonKey || '';
+      } catch (e) {
+        console.warn('Could not fetch Supabase config from server');
+      }
+      if (!SUPABASE_URL || !SUPABASE_KEY) {
+        console.warn('Supabase not configured — real-time features disabled');
+        if (window._sbResolve) window._sbResolve(null);
+        return;
+      }
       window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       
       if (window._sbResolve) window._sbResolve(window.supabaseClient);
@@ -266,7 +297,7 @@ function initUserProfile() {
         } else if (event === 'SIGNED_OUT') {
           // Only wipe data on explicit SIGNED_OUT event
           ['gantec_auth', 'gantec_user_name', 'gantec_user_email',
-           'gantec_user_profile', 'gantec_user_role'].forEach(k => localStorage.removeItem(k));
+           'gantec_user_profile', 'gantec_user_role', 'gantec_auth_token'].forEach(k => localStorage.removeItem(k));
           if (userSection) renderGuestUI(userSection);
         } else if (!localStorage.getItem('gantec_user_name')) {
           // If no local session AND no cloud session, then show Guest UI
@@ -387,7 +418,7 @@ function renderUserProfileUI(userSection, userName, userEmail) {
       }
       // Clear ALL user data to prevent profile bleed to next user
       ['gantec_auth', 'gantec_user_name', 'gantec_user_email',
-       'gantec_user_profile', 'gantec_user_role'].forEach(k => localStorage.removeItem(k));
+       'gantec_user_profile', 'gantec_user_role', 'gantec_auth_token'].forEach(k => localStorage.removeItem(k));
       window.location.href = 'login.html';
     });
 
@@ -767,7 +798,7 @@ function createEditProfileModal(userData, currentImg) {
 
       const res = await fetch(`${API_BASE}/auth/profile`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(updateData)
       });
 
@@ -900,7 +931,7 @@ function showProfileModal(name, email, src) {
         try {
           const res = await fetch(`${API_BASE}/auth/profile`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
             body: JSON.stringify({ currentEmail: userEmail, profile_image: base64 })
           });
           if (!res.ok) {
@@ -931,8 +962,7 @@ function showProfileModal(name, email, src) {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 24px; height: 24px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </div>
             <h3 style="margin-top: 0; color: var(--text-primary); font-size: 1.25rem; font-weight: 700; margin-bottom: 8px;">Remove Profile Photo</h3>
-            <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 0.95rem;">// Removed Add Reportee modal functionality per user request.
-em;">Are you sure you want to remove your profile photo? This action cannot be undone.</p>
+            <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 0.95rem;">Are you sure you want to remove your profile photo? This action cannot be undone.</p>
             <div style="display: flex; gap: 12px; justify-content: center;">
               <button id="confirm-cancel-btn" class="btn btn-secondary" style="flex: 1; text-align: center; justify-content: center;">Cancel</button>
               <button id="confirm-ok-btn" class="btn btn-primary" style="flex: 1; background: var(--danger); border-color: var(--danger); text-align: center; justify-content: center;">Remove</button>
@@ -968,7 +998,7 @@ em;">Are you sure you want to remove your profile photo? This action cannot be u
         const email = localStorage.getItem('gantec_user_email');
         const res = await fetch(`${API_BASE}/auth/profile`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({ currentEmail: email, profile_image: null })
         });
 
@@ -1308,10 +1338,10 @@ document.addEventListener('DOMContentLoaded', () => {
   syncFeedbackMenu(); // Standardize Monthly Feedback links across all pages
 
   // --- Background Real-time Count Sync ---
-  // Periodically updates counts and folder contents in the background every 3 seconds
+  // Periodically updates counts and folder contents in the background every 30 seconds
   setInterval(() => {
     if (typeof window.loadFolders === 'function') {
       window.loadFolders();
     }
-  }, 3000);
+  }, 30000);
 });

@@ -1,6 +1,14 @@
 node_modules/
 .env
+.env.local
+.env.production
 data/database.sqlite
+data/database.sqlite-shm
+data/database.sqlite-wal
+database.sqlite
 uploads/
 user_uploads/
 _BACKUP_/
+*.log
+*.pem
+*.key

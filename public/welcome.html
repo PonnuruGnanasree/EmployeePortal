@@ -168,41 +168,26 @@
   </main>
 
   <script>
-    // Debug logging
-    console.log('Welcome page loaded');
-    console.log('localStorage auth:', localStorage.getItem('gantec_auth'));
-    console.log('localStorage name:', localStorage.getItem('gantec_user_name'));
-    console.log('localStorage email:', localStorage.getItem('gantec_user_email'));
-
     // Get user data from localStorage
     const userName = localStorage.getItem('gantec_user_name') || 'User';
     const userEmail = localStorage.getItem('gantec_user_email') || '';
-
-    console.log('User data:', { userName, userEmail });
 
     // Display user info
     document.getElementById('user-name').textContent = userName;
     document.getElementById('user-email').textContent = userEmail;
 
-    // Progress bar animation is handled by CSS
-
-    console.log('Starting 3-second timer...');
-
     // Show continue button after 3 seconds
     setTimeout(() => {
-      console.log('Showing continue button');
       document.getElementById('continue-btn').style.display = 'block';
     }, 3000);
 
-    // Redirect to home page after 5 seconds (giving extra time)
+    // Redirect to home page after 5 seconds
     setTimeout(() => {
-      console.log('Auto-redirecting to home.html...');
       window.location.href = 'home.html';
     }, 5000);
 
     // Manual redirect button
     document.getElementById('continue-btn').addEventListener('click', () => {
-      console.log('Manual redirect to home.html');
       window.location.href = 'home.html';
     });
   </script>

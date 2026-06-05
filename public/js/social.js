@@ -596,7 +596,7 @@ async function submitSocialCreate() {
 document.addEventListener('DOMContentLoaded', function() {
   if (document.getElementById('insta-widget-container')) {
     loadSocialFeed();
-    setInterval(loadSocialFeed, 10000);
+    setInterval(loadSocialFeed, 30000);
   }
 });
 

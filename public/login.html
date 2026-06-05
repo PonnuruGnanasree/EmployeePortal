@@ -281,9 +281,16 @@
         const loginData = await response.json();
         showToast('Sign in successful!', 'success');
 
+        // Save JWT token for authenticated API requests
+        if (loginData.token) {
+          localStorage.setItem('gantec_auth_token', loginData.token);
+        }
+
         // Fetch this user's profile image from server before redirect
         try {
-          const profileRes = await fetch(`/api/auth/profile?email=${encodeURIComponent(email)}&t=${Date.now()}`);
+          const profileRes = await fetch(`/api/auth/profile?email=${encodeURIComponent(email)}&t=${Date.now()}`, {
+            headers: loginData.token ? { 'Authorization': `Bearer ${loginData.token}` } : {}
+          });
           const profileData = await profileRes.json();
           if (profileData.success && profileData.user) {
             localStorage.setItem('gantec_user_name', profileData.user.fullname || email.split('@')[0]);

@@ -28,7 +28,7 @@ Once your project is ready:
 1.  Go to **Project Settings** (gear icon) -> **API**.
 2.  Copy the **Project URL**.
 3.  Look for the **service_role** key (it starts with `ey...`). This is your "Master Key."
-4.  Open your [`.env`](file:///c:/Users/HP/Downloads/Antigravtiy_updated_v2%20(1)/ant_fix/.env) file and paste them here:
+4.  Open the `.env` file in your project root and paste them here:
     ```env
     SUPABASE_URL=YOUR_PROJECT_URL
     SUPABASE_KEY=YOUR_SERVICE_ROLE_KEY
@@ -38,7 +38,7 @@ Once your project is ready:
 Now you need to create the "tables" (the boxes that hold your data).
 1.  On the left sidebar in Supabase, click the **SQL Editor** icon (`>_`).
 2.  Click **"New Query"**.
-3.  Copy everything from my [`supabase_setup.sql`](file:///c:/Users/HP/Downloads/Antigravtiy_updated_v2%20(1)/ant_fix/supabase_setup.sql) file.
+3.  Copy everything from the `Supabase/supabase_setup.sql` file in your project folder.
 4.  Paste it into the editor and click **Run**.
     *   *Success Message:* "Success. No rows returned." (This is normal!)
 

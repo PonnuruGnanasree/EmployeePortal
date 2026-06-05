@@ -8,6 +8,12 @@ const Database = require('better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
+// Security middleware
+const { authMiddleware, optionalAuth, adminOnly, generateToken } = require('./middleware/auth');
+const { authLimiter, apiLimiter, uploadLimiter, chatLimiter } = require('./middleware/rateLimiter');
+const { securityHeaders, escapeHtml } = require('./middleware/security');
+const { sanitizePath, isPathSafe, sanitizeEmail, isValidEmail, sanitizeText, validateRequired } = require('./utils/validation');
+
 // Helper to dynamically read variables from .env to avoid requiring a server restart
 function getDynamicEnv(key, defaultValue) {
   try {
@@ -496,19 +502,26 @@ async function checkIsAdmin(email) {
 
 // ───────────────────────────────────────────────────────────────
 
-app.use(cors());
-app.use(express.json({ limit: '1024mb' }));
-app.use(express.urlencoded({ limit: '1024mb', extended: true }));
+app.set('trust proxy', 1);
+app.use(securityHeaders);
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || true,
+  credentials: true
+}));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(apiLimiter);
 app.use(express.static(path.join(__dirname, 'public')));
+app.disable('x-powered-by');
 
 // ─── Auth API ───────────────────────────────────────────────────────────────
 
-app.post('/api/auth/signup', async (req, res) => {
+app.post('/api/auth/signup', authLimiter, async (req, res) => {
   try {
     const { fullname, email, password } = req.body;
 
-    if (!email || !email.toLowerCase().endsWith('@gantecusa.com')) {
-      return res.status(400).json({ error: 'Email must be an official @gantecusa.com address.' });
+    if (!email || !isValidEmail(email) || !email.toLowerCase().endsWith('@gantecusa.com')) {
+      return res.status(400).json({ error: 'Email must be a valid official @gantecusa.com address.' });
     }
 
     if (!fullname || !fullname.trim()) {
@@ -580,19 +593,27 @@ app.post('/api/auth/signup', async (req, res) => {
       });
     }
 
-    res.json({ success: true, user: { fullname: fullname.trim(), email: email.toLowerCase(), role: signupRole } });
+    const token = generateToken({ email: email.toLowerCase(), role: signupRole, userId: userId });
+    res.json({ success: true, token, user: { fullname: fullname.trim(), email: email.toLowerCase(), role: signupRole } });
   } catch (err) {
     console.error('Signup crash:', err);
-    res.status(500).json({ error: 'Sign up failed: ' + err.message });
+    res.status(500).json({ error: 'Sign up failed' });
   }
 });
 
 
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
-    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
+    const email = req.body.email ? sanitizeEmail(req.body.email) : '';
     const password = req.body.password;
+
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
 
     let user = null;
     let localUser = null;
@@ -727,7 +748,8 @@ app.post('/api/auth/login', async (req, res) => {
       }
     }
 
-    res.json({ success: true, user: { fullname: user.fullname, email: user.email, role: finalRole } });
+    const token = generateToken({ email: user.email, role: finalRole, userId: user.id });
+    res.json({ success: true, token, user: { fullname: user.fullname, email: user.email, role: finalRole } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });
@@ -736,7 +758,7 @@ app.post('/api/auth/login', async (req, res) => {
 
 
 // GET /api/auth/profile – Get current user profile
-app.get('/api/auth/profile', async (req, res) => {
+app.get('/api/auth/profile', optionalAuth, async (req, res) => {
   try {
     const { email } = req.query;
     if (!email) return res.status(400).json({ error: 'Email required' });
@@ -833,9 +855,17 @@ app.get('/api/support/config', (req, res) => {
   });
 });
 
+// GET /api/config/supabase – Public config for client SDK (anon key only)
+app.get('/api/config/supabase', (req, res) => {
+  res.json({
+    url: process.env.SUPABASE_URL || '',
+    anonKey: process.env.SUPABASE_ANON_KEY || ''
+  });
+});
+
 
 // PUT /api/auth/profile – Update user profile
-app.put('/api/auth/profile', async (req, res) => {
+app.put('/api/auth/profile', authMiddleware, async (req, res) => {
   try {
     const { currentEmail, fullname, email, currentPassword, newPassword, profile_image } = req.body;
     console.log(`Profile update request for: ${currentEmail}`);
@@ -906,13 +936,7 @@ app.put('/api/auth/profile', async (req, res) => {
         }
       }
 
-      // 2. Fallback: Try plain text match (for legacy accounts)
-      if (!isMatch && currentPassword === user.password) {
-        console.log(`Plain text match found for ${currentEmail}`);
-        isMatch = true;
-      }
-
-      // 3. Ultimate Fallback: Verify against Supabase Auth directly
+      // 2. Fallback: Verify against Supabase Auth directly
       // This handles cases where the local DB has a NULL/stale password
       if (!isMatch && supabase) {
         console.log(`Local check failed, verifying against Supabase Auth for ${currentEmail}...`);
@@ -1016,8 +1040,20 @@ const storage = multer.diskStorage({
 });
 
 
+// Allowed file extensions for uploads
+const ALLOWED_EXTENSIONS = new Set(['.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.txt','.csv','.png','.jpg','.jpeg','.gif','.webp','.svg','.mp4','.mp3','.webm','.json','.xml','.html','.htm','.ytlink','.md','.rtf']);
+
 const upload = multer({
-  storage
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_EXTENSIONS.has(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type '${ext}' is not allowed.`));
+    }
+  }
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
@@ -1106,21 +1142,29 @@ async function getFoldersRecursive(startDir, baseDir) {
             try {
               const filePath = path.join(UPLOADS_DIR, f.name, file.hashedName);
               const linkData = await fs.readJson(filePath);
-              // FIX: Use .insert() or .upsert() without invalid onConflict
-              await supabase.from('resource_links').insert([{
-                title: linkData.title,
-                url: linkData.url,
+              // Check if link already exists before inserting to prevent duplicates
+              const { data: existingLink } = await supabase.from('resource_links')
+                .select('id').eq('folder', f.name).eq('title', linkData.title).maybeSingle();
+              if (!existingLink) {
+                await supabase.from('resource_links').insert([{
+                  title: linkData.title,
+                  url: linkData.url,
+                  folder: f.name,
+                  uploaded_by: file.uploader_email || 'anonymous@gantec.com'
+                }]);
+              }
+            } catch (e) { /* skip bad links */ }
+          } else {
+            // Check if file already exists before inserting to prevent duplicates
+            const { data: existingFile } = await supabase.from('resource_uploads')
+              .select('id').eq('folder', f.name).eq('filename', file.hashedName).maybeSingle();
+            if (!existingFile) {
+              await supabase.from('resource_uploads').insert([{
+                filename: file.hashedName,
                 folder: f.name,
                 uploaded_by: file.uploader_email || 'anonymous@gantec.com'
               }]);
-            } catch (e) { /* skip bad links */ }
-          } else {
-            // FIX: Remove original_name and size as they don't exist in Supabase
-            await supabase.from('resource_uploads').insert([{
-              filename: file.hashedName,
-              folder: f.name,
-              uploaded_by: file.uploader_email || 'anonymous@gantec.com'
-            }]);
+            }
           }
         }
       }
@@ -1248,7 +1292,8 @@ app.post('/api/folders', async (req, res) => {
   try {
     const { name } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Folder name required' });
-    const safe = name.trim().replace(/[^a-zA-Z0-9_\-\.\/\\ ]/g, '_');
+    const safe = sanitizePath(name.trim().replace(/[^a-zA-Z0-9_\-\.\/\\ ]/g, '_'));
+    if (!safe || !isPathSafe(UPLOADS_DIR, safe)) return res.status(400).json({ error: 'Invalid folder name' });
     const folderPath = path.join(UPLOADS_DIR, safe);
     if (await fs.pathExists(folderPath)) return res.status(409).json({ error: 'Folder already exists' });
     await fs.ensureDir(folderPath);
@@ -1259,7 +1304,7 @@ app.post('/api/folders', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/upload', (req, res) => {
+app.post('/api/upload', uploadLimiter, (req, res) => {
   upload.single('file')(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -1379,7 +1424,13 @@ app.get('/api/video-redirect', async (req, res) => {
     const { folder, file } = req.query;
     if (!folder || !file) return res.status(400).send('Missing parameters');
     
-    const filePath = path.join(UPLOADS_DIR, folder, file);
+    const safeFolder = sanitizePath(folder);
+    const safeFile = sanitizePath(file);
+    if (!isPathSafe(UPLOADS_DIR, path.join(safeFolder, safeFile))) {
+      return res.status(403).send('Access denied');
+    }
+    
+    const filePath = path.join(UPLOADS_DIR, safeFolder, safeFile);
     if (!fs.existsSync(filePath)) return res.status(404).send('Link not found');
     
     const linkData = await fs.readJson(filePath);
@@ -1397,7 +1448,12 @@ app.get('/api/file', async (req, res) => {
     const { folder, file } = req.query;
     if (!folder || !file) return res.status(400).json({ error: 'Missing folder or file param' });
     
-    let filePath = path.join(UPLOADS_DIR, folder, file);
+    const safeFolder = sanitizePath(folder);
+    const safeFile = sanitizePath(file);
+    if (!isPathSafe(UPLOADS_DIR, path.join(safeFolder, safeFile))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    let filePath = path.join(UPLOADS_DIR, safeFolder, safeFile);
     
     // Check if file exists locally
     if (!await fs.pathExists(filePath)) {
@@ -1861,7 +1917,7 @@ async function getUserByEmail(email) {
           if (newUser) {
             try {
               // Create in local SQLite - handle data types
-              const stmt = db.prepare('INSERT OR REPLACE INTO users (id, fullname, email, password, role, points) VALUES (?, ?, ?, ?, ?)');
+              const stmt = db.prepare('INSERT OR REPLACE INTO users (id, fullname, email, password, role, points) VALUES (?, ?, ?, ?, ?, ?)');
               stmt.run(
                 String(newUser.id),
                 String(newUser.fullname || ''),
@@ -1897,10 +1953,24 @@ app.get('/api/my-documents/folders', async (req, res) => {
     const { email } = req.query;
     console.log('Incoming folder request for:', email);
     if (!email) return res.status(400).json({ error: 'Email required' });
-    const user = await getUserByEmail(email);
+    let user = await getUserByEmail(email);
     if (!user) {
-      console.warn('User not found in DB:', email);
-      return res.status(404).json({ error: 'User not found' });
+      // Auto-heal: create a stub user so document locker works for authenticated users
+      console.warn('User not found in DB:', email, '— creating stub profile');
+      try {
+        const stubId = require('uuid').v4();
+        const stubName = email.split('@')[0].split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+        db.prepare('INSERT INTO users (id, fullname, email, password, role, points) VALUES (?, ?, ?, ?, ?, ?)')
+          .run(stubId, stubName, email.toLowerCase(), '', 'employee', 0);
+        user = { id: stubId, fullname: stubName, email: email.toLowerCase() };
+        console.log('✅ Created stub user for document locker:', email);
+      } catch (stubErr) {
+        // If insert fails (e.g. already exists with different case), try fetching again
+        user = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+        if (!user) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+      }
     }
 
     // Get folders
@@ -1987,8 +2057,20 @@ app.post('/api/my-documents/folders', async (req, res) => {
     const { email, name } = req.body;
     if (!email) return res.status(400).json({ error: 'Email required' });
     if (!name || !name.trim()) return res.status(400).json({ error: 'Folder name required' });
-    const user = await getUserByEmail(email);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    let user = await getUserByEmail(email);
+    if (!user) {
+      // Auto-heal: create stub user
+      try {
+        const stubId = require('uuid').v4();
+        const stubName = email.split('@')[0].split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+        db.prepare('INSERT INTO users (id, fullname, email, password, role, points) VALUES (?, ?, ?, ?, ?, ?)')
+          .run(stubId, stubName, email.toLowerCase(), '', 'employee', 0);
+        user = { id: stubId, fullname: stubName, email: email.toLowerCase() };
+      } catch (stubErr) {
+        user = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+      }
+    }
 
     const safe = name.trim().replace(/[^a-zA-Z0-9_\-\.\/\\ ]/g, '_');
 
@@ -2022,10 +2104,18 @@ const userStorage = multer.diskStorage({
 });
 const uploadUserDoc = multer({
   storage: userStorage,
-  limits: { fileSize: Infinity } // Allow any size as requested
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_EXTENSIONS.has(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type '${ext}' is not allowed.`));
+    }
+  }
 });
 
-app.post('/api/my-documents/upload', uploadUserDoc.single('file'), async (req, res) => {
+app.post('/api/my-documents/upload', uploadLimiter, uploadUserDoc.single('file'), async (req, res) => {
   console.log('📥 Upload request received:', { email: req.body.email, folder: req.body.folder, file: req.file?.originalname });
 
   try {
@@ -2068,7 +2158,23 @@ app.post('/api/my-documents/upload', uploadUserDoc.single('file'), async (req, r
           const supaId = supaUser.id;
           console.log(`Syncing private doc to Supabase using UUID: ${supaId}`);
 
-          // 2. Use the UUID for Supabase inserts
+          // 2. Upload encrypted file bytes to Supabase Storage (user-uploads bucket)
+          try {
+            const encryptedBuffer = fs.readFileSync(req.file.path);
+            const storagePath = `${supaId}/${targetFolder}/${req.file.filename}`;
+            const { error: storageErr } = await supabase.storage
+              .from('user-uploads')
+              .upload(storagePath, encryptedBuffer, { contentType: 'application/octet-stream', upsert: true });
+            if (storageErr) {
+              // Try alternate bucket name
+              await supabase.storage.from('user_uploads').upload(storagePath, encryptedBuffer, { contentType: 'application/octet-stream', upsert: true });
+            }
+            console.log('✅ Supabase Storage upload SUCCESS for private doc');
+          } catch (storageUploadErr) {
+            console.warn('⚠️ Supabase Storage upload failed (file still on disk):', storageUploadErr.message);
+          }
+
+          // 3. Sync metadata to user_folders and user_documents tables
           const { error: folderError } = await supabase.from('user_folders').upsert({ user_id: supaId, path: targetFolder }, { onConflict: 'user_id,path' });
           if (folderError) console.error('❌ Supabase Folder Sync FAILED:', folderError.message);
 
@@ -2121,7 +2227,33 @@ app.get('/api/my-documents/file', async (req, res) => {
     if (!doc) return res.status(404).json({ error: 'File not found in DB' });
 
     const filePath = path.join(USER_UPLOADS_DIR, doc.hashed_name);
-    if (!await fs.pathExists(filePath)) return res.status(404).json({ error: 'File missing on disk' });
+
+    // If file not on local disk, try to recover from Supabase Storage
+    if (!await fs.pathExists(filePath) && supabase) {
+      try {
+        const { data: supaUser } = await supabase.from('users').select('id').ilike('email', email).single();
+        if (supaUser) {
+          const storagePath = `${supaUser.id}/${folder}/${doc.hashed_name}`;
+          let { data: fileData, error: dlErr } = await supabase.storage.from('user-uploads').download(storagePath);
+          if (dlErr) {
+            const fallback = await supabase.storage.from('user_uploads').download(storagePath);
+            fileData = fallback.data; dlErr = fallback.error;
+          }
+          if (!dlErr && fileData) {
+            const buf = Buffer.from(await fileData.arrayBuffer());
+            await fs.ensureDir(USER_UPLOADS_DIR);
+            await fs.writeFile(filePath, buf);
+            console.log(`✅ Recovered private doc from Supabase Storage: ${doc.hashed_name}`);
+          } else {
+            console.error('❌ Supabase Storage recovery failed for private doc:', dlErr?.message);
+          }
+        }
+      } catch (recoverErr) {
+        console.error('Supabase Storage recovery error:', recoverErr.message);
+      }
+    }
+
+    if (!await fs.pathExists(filePath)) return res.status(404).json({ error: 'File missing on disk and could not be recovered' });
 
     // Decrypt and serve using stream
     try {
@@ -2380,7 +2512,7 @@ app.post('/api/contact-hr', async (req, res) => {
           from: `"HR Portal" <${process.env.SMTP_USER}>`,
           to: recipientEmail,
           replyTo: email,
-          subject: `[Contact HR Inquiry] ${subject || 'No Subject'}`,
+          subject: `[Contact HR Inquiry] ${escapeHtml(subject || 'No Subject')}`,
           html: `
             <div style="font-family: Arial, sans-serif; padding: 24px; line-height: 1.6; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
               <h2 style="color: #2b6cb0; margin-top: 0; display: flex; align-items: center; gap: 8px;">📬 New HR Inquiry</h2>
@@ -2389,16 +2521,16 @@ app.post('/api/contact-hr', async (req, res) => {
               <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                 <tr>
                   <td style="padding: 8px 0; font-weight: bold; width: 120px; color: #4a5568;">Sender:</td>
-                  <td style="padding: 8px 0; color: #2d3748;">${name} (<a href="mailto:${email}">${email}</a>)</td>
+                  <td style="padding: 8px 0; color: #2d3748;">${escapeHtml(name)} (<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>)</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Subject:</td>
-                  <td style="padding: 8px 0; color: #2d3748;">${subject || 'No Subject'}</td>
+                  <td style="padding: 8px 0; color: #2d3748;">${escapeHtml(subject || 'No Subject')}</td>
                 </tr>
               </table>
               <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
               <p style="font-weight: bold; color: #4a5568; margin-bottom: 8px;">Message:</p>
-              <blockquote style="background: #f7fafc; padding: 16px; border-left: 4px solid #2b6cb0; margin: 0; border-radius: 4px; color: #2d3748; white-space: pre-wrap;">${message}</blockquote>
+              <blockquote style="background: #f7fafc; padding: 16px; border-left: 4px solid #2b6cb0; margin: 0; border-radius: 4px; color: #2d3748; white-space: pre-wrap;">${escapeHtml(message)}</blockquote>
               <p style="font-size: 0.8em; color: #a0aec0; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 16px;">This inquiry was dynamically logged and routed from Gantec Employee Portal.</p>
             </div>
           `
@@ -2666,7 +2798,7 @@ app.post('/api/employee-support/ticket', async (req, res) => {
           from: `"Support Portal" <${process.env.SMTP_USER}>`,
           to: recipientEmail,
           replyTo: email,
-          subject: `[Support Ticket] [${category}] [${priority} Priority] ${subject}`,
+          subject: `[Support Ticket] [${escapeHtml(category)}] [${escapeHtml(priority)} Priority] ${escapeHtml(subject)}`,
           html: `
             <div style="font-family: Arial, sans-serif; padding: 24px; line-height: 1.6; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
               <h2 style="color: #2b6cb0; margin-top: 0; display: flex; align-items: center; gap: 8px;">🎟️ New Support Ticket</h2>
@@ -2675,24 +2807,24 @@ app.post('/api/employee-support/ticket', async (req, res) => {
               <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                 <tr>
                   <td style="padding: 8px 0; font-weight: bold; width: 120px; color: #4a5568;">Sender:</td>
-                  <td style="padding: 8px 0; color: #2d3748;">${name} (<a href="mailto:${email}">${email}</a>)</td>
+                  <td style="padding: 8px 0; color: #2d3748;">${escapeHtml(name)} (<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>)</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Category:</td>
-                  <td style="padding: 8px 0; color: #2d3748;">${category}</td>
+                  <td style="padding: 8px 0; color: #2d3748;">${escapeHtml(category)}</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Priority:</td>
-                  <td style="padding: 8px 0; color: #2d3748;">${priority}</td>
+                  <td style="padding: 8px 0; color: #2d3748;">${escapeHtml(priority)}</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Subject:</td>
-                  <td style="padding: 8px 0; color: #2d3748;">${subject}</td>
+                  <td style="padding: 8px 0; color: #2d3748;">${escapeHtml(subject)}</td>
                 </tr>
               </table>
               <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
               <p style="font-weight: bold; color: #4a5568; margin-bottom: 8px;">Description:</p>
-              <blockquote style="background: #f7fafc; padding: 16px; border-left: 4px solid #2b6cb0; margin: 0; border-radius: 4px; color: #2d3748; white-space: pre-wrap;">${description}</blockquote>
+              <blockquote style="background: #f7fafc; padding: 16px; border-left: 4px solid #2b6cb0; margin: 0; border-radius: 4px; color: #2d3748; white-space: pre-wrap;">${escapeHtml(description)}</blockquote>
               <p style="font-size: 0.8em; color: #a0aec0; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 16px;">This inquiry was dynamically logged and routed from Gantec Employee Portal.</p>
             </div>
           `
@@ -2834,9 +2966,11 @@ app.delete('/api/team-members/:id', async (req, res) => {
 });
 
 // ─── Gemini AI Chat Route ─────────────────────────────────────────────────────
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', chatLimiter, async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: 'Message is required' });
+  const sanitizedMessage = sanitizeText(message, 2000);
+  if (!sanitizedMessage) return res.status(400).json({ error: 'Message is required' });
 
   if (!process.env.GEMINI_API_KEY) {
     return res.status(500).json({ error: 'Gemini API Key is missing. Please provide it in the .env file.' });
@@ -3394,57 +3528,46 @@ app.get('/api/feedback/data', async (req, res) => {
       return cleaned;
     };
 
+    // Helper: parse and clean a selections/remarks value from either DB source
+    const parseAndClean = (val) => {
+      if (val === null || val === undefined) return {};
+      // If it's already a plain object (from Supabase JSONB), clean it directly
+      if (typeof val === 'object' && !Array.isArray(val)) return cleanObj(val);
+      // If it's a string (from SQLite or mis-stored JSONB), parse first
+      if (typeof val === 'string') {
+        try { return cleanObj(JSON.parse(val)); } catch (e) { return {}; }
+      }
+      return {};
+    };
+
     if (supabase) {
-      console.log(`[DEBUG] Fetching all feedback for ${emailLower} from cloud...`);
-      const startTime = Date.now();
       const { data, error } = await supabase
         .from('monthly_feedback')
         .select('*')
         .eq('user_email', emailLower)
         .order('period', { ascending: false });
 
-      console.log(`[DEBUG] Query finished in ${Date.now() - startTime}ms. Success: ${!error}`);
       if (error) {
-        console.error('[DEBUG] Supabase error (falling back to SQLite):', error.message);
+        console.error('[Feedback] Supabase error, falling back to SQLite:', error.message);
       } else {
-        console.log(`[DEBUG] Returning ${data ? data.length : 0} feedback items.`);
-        const parsedData = data.map(row => {
-          let parsedSelections = row.selections;
-          let parsedRemarks = row.remarks;
-          if (typeof parsedSelections === 'string') {
-            try { parsedSelections = JSON.parse(parsedSelections); } catch(e) { parsedSelections = {}; }
-          }
-          if (typeof parsedRemarks === 'string') {
-            try { parsedRemarks = JSON.parse(parsedRemarks); } catch(e) { parsedRemarks = {}; }
-          }
-          return { 
-            ...row, 
-            selections: cleanObj(parsedSelections), 
-            remarks: cleanObj(parsedRemarks) 
-          };
-        });
+        const parsedData = (data || []).map(row => ({
+          ...row,
+          selections: parseAndClean(row.selections),
+          remarks: parseAndClean(row.remarks),
+          is_submitted: row.is_submitted === true || row.is_submitted === 1
+        }));
         return res.json({ success: true, feedback: parsedData });
       }
     }
-    
+
     // SQLite fallback
     const rows = db.prepare('SELECT * FROM monthly_feedback WHERE LOWER(user_email) = LOWER(?) ORDER BY period DESC').all(emailLower);
-    const parsedRows = rows.map(row => {
-      let parsedSelections = row.selections;
-      let parsedRemarks = row.remarks;
-      if (typeof parsedSelections === 'string') {
-        try { parsedSelections = JSON.parse(parsedSelections); } catch(e) { parsedSelections = {}; }
-      }
-      if (typeof parsedRemarks === 'string') {
-        try { parsedRemarks = JSON.parse(parsedRemarks); } catch(e) { parsedRemarks = {}; }
-      }
-      return { 
-        ...row, 
-        selections: cleanObj(parsedSelections), 
-        remarks: cleanObj(parsedRemarks), 
-        is_submitted: Boolean(row.is_submitted) 
-      };
-    });
+    const parsedRows = rows.map(row => ({
+      ...row,
+      selections: parseAndClean(row.selections),
+      remarks: parseAndClean(row.remarks),
+      is_submitted: row.is_submitted === 1 || row.is_submitted === true
+    }));
     return res.json({ success: true, feedback: parsedRows });
   } catch (err) {
     console.error('[DEBUG] Failed to fetch feedback data:', err.message);
@@ -3490,15 +3613,23 @@ app.post('/api/feedback/save', async (req, res) => {
   cleanSelections = sanitizeJSONField(cleanSelections);
   cleanRemarks = sanitizeJSONField(cleanRemarks);
 
-  // Prepare payload for both Supabase and SQLite
-  const payload = {
+  // Ensure selections and remarks are always plain objects (never strings) before saving
+  if (typeof cleanSelections !== 'object' || Array.isArray(cleanSelections)) cleanSelections = {};
+  if (typeof cleanRemarks !== 'object' || Array.isArray(cleanRemarks)) cleanRemarks = {};
+
+  const now = new Date();
+  const isSubmittedBool = !!is_submitted;   // true/false for Supabase BOOLEAN
+  const isSubmittedInt  = isSubmittedBool ? 1 : 0; // 0/1 for SQLite INTEGER
+
+  // Supabase payload — selections/remarks must be plain objects (JSONB), is_submitted must be boolean
+  const supabasePayload = {
     user_email: emailLower,
     role,
     period,
     selections: cleanSelections,
     remarks: cleanRemarks,
-    is_submitted: is_submitted ? 1 : 0,
-    updated_at: new Date()
+    is_submitted: isSubmittedBool,
+    updated_at: now.toISOString()
   };
 
   try {
@@ -3513,15 +3644,17 @@ app.post('/api/feedback/save', async (req, res) => {
         .maybeSingle();
 
       if (existing && existing.id) {
-        const { error } = await supabase.from('monthly_feedback').update(payload).eq('id', existing.id);
+        const { error } = await supabase.from('monthly_feedback').update(supabasePayload).eq('id', existing.id);
         if (error) console.error('Supabase feedback update error:', error.message);
+        else console.log('✅ Supabase feedback updated for', emailLower, period, role);
       } else {
-        const { error } = await supabase.from('monthly_feedback').insert(payload);
+        const { error } = await supabase.from('monthly_feedback').insert(supabasePayload);
         if (error) console.error('Supabase feedback insert error:', error.message);
+        else console.log('✅ Supabase feedback inserted for', emailLower, period, role);
       }
     }
 
-    // SQLite upsert (ON CONFLICT) - case-insensitive using LOWER or lowercase email
+    // SQLite upsert (ON CONFLICT) - selections/remarks stored as JSON strings, is_submitted as 0/1
     const insertStmt = `
       INSERT INTO monthly_feedback (user_email, role, period, selections, remarks, is_submitted, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -3536,12 +3669,12 @@ app.post('/api/feedback/save', async (req, res) => {
       period,
       JSON.stringify(cleanSelections),
       JSON.stringify(cleanRemarks),
-      payload.is_submitted,
-      payload.updated_at.toISOString()
+      isSubmittedInt,
+      now.toISOString()
     );
 
     // Return response with saved data
-    res.json({ success: true, message: 'Feedback synced successfully', feedback: payload });
+    res.json({ success: true, message: 'Feedback synced successfully', feedback: supabasePayload });
   } catch (err) {
     console.error('Feedback sync error:', err.message);
     res.status(500).json({ error: 'Sync Failed: ' + err.message });
@@ -3799,12 +3932,6 @@ app.get('/api/notifications', async (req, res) => {
   }
 
   try {
-    // Delete expired local notifications (older than 30 days)
-    db.prepare(`
-      DELETE FROM manager_notifications 
-      WHERE created_at < datetime('now', '-30 days')
-    `).run();
-
     let notifications = [];
     let unreadCount = 0;
 
@@ -3812,14 +3939,6 @@ app.get('/api/notifications', async (req, res) => {
       try {
         const managerRow = await getUserByEmail(email);
         if (managerRow) {
-          // Clean up expired notifications in Supabase (older than 30 days)
-          const oneMonthAgo = new Date();
-          oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
-          
-          await supabase.from('reportee_notifications')
-            .delete()
-            .lt('created_at', oneMonthAgo.toISOString());
-
           const { data, error } = await supabase
             .from('reportee_notifications')
             .select('*')
@@ -4414,31 +4533,80 @@ app.get('*', (req, res) => {
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
   
-  // Force Ensure Supabase Buckets exist
+  // ── Ensure Supabase Storage Buckets exist ────────────────────────────────────
+  if (supabase) {
+    const bucketsNeeded = ['resource-uploads', 'user-uploads'];
+    try {
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const existingNames = (buckets || []).map(b => b.name);
+      for (const bucket of bucketsNeeded) {
+        if (!existingNames.includes(bucket)) {
+          const { error: cErr } = await supabase.storage.createBucket(bucket, { public: false });
+          if (cErr) console.warn(`⚠️ Could not create bucket ${bucket}:`, cErr.message);
+          else console.log(`✅ Created storage bucket: ${bucket}`);
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Bucket verification failed:', e.message);
+      for (const bucket of bucketsNeeded) {
+        try { await supabase.storage.createBucket(bucket, { public: false }); } catch (_) {}
+      }
+    }
+  }
+
+  // ── Create missing leave_balances table in Supabase ───────────────────────────
   if (supabase) {
     try {
-      console.log('📦 Verifying Supabase storage buckets...');
-      const { data: buckets, error: bErr } = await supabase.storage.listBuckets();
-      if (bErr) throw bErr;
-      
-      const targetBucket = 'resource-uploads';
-      const exists = buckets && buckets.some(b => b.name === targetBucket);
-      
-      if (!exists) {
-        console.log(`📦 Creating missing bucket: ${targetBucket}`);
-        const { error: cErr } = await supabase.storage.createBucket(targetBucket, { public: true });
-        if (cErr) console.error('❌ Failed to create bucket:', cErr.message);
-        else console.log('✅ Bucket created successfully');
-      } else {
-        console.log(`✅ Verified bucket exists: ${targetBucket}`);
+      const { error: lbErr } = await supabase.from('leave_balances').select('user_email', { count: 'exact', head: true });
+      if (lbErr && lbErr.message && lbErr.message.includes('does not exist')) {
+        console.log('⚠️ leave_balances missing in Supabase — please run Supabase/migrations/20260701_create_leave_balances.sql in SQL Editor');
+      } else if (!lbErr) {
+        console.log('✅ leave_balances table verified in Supabase');
       }
-    } catch (e) { 
-      console.warn('⚠️ Bucket verification failed:', e.message);
-      // Fallback: try to create it anyway just in case listBuckets failed
-      try { await supabase.storage.createBucket('resource-uploads', { public: true }); } catch(err) {}
+    } catch (e) { console.warn('leave_balances check failed:', e.message); }
+  }
+
+  // ── Repair corrupt monthly_feedback selections in Supabase ────────────────────
+  // Rows where selections is stored as a character-spread string (numeric keys) get cleaned.
+  if (supabase) {
+    try {
+      const { data: fbRows, error: fbErr } = await supabase
+        .from('monthly_feedback').select('id, selections, remarks');
+      if (!fbErr && fbRows) {
+        const toRepair = fbRows.filter(row => {
+          const s = row.selections;
+          if (!s || typeof s !== 'object') return false;
+          const keys = Object.keys(s);
+          return keys.length > 0 && keys.some(k => /^\d+$/.test(k));
+        });
+        if (toRepair.length > 0) {
+          console.log(`🔧 Repairing ${toRepair.length} corrupt feedback rows in Supabase...`);
+          for (const row of toRepair) {
+            // Reconstruct the original JSON string from the character keys, then re-parse
+            const charKeys = Object.keys(row.selections).filter(k => /^\d+$/.test(k)).sort((a, b) => +a - +b);
+            const reconstructed = charKeys.map(k => row.selections[k]).join('');
+            let cleanSel = {};
+            try { cleanSel = JSON.parse(reconstructed); } catch (_) { cleanSel = {}; }
+            // Merge any valid named keys that were already correct
+            const namedKeys = Object.keys(row.selections).filter(k => !/^\d+$/.test(k));
+            namedKeys.forEach(k => { if (typeof row.selections[k] === 'number') cleanSel[k] = row.selections[k]; });
+            // Also clean remarks if needed
+            let cleanRem = row.remarks || {};
+            if (typeof cleanRem === 'string') { try { cleanRem = JSON.parse(cleanRem); } catch (_) { cleanRem = {}; } }
+            const { error: repairErr } = await supabase.from('monthly_feedback')
+              .update({ selections: cleanSel, remarks: cleanRem }).eq('id', row.id);
+            if (repairErr) console.warn(`⚠️ Repair failed for row ${row.id}:`, repairErr.message);
+          }
+          console.log('✅ Feedback data repair complete.');
+        } else {
+          console.log('✅ All monthly_feedback selections are clean.');
+        }
+      }
+    } catch (repairE) {
+      console.warn('⚠️ Feedback repair skipped:', repairE.message);
     }
   }
   
@@ -4452,4 +4620,47 @@ app.listen(PORT, async () => {
 
   // Admin Sync
   await syncAdminEmails();
+});
+
+// ─── Hourly Cleanup & Supabase Keep-Alive ────────────────────────────────────
+// Runs once per hour:
+// 1. Deletes local SQLite notifications older than 30 days
+// 2. Deletes expired Supabase notifications older than 30 days
+// 3. Pings Supabase with a lightweight query to prevent free-tier project pausing
+setInterval(async () => {
+  // 1. SQLite cleanup
+  try {
+    db.prepare(`DELETE FROM manager_notifications WHERE created_at < datetime('now', '-30 days')`).run();
+  } catch (e) { console.warn('SQLite notification cleanup failed:', e.message); }
+
+  // 2. Supabase notification cleanup + keep-alive ping
+  if (supabase) {
+    try {
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+      await supabase.from('reportee_notifications').delete().lt('created_at', oneMonthAgo.toISOString());
+    } catch (e) { console.warn('Supabase notification cleanup failed:', e.message); }
+
+    // Keep-alive: lightweight ping to prevent Supabase free-tier from pausing the project
+    try {
+      await supabase.from('users').select('id', { count: 'exact', head: true });
+      console.log('✅ Supabase keep-alive ping successful.');
+    } catch (e) { console.warn('Supabase keep-alive ping failed:', e.message); }
+  }
+}, 60 * 60 * 1000); // every 1 hour
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    db.close();
+    process.exit(0);
+  });
+});
+process.on('SIGINT', () => {
+  console.log('SIGINT received. Shutting down...');
+  server.close(() => {
+    db.close();
+    process.exit(0);
+  });
 });
