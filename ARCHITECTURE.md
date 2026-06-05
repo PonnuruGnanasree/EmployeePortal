@@ -209,16 +209,27 @@ EmployeePortal/
 
 ### Training Resources (viewer.html / uploader.html)
 - Upload files & YouTube links to folders
-- View/preview PDFs, DOCX, PPTX, images, videos
+- View/preview PDFs, DOCX, PPTX, CSV, TXT, images, videos
 - AI-powered document summarization (Gemini)
 - Points system (+1 upload, +0.5 view, -1 delete)
 - Ownership-based delete (only uploader or admin can delete)
+- Admin sees delete button on all files; employees only on their own
+- Folder create/delete/rename with ownership checks
+- File rename (inline double-click)
+- Confirm upload modal with folder picker + custom rename
+- Dropdown sidebar with expandable folder tree
+- YouTube link embedding with auto-redirect
 
 ### Document Locker (document-locker.html)
 - Private per-user encrypted file storage
-- Folder tree with create/rename/delete
+- Folder tree with create/rename/delete (sidebar + modal)
 - AES-256-CBC encryption at rest
 - Only the owner can access their files
+- Grid + List view toggle
+- Drag-and-drop upload support
+- File preview modal (PDF, images, DOCX, PPTX, videos)
+- Supabase Storage sync for cloud backup
+- Auto-heal: creates stub user profile if missing
 
 ### Monthly Feedback (monthly-feedback.html)
 - 7-level rubric for 26 competencies across 6 categories
