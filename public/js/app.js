@@ -522,8 +522,8 @@ async function fetchManagerNotifications(email) {
             <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
               <span style="font-size: 0.85rem; color: var(--text-primary); font-weight: ${!n.is_read ? '600' : '400'}; line-height: 1.35;">${escapeHTML(n.message)}</span>
               <span style="font-size: 0.72rem; color: var(--text-muted);">${timeStr}</span>
+              <button class="mark-read-btn" data-id="${n.id}" style="align-self:flex-start; background:none; border:none; color:var(--accent); font-size:0.72rem; font-weight:700; cursor:pointer; padding:2px 0; margin-top:2px;">✓ Mark as read</button>
             </div>
-            ${unreadIndicator}
           </div>
         `;
       }).join('');
@@ -551,6 +551,23 @@ async function fetchManagerNotifications(email) {
       } else {
         bellWrap.classList.remove('open');
       }
+    });
+
+    bellWrap.querySelectorAll('.mark-read-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        try {
+          await fetch('/api/notifications/read', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, id })
+          });
+          fetchManagerNotifications(email);
+        } catch (err) {
+          console.error('Failed to mark notification read:', err);
+        }
+      });
     });
 
     bellWrap.querySelectorAll('.notification-item').forEach(item => {

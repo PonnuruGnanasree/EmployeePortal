@@ -288,7 +288,7 @@
                 Download Report
               </button>
               <div class="filter-group">
-                <label
+                <label for="filter-role"
                   style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">View
                   Role</label>
                 <select id="filter-role" class="text-input" onchange="updateAnalysis()"
@@ -298,13 +298,13 @@
                 </select>
               </div>
               <div class="filter-group">
-                <label
+                <label for="filter-year"
                   style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">Year</label>
                 <input type="number" id="filter-year" class="text-input" value="2026" onchange="updateAnalysis()"
                   style="width: 90px; padding: 10px 14px; border-radius: 12px;">
               </div>
               <div class="filter-group">
-                <label
+                <label for="filter-month"
                   style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">Month</label>
                 <select id="filter-month" class="text-input" onchange="updateAnalysis()"
                   style="width: 140px; padding: 10px 14px; border-radius: 12px; cursor: pointer;">
@@ -360,6 +360,9 @@
 
           <!-- Individual Parameter Drill-down -->
           <div id="drilldown-section" class="analysis-card">
+            <div id="drilldown-current-view" style="margin-bottom:16px; padding:8px 16px; background:#f8fafc; border-radius:10px; display:inline-flex; align-items:center; gap:8px; font-size:0.8rem; font-weight:600; color:var(--text-muted); border:1px solid var(--border);">
+              📋 Viewing: <span id="drilldown-role-label" style="color:var(--primary); font-weight:700;">Self-Assessment</span> | <span id="drilldown-period-label" style="color:var(--primary); font-weight:700;">-</span>
+            </div>
             <div
               style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
               <h3 style="display: flex; align-items: center; gap: 10px; margin: 0;">
@@ -813,7 +816,7 @@
 
       const term = document.getElementById('skill-search').value.toLowerCase();
 
-      // Filter and sort the skills based on active search/filters
+      // Filter skills based on active search/filters
       const filteredSkills = Object.keys(nameMap).map(id => {
         const val = currentDrilldownData[id];
         const hasData = typeof val === 'number';
@@ -836,39 +839,36 @@
         };
       }).filter(item => item.visible);
 
-      // Sort: rated first (descending), then unrated
-      filteredSkills.sort((a, b) => {
-        if (a.hasData && !b.hasData) return -1;
-        if (!a.hasData && b.hasData) return 1;
-        return b.val - a.val;
-      });
-
       const labels = filteredSkills.map(item => item.name);
       const values = filteredSkills.map(item => item.val);
-      const backgroundColors = [];
-      const borderColors = [];
 
-      filteredSkills.forEach(item => {
-        if (!item.hasData) {
-          backgroundColors.push('rgba(226, 232, 240, 0.4)');
-          borderColors.push('#e2e8f0');
-        } else if (item.tier === 'mastery') {
-          backgroundColors.push('rgba(16, 185, 129, 0.2)');
-          borderColors.push('#10b981');
-        } else if (item.tier === 'advanced') {
-          backgroundColors.push('rgba(99, 102, 241, 0.2)');
-          borderColors.push('#6366f1');
-        } else {
-          backgroundColors.push('rgba(245, 158, 11, 0.2)');
-          borderColors.push('#f59e0b');
-        }
+      const backgroundColors = filteredSkills.map(item => {
+        if (!item.hasData) return 'rgba(226, 232, 240, 0.4)';
+        if (item.tier === 'mastery') return 'rgba(16, 185, 129, 0.3)';
+        if (item.tier === 'advanced') return 'rgba(99, 102, 241, 0.3)';
+        return 'rgba(245, 158, 11, 0.3)';
+      });
+      const borderColors = filteredSkills.map(item => {
+        if (!item.hasData) return '#e2e8f0';
+        if (item.tier === 'mastery') return '#10b981';
+        if (item.tier === 'advanced') return '#6366f1';
+        return '#f59e0b';
       });
 
-      // Calculate dynamic height based on number of items to prevent squishing
+      // Dynamic height based on number of items
       const chartContainer = document.getElementById('drilldown-chart-container');
       if (chartContainer) {
         const dynamicHeight = Math.max(300, filteredSkills.length * 32 + 80);
         chartContainer.style.height = `${dynamicHeight}px`;
+      }
+
+      if (filteredSkills.length === 0) {
+        charts.drilldown = new Chart(ctx, {
+          type: 'bar',
+          data: { labels: ['No Data'], datasets: [{ data: [0], backgroundColor: ['#e2e8f0'], borderWidth: 0 }] },
+          options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+        return;
       }
 
       charts.drilldown = new Chart(ctx, {
@@ -899,7 +899,7 @@
               callbacks: {
                 label: function(context) {
                   const val = context.raw;
-                  if (val === 0) return 'No Entry';
+                  if (val === 0) return ' No Entry';
                   const levelNames = ['Stagnant', 'Fluctuating', 'Steady', 'Proactive', 'High-Perf', 'Multiplier', 'Engine'];
                   return ` Score: ${val}/7 (${levelNames[val - 1]})`;
                 }
@@ -910,21 +910,12 @@
             x: {
               min: 0,
               max: 7,
-              ticks: {
-                stepSize: 1,
-                font: { weight: '600' }
-              },
+              ticks: { stepSize: 1, font: { weight: '600' } },
               grid: { color: 'rgba(0,0,0,0.04)' }
             },
             y: {
               grid: { display: false },
-              ticks: {
-                font: {
-                  size: 11,
-                  weight: '600',
-                  family: "'Outfit', sans-serif"
-                }
-              }
+              ticks: { font: { size: 11, weight: '600', family: "'Outfit', sans-serif" } }
             }
           }
         }
@@ -1142,6 +1133,24 @@
     function renderDrilldown(record) {
       const container = document.getElementById('drilldown-grid');
       container.innerHTML = '';
+
+      // Update the current view label
+      const roleLabel = document.getElementById('drilldown-role-label');
+      const periodLabel = document.getElementById('drilldown-period-label');
+      if (roleLabel) {
+        const role = document.getElementById('filter-role').value;
+        roleLabel.textContent = role === 'admin' ? 'Manager Review' : 'Self-Assessment';
+      }
+      if (periodLabel) {
+        const month = document.getElementById('filter-month').value;
+        const year = document.getElementById('filter-year').value;
+        if (month) {
+          const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+          periodLabel.textContent = `${monthNames[parseInt(month) - 1]} ${year}`;
+        } else {
+          periodLabel.textContent = `Full Year ${year}`;
+        }
+      }
 
       const selections = record ? safeParseJSON(record.selections, {}) : {};
       currentDrilldownData = selections;

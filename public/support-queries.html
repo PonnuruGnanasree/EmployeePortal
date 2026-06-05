@@ -814,7 +814,7 @@
           <div class="query-item-meta" style="justify-content: space-between;">
             <div style="display:flex; align-items:center; gap:12px;">
               <span style="font-weight:700; color:#0f172a;">${dateStr}</span>
-              <span style="background:#e2e8f0; padding:2px 8px; border-radius:12px; font-size:0.7rem; color:#475569; text-transform:capitalize;">${item.category || 'General'}</span>
+              ${item.category ? `<span style="background:#e2e8f0; padding:2px 8px; border-radius:12px; font-size:0.7rem; color:#475569; text-transform:capitalize;">${item.category}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:12px;">
               <span class="status-badge ${currentStatus}" style="text-transform:capitalize;">${statusText}</span>
@@ -851,7 +851,7 @@
         const result = await response.json();
         if(response.ok) {
           showToast('Ticket deleted.', 'success');
-          fetchTickets();
+          loadData();
         } else {
           showToast(result.error || 'Failed to delete ticket.', 'error');
         }

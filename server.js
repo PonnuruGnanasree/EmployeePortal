@@ -510,7 +510,6 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(apiLimiter);
 app.use(express.static(path.join(__dirname, 'public')));
 app.disable('x-powered-by');
 
@@ -4058,14 +4057,11 @@ app.get('/api/social/notifications', (req, res) => {
              u.fullname as sender_name, u.profile_image as sender_image
       FROM manager_notifications n
       LEFT JOIN users u ON LOWER(n.reportee_email) = LOWER(u.email)
-      WHERE LOWER(n.manager_email) = LOWER(?) AND n.type IN ('mention', 'comment', 'message', 'like')
+      WHERE LOWER(n.manager_email) = LOWER(?) AND n.type IN ('mention', 'comment', 'message', 'like') AND n.is_read = 0
       ORDER BY n.created_at DESC
     `).all(email.toLowerCase());
 
-    const unreadCount = db.prepare(`
-      SELECT COUNT(*) as count FROM manager_notifications
-      WHERE LOWER(manager_email) = LOWER(?) AND type IN ('mention', 'comment', 'message', 'like') AND is_read = 0
-    `).get(email.toLowerCase()).count;
+    const unreadCount = notifications.length;
 
     res.json({ success: true, count: unreadCount, notifications });
   } catch (err) {

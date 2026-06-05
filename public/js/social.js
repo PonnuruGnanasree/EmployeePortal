@@ -68,6 +68,26 @@ function updateSocialBadge() {
   }
 }
 
+async function markSingleIdeaNotifRead(idx) {
+  globalMentionsList.splice(idx, 1);
+  globalUnreadMentionsCount = Math.max(0, globalUnreadMentionsCount - 1);
+  var badge = document.getElementById('social-badge');
+  if (badge) {
+    if (globalUnreadMentionsCount === 0) badge.style.display = 'none';
+    else badge.textContent = globalUnreadMentionsCount;
+  }
+  renderSocialFeed();
+  // Also mark on server
+  var userEmail = (localStorage.getItem('gantec_user_email') || '').trim().toLowerCase();
+  if (userEmail) {
+    fetch('/api/social/notifications/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: userEmail })
+    }).catch(function() {});
+  }
+}
+
 async function markMentionsAsRead() {
   var userEmail = (localStorage.getItem('gantec_user_email') || '').trim().toLowerCase();
   if (!userEmail) return;
@@ -142,6 +162,7 @@ function renderSocialFeed() {
           '</div>' +
           '<span style="font-size:0.9rem;font-weight:750;color:#1e293b;letter-spacing:-0.2px;">Idea Hub Notifications</span>' +
         '</div>' +
+        '<button onclick="markMentionsAsRead();globalMentionsList=[];globalUnreadMentionsCount=0;renderSocialFeed();" style="background:none;border:none;color:#6366f1;font-size:0.75rem;font-weight:700;cursor:pointer;padding:4px 8px;">Mark all as read</button>' +
       '</div>' +
       '<div style="display:flex;flex-direction:column;gap:10px;">';
 
@@ -181,6 +202,7 @@ function renderSocialFeed() {
         '<div style="flex:1;">' +
           '<div style="font-size:0.83rem;color:#1e293b;line-height:1.4;font-weight:550;">' + formatPostText(displayMsg) + '</div>' +
           '<div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">' + dateStr + '</div>' +
+          '<button onclick="markSingleIdeaNotifRead(' + mIdx + ')" style="background:none;border:none;color:#6366f1;font-size:0.7rem;font-weight:700;cursor:pointer;padding:2px 0;margin-top:3px;">\u2713 Mark as read</button>' +
         '</div>' +
       '</div>';
     }

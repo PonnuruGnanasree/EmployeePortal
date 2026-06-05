@@ -1386,6 +1386,19 @@
     // Current period = YYYY-MM
     let period = new Date().toISOString().slice(0, 7);
 
+    // Check if period is passed via URL
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const urlPeriod = params.get('period');
+      if (urlPeriod && /^\d{4}-\d{2}$/.test(urlPeriod)) {
+        period = urlPeriod;
+      }
+      const urlRole = params.get('role');
+      if (urlRole === 'admin' || urlRole === 'user') {
+        currentRole = urlRole;
+      }
+    })();
+
     // ── Helpers ──────────────────────────────────────────────────────────────
     function getSupabase() {
       return new Promise((resolve) => {
@@ -1520,6 +1533,36 @@
         }
 
         const data = result.feedback || [];
+
+        // Show last edited month indicator
+        if (data.length > 0) {
+          const sorted = [...data].sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+          const lastEdited = sorted[0];
+          if (lastEdited && lastEdited.period) {
+            const [ly, lm] = lastEdited.period.split('-');
+            const lastDate = new Date(ly, lm - 1);
+            const lastMonthStr = lastDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+            let indicator = document.getElementById('last-edited-indicator');
+            if (!indicator) {
+              indicator = document.createElement('div');
+              indicator.id = 'last-edited-indicator';
+              indicator.style.cssText = 'text-align:center; margin-bottom:20px; font-size:0.8rem; color:var(--text-muted); font-weight:600;';
+              const controls = document.querySelector('.header-controls');
+              if (controls) controls.parentNode.insertBefore(indicator, controls.nextSibling);
+            }
+            indicator.innerHTML = `📝 Last edited: <strong style="color:var(--primary);">${lastMonthStr}</strong> (${lastEdited.role})`;
+          }
+
+            // Auto-navigate to last edited month (only if no URL period specified)
+            const params2 = new URLSearchParams(window.location.search);
+            if (!params2.get('period') && lastEdited.period !== period && !window._hasUserSwitchedPeriod) {
+              period = lastEdited.period;
+              const [y2, m2] = period.split('-');
+              document.getElementById('monthSelect').value = m2;
+              document.getElementById('yearInput').value = y2;
+            }
+        }
+
         // Filter feedback items for the current active period
         const periodData = data.filter(row => row.period === period);
 
@@ -1643,6 +1686,7 @@
       }
 
       period = newPeriod;
+      window._hasUserSwitchedPeriod = true;
 
       // Reset state for new period
       selections = { user: {}, admin: {} };
@@ -1747,7 +1791,7 @@
                 </div>
               </div>
               <div class="skill-comment" style="margin-top: 20px;">
-                <textarea class="skill-comment-input" placeholder="Add a comment for this skill..."
+                <textarea class="skill-comment-input" placeholder="Add comments..."
                   data-skill-id="${sub.id}" oninput="updateSkillComment('${sub.id}', this.value)"
                   ${locked[currentRole] ? 'disabled' : ''}
                   style="width:100%;min-height:80px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.9rem;resize:vertical;background:transparent;color:var(--text-primary);"

@@ -47,7 +47,7 @@ const authLimiter = createRateLimiter({
 
 const apiLimiter = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
-  max: 60,
+  max: 200,
   message: 'Too many requests. Please slow down.'
 });
 

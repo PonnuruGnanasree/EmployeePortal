@@ -263,8 +263,7 @@ function buildTreeSidebar(node, container, level = 0) {
       clearTimeout(clickTimeout);
       clickTimeout = setTimeout(() => {
         if (activeFolder !== child.fullPath) {
-          activeFolder = child.fullPath;
-          renderDocs();
+          setActiveFolder(child.fullPath);
           document.querySelectorAll('#vault-folder-tree .vault-tree-item').forEach(el => el.classList.remove('active'));
           li.classList.add('active');
         }

@@ -985,5 +985,4 @@ function updateAddLinkBtnState() {
 
 document.addEventListener('DOMContentLoaded', () => {
   loadFolders();
-  initSidebarToggle();
 });

@@ -1133,29 +1133,32 @@ confirmUploadBtn?.addEventListener('click', async () => {
 });
 
 // ─── Folder Creation ──────────────────────────────────────────────────────────
-createFolderBtn?.addEventListener('click', async () => {
-  const name = newFolderInput.value.trim();
-  if (!name) return;
-  try {
-    const res = await fetch('/api/folders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    newFolderInput.value = '';
-    showToast(`Folder "${name}" created`, 'success');
-    await loadFolders();
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
-});
+const createFolderBtn = document.getElementById('create-folder-btn');
+const newFolderInput = document.getElementById('new-folder-input');
+if (createFolderBtn) {
+  createFolderBtn.addEventListener('click', async () => {
+    const name = newFolderInput ? newFolderInput.value.trim() : '';
+    if (!name) return;
+    try {
+      const res = await fetch('/api/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (newFolderInput) newFolderInput.value = '';
+      showToast(`Folder "${name}" created`, 'success');
+      await loadFolders();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+}
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadFolders();
-  initSidebarToggle();
 
   const mainUploadCard = document.getElementById('main-upload-card');
   if (mainUploadCard) {
@@ -1165,8 +1168,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Create button redirect to uploader.html
-  if (createFolderBtn) {
-    createFolderBtn.addEventListener('click', () => {
+  const createBtn = document.getElementById('create-folder-btn');
+  if (createBtn) {
+    createBtn.addEventListener('click', () => {
       window.location.href = 'uploader.html';
     });
   }

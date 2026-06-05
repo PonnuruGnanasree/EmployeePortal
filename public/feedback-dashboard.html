@@ -368,20 +368,43 @@
           </div>
 
           <!-- Quick Stats Cards Row -->
-          <div class="stats-row" style="grid-template-columns: 1fr;">
-            <div class="stat-card" style="max-width: 320px; margin: 0 auto; width: 100%;">
-              <div class="stat-icon">📅</div>
-              <div class="stat-info">
-                <h3>Current Period</h3>
-                <p id="stat-period">-</p>
-              </div>
-            </div>
-          </div>
+          <div class="stats-row style=grid-template-columns: 1fr;>
+ <div class=stat-card style=max-width: 320px; margin: 0 auto; width: 100%;>
+ <div class=stat-icon>??</div>
+ <div class=stat-info>
+ <h3>Current Period</h3>
+ <p id=stat-period>-</p>
+ </div>
+ </div>
+ </div>
 
           <!-- Charts Row -->
           <div class="dashboard-grid">
             <div class="panel-card">
-              <div class="panel-title">🎯 Competency Focus</div>
+              <div class="panel-title">
+                🎯 Competency Focus
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <select id="chart-role" onchange="updateChartByPeriod()" style="padding:6px 12px; border-radius:8px; border:1px solid var(--border); font-family:inherit; font-weight:600; font-size:0.8rem; cursor:pointer;">
+                    <option value="user">User</option>
+                    <option value="admin">Manager</option>
+                  </select>
+                  <select id="chart-month" onchange="updateChartByPeriod()" style="padding:6px 12px; border-radius:8px; border:1px solid var(--border); font-family:inherit; font-weight:600; font-size:0.8rem; cursor:pointer;">
+                    <option value="01">January</option>
+                    <option value="02">February</option>
+                    <option value="03">March</option>
+                    <option value="04">April</option>
+                    <option value="05">May</option>
+                    <option value="06">June</option>
+                    <option value="07">July</option>
+                    <option value="08">August</option>
+                    <option value="09">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                  </select>
+                  <input type="number" id="chart-year" value="2026" min="2026" max="2099" onchange="updateChartByPeriod()" style="width:70px; padding:6px 10px; border-radius:8px; border:1px solid var(--border); font-family:inherit; font-weight:600; font-size:0.8rem; text-align:center;">
+                </div>
+              </div>
               <div class="chart-container">
                 <canvas id="competencyChart"></canvas>
               </div>
@@ -390,7 +413,13 @@
 
           <!-- Recent Reviews list -->
           <div class="panel-card" style="margin-bottom: 32px;">
-            <div class="panel-title">🕒 Recent Submissions History</div>
+            <div class="panel-title">🕒 Recent Submissions History
+              <select id="history-role-filter" onchange="filterHistoryByRole()" style="padding:6px 12px; border-radius:8px; border:1px solid var(--border); font-family:inherit; font-weight:600; font-size:0.8rem; cursor:pointer;">
+                <option value="all">All</option>
+                <option value="user">User</option>
+                <option value="admin">Manager</option>
+              </select>
+            </div>
             <div style="overflow-x: auto;">
               <table class="recent-table">
                 <thead>
@@ -419,6 +448,39 @@
 
   <script src="js/app.js?v=7"></script>
   <script>
+    let allFeedbackData = [];
+    let isSubMailView = false;
+    let currentEmail = '';
+
+    function filterHistoryByRole() {
+      const role = document.getElementById('history-role-filter').value;
+      const tbody = document.getElementById('submissions-tbody');
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach(row => {
+        if (role === 'all') {
+          row.style.display = '';
+        } else {
+          const roleCell = row.querySelector('td:nth-child(2)');
+          if (roleCell && roleCell.textContent.trim() === role) {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        }
+      });
+    }
+
+    function updateChartByPeriod() {
+      const month = document.getElementById('chart-month').value;
+      const year = document.getElementById('chart-year').value;
+      const role = document.getElementById('chart-role').value;
+      const selectedPeriod = `${year}-${month}`;
+      const match = allFeedbackData.find(f => f.period === selectedPeriod && f.role === role);
+      const chartContainer = document.querySelector('.chart-container');
+      if (chartContainer) chartContainer.innerHTML = '<canvas id="competencyChart"></canvas>';
+      renderCompetencyChart(match || null);
+    }
+
     function safeParseJSON(val) {
       if (!val) return {};
       let parsed = val;
@@ -490,12 +552,17 @@
           }
 
           const feedback = data.feedback;
+          allFeedbackData = feedback;
           const submittedItems = feedback.filter(f => f.is_submitted);
 
           // 1. Update stats
           const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
           const periodEl = document.getElementById('stat-period');
           if (periodEl) periodEl.textContent = currentMonth;
+
+          // Set chart month/year to current
+          document.getElementById('chart-month').value = String(new Date().getMonth() + 1).padStart(2, '0');
+          document.getElementById('chart-year').value = new Date().getFullYear();
 
           const reviewedEl = document.getElementById('stat-reviewed');
           if (reviewedEl) reviewedEl.textContent = `${submittedItems.length} Months`;
@@ -561,7 +628,7 @@
               <tr>
                 <td style="font-weight: 700; color: var(--text-primary);">${formattedMonth}</td>
                 <td>${item.role}</td>
-                <td style="font-weight: 700; color: var(--primary);">${itemAvg} / 5.0</td>
+                <td style="font-weight: 700; color: var(--primary);">${itemAvg} / 6.0</td>
                 <td><span class="badge ${statusClass}">${statusText}</span></td>
                 <td>
                   <a href="monthly-feedback.html?period=${item.period}&role=${item.role}${rowSuffix}" class="action-btn btn-outline" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 8px;">
@@ -572,8 +639,8 @@
             `;
           });
 
-          // 3. Render Competency Focus (Doughnut)
-          renderCompetencyChart(latestFeedback);
+          // 3. Render Competency Focus (Doughnut) using selected filters
+          updateChartByPeriod();
         })
         .catch(err => {
           console.error(err);
@@ -599,34 +666,97 @@
 
     function renderCompetencyChart(latestItem) {
       const ctx = document.getElementById('competencyChart').getContext('2d');
-      let vals = [1, 1, 1, 1]; // Fallback empty levels
 
-      if (latestItem) {
-        const sels = typeof latestItem.selections === 'string' ? JSON.parse(latestItem.selections) : latestItem.selections;
-        // Group parameters into category buckets
-        let buckets = { technical: [], proactive: [], communication: [], teamwork: [] };
+      if (!latestItem) {
+        // Show empty state message instead of fake chart
+        const container = document.getElementById('competencyChart').parentElement;
+        container.innerHTML = `
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:280px; color:var(--text-muted); text-align:center;">
+            <div style="font-size:3rem; margin-bottom:16px;">📊</div>
+            <p style="font-weight:700; color:var(--text-primary); margin:0 0 8px;">No Feedback Data Yet</p>
+            <p style="font-size:0.85rem; margin:0;">Fill your Monthly Feedback to see competency breakdown here.</p>
+          </div>
+        `;
+        return;
+      }
 
-        for (let k in sels) {
-          const val = sels[k];
-          if (typeof val !== 'number') continue;
+      const sels = typeof latestItem.selections === 'string' ? JSON.parse(latestItem.selections) : latestItem.selections;
+      let buckets = { 
+        technical_delivery: [], 
+        solutioning_depth: [], 
+        reliability: [], 
+        growth: [], 
+        presence: [], 
+        assist: [] 
+      };
 
-          if (k.includes('tech') || k.includes('code') || k.includes('quality')) buckets.technical.push(val);
-          else if (k.includes('proactive') || k.includes('init') || k.includes('own')) buckets.proactive.push(val);
-          else if (k.includes('comm') || k.includes('speak') || k.includes('share')) buckets.communication.push(val);
-          else buckets.teamwork.push(val);
-        }
+      // Map rubric field IDs to their actual categories
+      const categoryMap = {
+        output_volume: 'technical_delivery',
+        accuracy_quality: 'technical_delivery',
+        speed_velocity: 'technical_delivery',
+        process_adherence: 'technical_delivery',
+        testing_rigor: 'technical_delivery',
+        root_cause: 'solutioning_depth',
+        scalability: 'solutioning_depth',
+        edge_cases: 'solutioning_depth',
+        maintainability: 'solutioning_depth',
+        architectural_design: 'solutioning_depth',
+        availability: 'reliability',
+        follow_through: 'reliability',
+        crisis_response: 'reliability',
+        punctuality_attendance: 'reliability',
+        self_learning: 'growth',
+        feedback_loop: 'growth',
+        new_pocs: 'growth',
+        technology_adoption: 'growth',
+        articulation: 'presence',
+        stakeholder_interaction: 'presence',
+        discussion_energy: 'presence',
+        reporting_transparency: 'presence',
+        mentorship: 'assist',
+        knowledge_sharing: 'assist',
+        collaboration: 'assist',
+        onboarding_support: 'assist'
+      };
 
-        const avg = (arr) => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 3;
-        vals = [avg(buckets.technical), avg(buckets.proactive), avg(buckets.communication), avg(buckets.teamwork)];
+      for (let k in sels) {
+        const val = sels[k];
+        if (typeof val !== 'number') continue;
+        const category = categoryMap[k] || 'technical_delivery';
+        buckets[category].push(val);
+      }
+
+      const avg = (arr) => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+      const vals = [
+        avg(buckets.technical_delivery), 
+        avg(buckets.solutioning_depth), 
+        avg(buckets.reliability), 
+        avg(buckets.growth), 
+        avg(buckets.presence), 
+        avg(buckets.assist)
+      ];
+
+      // If all zeros (no meaningful data), show empty state
+      if (vals.every(v => v === 0)) {
+        const container = document.getElementById('competencyChart').parentElement;
+        container.innerHTML = `
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:280px; color:var(--text-muted); text-align:center;">
+            <div style="font-size:3rem; margin-bottom:16px;">📊</div>
+            <p style="font-weight:700; color:var(--text-primary); margin:0 0 8px;">No Feedback Data Yet</p>
+            <p style="font-size:0.85rem; margin:0;">Fill your Monthly Feedback to see competency breakdown here.</p>
+          </div>
+        `;
+        return;
       }
 
       new Chart(ctx, {
         type: 'doughnut',
         data: {
-          labels: ['Technical Skills', 'Proactiveness', 'Communication', 'Teamwork'],
+          labels: ['Technical Delivery', 'Solutioning Depth', 'Reliability', 'Growth', 'Presence', 'Assist'],
           datasets: [{
             data: vals,
-            backgroundColor: ['#1d3461', '#2ecc71', '#3498db', '#f1c40f'],
+            backgroundColor: ['#1d3461', '#2ecc71', '#e74c3c', '#f1c40f', '#3498db', '#9b59b6'],
             borderWidth: 2,
             hoverOffset: 6
           }]
