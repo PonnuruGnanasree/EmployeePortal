@@ -221,11 +221,38 @@ EmployeePortal/
 - Only the owner can access their files
 
 ### Monthly Feedback (monthly-feedback.html)
-- 7-level rubric for 22+ competencies
+- 7-level rubric for 26 competencies across 6 categories
 - Self-Assessment (User) + Manager Review (Admin) modes
-- Auto-save on every cell click
+- Auto-save on every cell click with cloud sync status indicator
 - Save (draft) vs Submit (permanent lock)
 - Per-month storage with full history
+- Period selector (month + year) with auto-navigation to last edited
+- Remarks per skill + comments per sub-category
+- URL params support: `?period=2026-05&role=user&email=x@y.com`
+
+### Monthly Scorecard (feedback-dashboard.html)
+- Competency Focus doughnut chart with User/Manager + Month/Year filters
+- Recent Submissions History table with User/Manager/All filter dropdown
+- Dynamic data: role, score, status all pulled from database
+- View/Edit links navigate to specific period + role in Feedback Insights
+- Current Period stat card
+- Supports reportee view via `?email=` URL param
+
+### Performance Analysis (analysis.html)
+- Overall Skill Progression (line chart) — User vs Manager trend over 12 months
+- Skill Fingerprint (radar chart) — 6-category comparison User vs Manager
+- Pictorial Metric Breakdown:
+  - Horizontal bar chart with tier-based colors (Green=Mastery, Purple=Advanced, Orange=Developing)
+  - Grid view with circular gauge cards + category emoji icons
+  - Toggle between Chart and Grid views
+  - Filter by Mastery/Advanced/Developing tier
+  - Search skills by name
+  - Dynamic label showing current Role + Period being viewed
+- View Role filter (Self-Assessment / Manager Review)
+- Year + Month filters
+- AI Performance Insight card (month-over-month comparison)
+- Download Report (print)
+- Supports reportee view via `?email=` URL param
 
 ### Gantec Idea Hub (social feed)
 - Post with images/text
