@@ -279,10 +279,71 @@ EmployeePortal/
 - Auto-expire after 30 days
 
 ### Admin Features
-- Support Queries dashboard (admin only)
-- HR Queries dashboard (admin only)
-- Folder/file delete override
-- Role managed via config/admins.json
+- Support Queries dashboard (admin only) — view/delete tickets, change status (pending/in-progress/resolved)
+- HR Queries dashboard (admin only) — same status management
+- Folder/file delete override (admin can delete any resource)
+- Role managed via config/admins.json + Supabase admin_emails table
+- Admin sync on server startup
+- Category badge only shows when category exists (no "General" fallback)
+
+---
+
+## Feedback Data Flow
+
+```
+┌─────────────────────┐     POST /api/feedback/save     ┌──────────────────┐
+│  Feedback Insights   │ ──────────────────────────────▶ │   Supabase DB    │
+│ (monthly-feedback)   │                                 │  monthly_feedback │
+└─────────────────────┘                                  └────────┬─────────┘
+                                                                  │
+                         GET /api/feedback/data                    │
+┌─────────────────────┐ ◀────────────────────────────────────────┘
+│  Monthly Scorecard   │
+│ (feedback-dashboard) │     Same API endpoint
+└─────────────────────┘
+                         GET /api/feedback/data
+┌─────────────────────┐ ◀────────────────────────────────────────┘
+│ Performance Analysis │
+│    (analysis.html)   │
+└─────────────────────┘
+```
+
+- Data keyed by: `user_email` + `period` (YYYY-MM) + `role` (user/admin)
+- Saved/submitted data persists permanently
+- All three pages read from the same API endpoint
+- Role filter values: `user` (Self-Assessment), `admin` (Manager Review)
+
+---
+
+## Rubric Categories (26 Skills)
+
+| Category | Skills | Weight |
+|----------|--------|--------|
+| Technical Delivery | Output Volume, Accuracy/Quality, Speed/Velocity, Process Adherence, Testing Rigor | 60% (Hard) |
+| Solutioning Depth | Root Cause (RCA), Scalability, Edge-Cases, Maintainability, Architectural Design | 60% (Hard) |
+| Reliability | Availability, Follow-Through, Crisis Response, Punctuality/Attendance | 60% (Hard) |
+| Growth | Self-Learning, Feedback Loop, New POCs, Technology Adoption | 40% (Soft) |
+| Presence | Articulation, Stakeholder Interaction, Discussion Energy, Reporting Transparency | 40% (Soft) |
+| Assist | Mentorship, Knowledge Sharing, Collaboration, Onboarding Support | 40% (Soft) |
+
+### Scoring Levels (1-7)
+| Level | Index | Label |
+|-------|-------|-------|
+| 1 | 0 | Stagnant |
+| 2 | 1 | Fluctuating |
+| 3 | 2 | Steady |
+| 4 | 3 | Proactive |
+| 5 | 4 | High-Perf |
+| 6 | 5 | Multiplier |
+| 7 | 6 | Engine |
+
+### Tier Classification (Performance Analysis)
+| Tier | Score Range | Color |
+|------|-------------|-------|
+| Mastery | 6-7 (index 5-6) | Green (#10b981) |
+| Advanced | 4-5 (index 3-4) | Purple (#6366f1) |
+| Developing | 1-3 (index 0-2) | Orange (#f59e0b) |
+| No Entry | - | Gray (#e2e8f0) |
 
 ---
 
@@ -310,6 +371,107 @@ PORT=10000
 3. **Conflict**: Supabase is source of truth when both have data
 4. **Auto-heal**: If user exists in Supabase but not SQLite, auto-create locally
 5. **Offline**: App works from SQLite alone if Supabase is unreachable
+
+---
+
+## API Endpoints
+
+### Authentication
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/auth/signup` | Create new account |
+| POST | `/api/auth/login` | Login + get JWT token |
+| GET | `/api/auth/profile` | Get user profile |
+| PUT | `/api/auth/profile` | Update profile (name, email, password, image) |
+
+### Training Resources
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/folders` | Get all folders with files |
+| POST | `/api/folders` | Create new folder |
+| POST | `/api/upload` | Upload file to folder |
+| POST | `/api/resources/links` | Add YouTube link |
+| GET | `/api/file` | Download/view a file |
+| DELETE | `/api/file` | Delete a file |
+| DELETE | `/api/delete-folder` | Delete entire folder |
+| PATCH | `/api/rename-file` | Rename file |
+| PATCH | `/api/rename-folder` | Rename folder |
+| POST | `/api/view-resource` | Award view points |
+| GET | `/api/leaderboard` | Top 3 content leaders |
+
+### Document Locker
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/my-documents/folders` | Get user's private folders |
+| POST | `/api/my-documents/folders` | Create private folder |
+| POST | `/api/my-documents/upload` | Upload private file |
+| GET | `/api/my-documents/file` | Download private file |
+| DELETE | `/api/my-documents/file` | Delete private file |
+| DELETE | `/api/my-documents/folder` | Delete private folder |
+| PATCH | `/api/my-documents/rename-file` | Rename private file |
+| PATCH | `/api/my-documents/rename-folder` | Rename private folder |
+
+### Feedback System
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/feedback/data` | Get all feedback for a user |
+| POST | `/api/feedback/save` | Save/submit feedback |
+| GET | `/api/sub-mails` | Get manager's reportees |
+| POST | `/api/sub-mails` | Add reportee |
+| DELETE | `/api/sub-mails` | Remove reportee |
+
+### Notifications
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/notifications` | Get bell notifications |
+| PUT | `/api/notifications/read` | Mark as read |
+| GET | `/api/social/notifications` | Get Idea Hub notifications |
+| POST | `/api/social/notifications/read` | Mark social as read |
+
+### Social / Idea Hub
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/social/feed` | Get posts + stories |
+| POST | `/api/social/posts` | Create post |
+| DELETE | `/api/social/posts/:id` | Delete own post |
+| POST | `/api/social/comments` | Add comment |
+| POST | `/api/social/likes` | Toggle like |
+| POST | `/api/social/stories` | Create 24hr story |
+| GET | `/api/social/users/search` | Search users for @mention |
+
+### HR & Support
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/contact-hr` | Submit HR inquiry |
+| GET | `/api/hr/queries` | Admin: get all HR queries |
+| PATCH | `/api/hr/queries/:id` | Admin: update status |
+| DELETE | `/api/hr/queries/:id` | Admin: delete query |
+| POST | `/api/employee-support/ticket` | Submit support ticket |
+| GET | `/api/admin/support-tickets` | Admin: get all tickets |
+| PATCH | `/api/admin/support-tickets/:id` | Admin: update status |
+| DELETE | `/api/admin/support-tickets/:id` | Admin: delete ticket |
+
+### Other
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/chat` | AI chatbot (Gemini) |
+| POST | `/api/summarize` | Document summarization |
+| GET | `/api/holidays` | Company holidays |
+| GET | `/api/certifications` | Get certifications |
+| POST | `/api/certifications` | Add certification |
+| PUT | `/api/certifications/:id` | Update certification |
+| DELETE | `/api/certifications/:id` | Delete certification |
+| GET | `/api/weekly-sessions` | Weekly Connect sessions |
+| POST | `/api/weekly-sessions` | Create session |
+| PUT | `/api/weekly-sessions/:id` | Update session |
+| DELETE | `/api/weekly-sessions/:id` | Delete session |
+| GET | `/api/team-members` | Get team members |
+| POST | `/api/team-members` | Add member |
+| DELETE | `/api/team-members/:id` | Delete member |
+| GET | `/api/hr/config` | Get HR email config |
+| GET | `/api/support/config` | Get support email config |
+| GET | `/api/config/supabase` | Get Supabase public config |
+| GET | `/api/leave/settings` | Get leave portal link |
 
 ---
 
