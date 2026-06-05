@@ -239,8 +239,8 @@ function buildTreeSidebar(node, container, level = 0) {
         <span class="vault-tree-label">${escapeHTML(child.name)}</span>
       </div>
       <div class="vault-tree-actions">
-        <button class="tree-delete-btn delete-folder" title="Delete Folder">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+        <button class="tree-delete-btn delete-folder" title="Delete Folder" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center; color:var(--text-muted); opacity:0.6; transition:opacity 0.2s;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
         </button>
       </div>
     `;
@@ -292,15 +292,15 @@ function buildTreeSidebar(node, container, level = 0) {
         const fileLi = document.createElement('li');
         fileLi.className = 'vault-tree-item vault-tree-file';
         fileLi.style.paddingLeft = `${(level + 1) * 16 + 24}px`;
-        const icon = getFileIcon(file.name);
+        const icon = getFileIconHtml(file.name, 14);
         fileLi.innerHTML = `
           <div class="vault-tree-info">
             <span style="font-size: 13px; width: 14px; text-align:center;">${icon}</span>
             <span class="vault-tree-label" style="font-size: 0.8rem; opacity: 0.8;">${escapeHTML(file.name)}</span>
           </div>
           <div class="vault-tree-actions">
-            <button class="tree-delete-btn delete-file" title="Delete File">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            <button class="tree-delete-btn delete-file" title="Delete File" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center; color:var(--text-muted); opacity:0.6; transition:opacity 0.2s;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             </button>
           </div>
         `;

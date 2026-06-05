@@ -613,7 +613,7 @@
           </a>
           <div class="sidebar-submenu">
             <a href="certifications.html" class="submenu-link">View Certifications</a>
-            <a href="add-certification.html" class="submenu-link">Add Certification</a>
+            <a href="add-certification.html" class="submenu-link">Add and View Certifications</a>
             <a href="certificate-leaders.html" class="submenu-link">Certificate Leaders</a>
           </div>
         </div>
@@ -876,6 +876,19 @@
                 <p class="card-desc">Support, queries, or assistance through email, chat, or by requesting a call with
                   HR.</p>
               </div>
+            <div class="feature-card" data-module="support-queries" id="admin-support-card" style="display:none;" onclick="window.location.href='support-queries.html'">
+              <div class="card-icon-wrap" style="background:rgba(239,68,68,0.1);color:#ef4444;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:28px;height:28px;">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <div>
+                <h3 class="card-title">Support Queries</h3>
+                <p class="card-desc">View and manage employee support tickets and HR queries. Admin access only.</p>
+              </div>
+            </div>
+
             </div>
 
             <!-- Quick Stats Banner -->
@@ -938,6 +951,22 @@
   </div>
 
   <script src="js/app.js?v=7"></script>
+  <script>
+    // Show Support Queries card only for admins
+    (function() {
+      const email = localStorage.getItem('gantec_user_email');
+      if (email) {
+        fetch('/api/auth/profile?email=' + encodeURIComponent(email))
+          .then(r => r.json())
+          .then(data => {
+            if (data.success && data.user && data.user.role === 'admin') {
+              const card = document.getElementById('admin-support-card');
+              if (card) card.style.display = '';
+            }
+          }).catch(() => {});
+      }
+    })();
+  </script>
   <script src="js/social.js"></script>
   <script>
 
@@ -1018,3 +1047,6 @@
 </body>
 
 </html>
+
+
+

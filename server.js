@@ -791,6 +791,8 @@ app.get('/api/auth/profile', optionalAuth, async (req, res) => {
       user = stmt.get(email);
     }
 
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
     const isAdmin = await checkIsAdmin(user.email);
     const finalRole = isAdmin ? 'admin' : 'employee';
 
@@ -1304,7 +1306,7 @@ app.post('/api/folders', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/upload', uploadLimiter, (req, res) => {
+app.post('/api/upload', (req, res) => {
   upload.single('file')(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -1990,7 +1992,7 @@ app.get('/api/my-documents/folders', async (req, res) => {
           const { data: sbDocs } = await supabase.from('user_documents').select('*').eq('user_id', supaUser.id);
           
           if (sbFolders && sbDocs) {
-            const folderMap = { 'General': { name: 'General', files: [], subfolders: [] } };
+            const folderMap = {};
             sbFolders.forEach(f => { folderMap[f.path] = { name: f.path, files: [], subfolders: [] }; });
             sbDocs.forEach(d => {
               const folder = d.folder || 'General';
@@ -2115,7 +2117,7 @@ const uploadUserDoc = multer({
   }
 });
 
-app.post('/api/my-documents/upload', uploadLimiter, uploadUserDoc.single('file'), async (req, res) => {
+app.post('/api/my-documents/upload', uploadUserDoc.single('file'), async (req, res) => {
   console.log('📥 Upload request received:', { email: req.body.email, folder: req.body.folder, file: req.file?.originalname });
 
   try {
@@ -2339,10 +2341,22 @@ app.delete('/api/my-documents/folder', async (req, res) => {
   try {
     const { email, folder } = req.body;
     if (!email || !folder) return res.status(400).json({ error: 'Missing params' });
-    const user = await getUserByEmail(email);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    let user = await getUserByEmail(email);
+    if (!user) {
+      // Auto-heal: create stub user
+      try {
+        const stubId = require('uuid').v4();
+        const stubName = email.split('@')[0].split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+        db.prepare('INSERT INTO users (id, fullname, email, password, role, points) VALUES (?, ?, ?, ?, ?, ?)')
+          .run(stubId, stubName, email.toLowerCase(), '', 'employee', 0);
+        user = { id: stubId };
+      } catch (stubErr) {
+        user = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+      }
+    }
 
-    const docs = db.prepare('SELECT id, hashed_name FROM user_documents WHERE user_id = ? AND folder LIKE ?').all(user.id, folder + '%');
+    const docs = db.prepare('SELECT id, hashed_name FROM user_documents WHERE user_id = ? AND (folder = ? OR folder LIKE ?)').all(user.id, folder, folder + '/%');
     
     // 1. Delete files from disk FIRST
     for (const doc of docs) {
@@ -2359,6 +2373,7 @@ app.delete('/api/my-documents/folder', async (req, res) => {
         const { data: supaUser } = await supabase.from('users').select('id').ilike('email', email).single();
         if (supaUser) {
           await supabase.from('user_folders').delete().eq('user_id', supaUser.id).eq('path', folder);
+          await supabase.from('user_folders').delete().eq('user_id', supaUser.id).ilike('path', `${folder}/%`);
           await supabase.from('user_documents').delete().eq('user_id', supaUser.id).ilike('folder', `${folder}%`);
         }
       } catch (e) { console.error('Supabase folder delete sync error:', e.message); }

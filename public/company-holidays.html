@@ -369,7 +369,7 @@
           </a>
           <div class="sidebar-submenu">
             <a href="certifications.html" class="submenu-link">View Certifications</a>
-            <a href="add-certification.html" class="submenu-link">Add Certification</a>
+            <a href="add-certification.html" class="submenu-link">Add and View Certifications</a>
             <a href="certificate-leaders.html" class="submenu-link">Certificate Leaders</a>
           </div>
         </div>
@@ -671,7 +671,7 @@
       const d = new Date(dateStr);
       const formattedDate = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-      badge.textContent = holiday.type;
+      badge.textContent = holiday.type === "Floating Holiday Option" ? "Floating Holiday" : holiday.type;
       badge.className = `holiday-type-badge ${holiday.type === "Company Holiday" ? 'type-company' : 'type-floating'}`;
       dateEl.textContent = formattedDate;
       titleEl.textContent = holiday.name;
@@ -681,7 +681,7 @@
         noteEl.innerHTML = "This is a <strong>Company Holiday</strong>. All offices will be closed, and employees are entitled to a paid day off.";
       } else {
         iconEl.textContent = "✨";
-        noteEl.innerHTML = "This is a <strong>Floating Holiday Option</strong>. Employees may choose up to 4 such days per year from the options list.";
+        noteEl.innerHTML = "This is a <strong>Floating Holiday</strong>. Employees may choose up to 4 such days per year from the options list.";
       }
 
       modal.classList.add('active');
@@ -705,3 +705,5 @@
 </body>
 
 </html>
+
+

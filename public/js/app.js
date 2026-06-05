@@ -166,7 +166,7 @@ function getFileIconHtml(filename, size = 36, type = 'file', internalPath = '') 
 
   // Images
   if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
-    return `<svg viewBox="0 0 24 24" style="${style}"><path d="M4 2h16v20H4z" fill="#27AE60"/><path d="M8 14l3-3 4 4" stroke="white" stroke-width="1.5" fill="none"/></svg>`;
+    return `<svg viewBox="0 0 24 24" style="${style}"><path d="M4 2h16v20H4z" fill="#6366F1"/><circle cx="9" cy="9" r="2" fill="rgba(255,255,255,0.7)"/><path d="M4 16l4-4 3 3 5-5 4 4v8H4z" fill="rgba(255,255,255,0.5)"/></svg>`;
   }
 
   // Default Gray File
@@ -495,8 +495,9 @@ async function fetchManagerNotifications(email) {
 
     const listContainer = bellWrap.querySelector('#bell-notification-list');
     const notifs = data.notifications || [];
+    const unreadNotifs = notifs.filter(n => !n.is_read);
 
-    if (notifs.length === 0) {
+    if (unreadNotifs.length === 0) {
       listContainer.innerHTML = `
         <div style="padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
           <div style="font-size: 1.5rem; margin-bottom: 8px;">🔔</div>
@@ -506,7 +507,7 @@ async function fetchManagerNotifications(email) {
       const markAllBtn = bellWrap.querySelector('#mark-all-read-btn');
       if (markAllBtn) markAllBtn.style.display = 'none';
     } else {
-      listContainer.innerHTML = notifs.map(n => {
+      listContainer.innerHTML = unreadNotifs.map(n => {
         const timeStr = formatRelativeTime(n.created_at);
         const unreadIndicator = !n.is_read 
           ? `<span class="unread-dot" style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent); display: inline-block; flex-shrink: 0; margin-left: auto;"></span>`
@@ -527,7 +528,7 @@ async function fetchManagerNotifications(email) {
         `;
       }).join('');
       
-      const hasUnread = notifs.some(n => !n.is_read);
+      const hasUnread = unreadNotifs.length > 0;
       const markAllBtn = bellWrap.querySelector('#mark-all-read-btn');
       if (markAllBtn && !hasUnread) {
         markAllBtn.style.display = 'none';
@@ -1317,7 +1318,7 @@ function syncFeedbackMenu() {
           submenu.innerHTML = `
             <a href="monthly-feedback.html${suffix}" class="submenu-link ${isFeedbackActive ? 'active' : ''}">Feedback Insights</a>
             <a href="insights.html${suffix}" class="submenu-link ${isInsightsActive ? 'active' : ''}">Reportee Insights</a>
-            <a href="feedback-dashboard.html${suffix}" class="submenu-link ${isDashboardActive ? 'active' : ''}">Dashboard</a>
+            <a href="feedback-dashboard.html${suffix}" class="submenu-link ${isDashboardActive ? 'active' : ''}">Monthly Scorecard</a>
             <a href="analysis.html${suffix}" class="submenu-link ${isAnalysisActive ? 'active' : ''}">Performance Analysis</a>
           `;
         }

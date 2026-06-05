@@ -53,7 +53,7 @@ const apiLimiter = createRateLimiter({
 
 const uploadLimiter = createRateLimiter({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 30,
   message: 'Too many uploads. Please wait a moment.'
 });
 
