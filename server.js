@@ -4657,26 +4657,10 @@ const server = app.listen(PORT, async () => {
   await syncAdminEmails();
 });
 
-// ─── Hourly Cleanup & Supabase Keep-Alive ────────────────────────────────────
-// Runs once per hour:
-// 1. Deletes local SQLite notifications older than 30 days
-// 2. Deletes expired Supabase notifications older than 30 days
-// 3. Pings Supabase with a lightweight query to prevent free-tier project pausing
+// ─── Hourly Supabase Keep-Alive ──────────────────────────────────────────────
+// Pings Supabase with a lightweight query to prevent free-tier project pausing
 setInterval(async () => {
-  // 1. SQLite cleanup
-  try {
-    db.prepare(`DELETE FROM manager_notifications WHERE created_at < datetime('now', '-30 days')`).run();
-  } catch (e) { console.warn('SQLite notification cleanup failed:', e.message); }
-
-  // 2. Supabase notification cleanup + keep-alive ping
   if (supabase) {
-    try {
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
-      await supabase.from('reportee_notifications').delete().lt('created_at', oneMonthAgo.toISOString());
-    } catch (e) { console.warn('Supabase notification cleanup failed:', e.message); }
-
-    // Keep-alive: lightweight ping to prevent Supabase free-tier from pausing the project
     try {
       await supabase.from('users').select('id', { count: 'exact', head: true });
       console.log('✅ Supabase keep-alive ping successful.');
