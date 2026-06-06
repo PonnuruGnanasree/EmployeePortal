@@ -10,10 +10,7 @@ async function loadSocialFeed() {
     var data = await res.json();
     if (data.success) {
       globalSocialPosts = data.posts;
-      if (!window._socialNotificationsLoaded) {
-        await loadSocialNotifications();
-        window._socialNotificationsLoaded = true;
-      }
+      await loadSocialNotifications();
       renderSocialFeed();
     }
   } catch(e) {
@@ -581,19 +578,22 @@ function openSocialCreateModal(type) {
   };
 }
 
+var _postSubmitting = false;
 async function submitSocialCreate() {
+  if (_postSubmitting) return;
+  _postSubmitting = true;
   var user_email = localStorage.getItem('gantec_user_email');
   var text = (document.getElementById('social-caption-text') || {}).value || '';
   text = text.trim();
 
-  if (!user_email) { alert('Please log in'); return; }
+  if (!user_email) { _postSubmitting = false; alert('Please log in'); return; }
   
   var image_url = '';
   if (window.socialUploadedImages && window.socialUploadedImages.length > 0) {
     image_url = JSON.stringify(window.socialUploadedImages);
   }
 
-  if (!text && !image_url) { alert('Please upload at least one image or write a caption.'); return; }
+  if (!text && !image_url) { _postSubmitting = false; alert('Please upload at least one image or write a caption.'); return; }
 
   var modal = document.getElementById('social-create-modal');
   if (modal) modal.remove();
@@ -610,6 +610,7 @@ async function submitSocialCreate() {
       scrollContainer.scrollTop = 0;
     }
   } catch(e) { console.error(e); }
+  _postSubmitting = false;
 }
 
 (function() {

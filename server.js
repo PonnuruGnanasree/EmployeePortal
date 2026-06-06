@@ -351,6 +351,42 @@ try { db.exec("ALTER TABLE manager_notifications ADD COLUMN type TEXT DEFAULT 'a
 try { db.exec("UPDATE manager_notifications SET type = 'assign_reportee' WHERE type IS NULL"); } catch (e) {}
 // Back‑fill existing rows where original_name is null
 try { db.exec("UPDATE public_documents SET original_name = filename WHERE original_name IS NULL"); } catch (e) {}
+// Clean up duplicate social posts (keep the first one, delete the rest)
+try {
+  const dupes = db.prepare(`
+    SELECT user_email, caption, created_at, COUNT(*) as cnt
+    FROM social_posts
+    GROUP BY user_email, caption, created_at
+    HAVING cnt > 1
+  `).all();
+  for (const dupe of dupes) {
+    const ids = db.prepare(`
+      SELECT id FROM social_posts
+      WHERE LOWER(user_email) = LOWER(?) AND caption = ? AND created_at = ?
+      ORDER BY rowid ASC
+    `).all(dupe.user_email, dupe.caption, dupe.created_at);
+    // Keep the first, delete the rest
+    for (let i = 1; i < ids.length; i++) {
+      db.prepare('DELETE FROM social_comments WHERE post_id = ?').run(ids[i].id);
+      db.prepare('DELETE FROM social_likes WHERE post_id = ?').run(ids[i].id);
+      db.prepare('DELETE FROM social_posts WHERE id = ?').run(ids[i].id);
+    }
+  }
+  if (dupes.length > 0) console.log(`✅ Cleaned up ${dupes.length} duplicate post groups.`);
+} catch (e) { console.warn('Duplicate post cleanup skipped:', e.message); }
+// Clean up duplicate user accounts (same email, different case) — keep the first, delete the rest
+try {
+  db.pragma('foreign_keys = OFF');
+  const dupeEmails = db.prepare(`SELECT LOWER(email) as em, COUNT(*) as cnt FROM users GROUP BY LOWER(email) HAVING cnt > 1`).all();
+  for (const d of dupeEmails) {
+    const rows = db.prepare('SELECT id, email FROM users WHERE LOWER(email) = ? ORDER BY rowid ASC').all(d.em);
+    for (let i = 1; i < rows.length; i++) {
+      db.prepare('DELETE FROM users WHERE id = ?').run(rows[i].id);
+    }
+  }
+  db.pragma('foreign_keys = ON');
+  if (dupeEmails.length > 0) console.log(`✅ Cleaned up ${dupeEmails.length} duplicate user email groups.`);
+} catch (e) { console.warn('Duplicate user cleanup skipped:', e.message); }
 
 // Robust mention/tag parser supporting @username and @email, checking DB user existence
 function extractMentions(text) {
@@ -4146,6 +4182,7 @@ app.get('/api/social/feed', async (req, res) => {
       SELECT p.*, u.fullname, u.profile_image 
       FROM social_posts p 
       LEFT JOIN users u ON LOWER(p.user_email) = LOWER(u.email)
+      GROUP BY p.id
       ORDER BY p.created_at DESC
     `).all();
     
@@ -4181,6 +4218,15 @@ app.post('/api/social/posts', async (req, res) => {
   try {
     const { user_email, image_url, caption } = req.body;
     if (!user_email) return res.status(400).json({ error: 'Email required' });
+    
+    // Prevent duplicate posts: check if same user posted same caption within last 30 seconds
+    const recentDupe = db.prepare(`
+      SELECT id FROM social_posts 
+      WHERE LOWER(user_email) = LOWER(?) AND caption = ? AND created_at > datetime('now', '-30 seconds')
+    `).get(user_email, caption || '');
+    if (recentDupe) {
+      return res.json({ success: true, post_id: recentDupe.id });
+    }
     
     const id = uuidv4();
     
@@ -4227,7 +4273,7 @@ app.post('/api/social/posts', async (req, res) => {
           try {
             const recent = db.prepare(`
               SELECT id FROM manager_notifications
-              WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND type = 'mention'
+              WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND type = 'mention' AND is_read = 0
             `).get(mentionedEmail, user_email);
             
             if (!recent) {
@@ -4299,7 +4345,7 @@ app.post('/api/social/comments', async (req, res) => {
         const recentComment = db.prepare(`
           SELECT id FROM manager_notifications
           WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?)
-            AND type = 'comment'
+            AND type = 'comment' AND is_read = 0
         `).get(post.user_email.toLowerCase(), user_email.toLowerCase());
         if (!recentComment) {
           db.prepare('INSERT INTO manager_notifications (manager_email, reportee_email, message, type) VALUES (?, ?, ?, ?)')
@@ -4344,7 +4390,7 @@ app.post('/api/social/comments', async (req, res) => {
           try {
             const recent = db.prepare(`
               SELECT id FROM manager_notifications
-              WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND type = 'mention'
+              WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND type = 'mention' AND is_read = 0
             `).get(mentionedEmail, user_email);
             
             if (!recent) {
@@ -4409,7 +4455,7 @@ app.post('/api/social/likes', async (req, res) => {
           const recentLike = db.prepare(`
             SELECT id FROM manager_notifications
             WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?)
-              AND type = 'like'
+              AND type = 'like' AND is_read = 0
           `).get(post.user_email.toLowerCase(), emailLower);
           
           if (!recentLike) {
