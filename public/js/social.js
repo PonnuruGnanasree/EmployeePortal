@@ -10,7 +10,10 @@ async function loadSocialFeed() {
     var data = await res.json();
     if (data.success) {
       globalSocialPosts = data.posts;
-      await loadSocialNotifications();
+      if (!window._socialNotificationsLoaded) {
+        await loadSocialNotifications();
+        window._socialNotificationsLoaded = true;
+      }
       renderSocialFeed();
     }
   } catch(e) {
@@ -69,6 +72,10 @@ function updateSocialBadge() {
 }
 
 async function markSingleIdeaNotifRead(idx) {
+  var notif = globalMentionsList[idx];
+  if (!notif) return;
+  
+  // Remove only this one from the local list
   globalMentionsList.splice(idx, 1);
   globalUnreadMentionsCount = Math.max(0, globalUnreadMentionsCount - 1);
   var badge = document.getElementById('social-badge');
@@ -77,13 +84,14 @@ async function markSingleIdeaNotifRead(idx) {
     else badge.textContent = globalUnreadMentionsCount;
   }
   renderSocialFeed();
-  // Also mark on server
+  
+  // Mark only this specific notification on server by its ID
   var userEmail = (localStorage.getItem('gantec_user_email') || '').trim().toLowerCase();
-  if (userEmail) {
-    fetch('/api/social/notifications/read', {
+  if (userEmail && notif.id) {
+    fetch('/api/social/notifications/read-single', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: userEmail })
+      body: JSON.stringify({ email: userEmail, id: notif.id })
     }).catch(function() {});
   }
 }
@@ -111,11 +119,9 @@ async function markMentionsAsRead() {
 }
 
 function markPostsAsSeen() {
-  // Called when Gantec Idea Hub widget is opened
+  // Only update post count tracking, do NOT touch notification badge
   socialLastSeenPostCount = globalSocialPosts.length;
   localStorage.setItem('social_seen_post_count', String(socialLastSeenPostCount));
-  var badge = document.getElementById('social-badge');
-  if (badge) badge.style.display = 'none';
 }
 
 function formatPostText(text) {
@@ -352,27 +358,34 @@ function focusSocialComment(postId) {
   if (el) el.focus();
 }
 
+var _likeSubmitting = false;
 async function toggleSocialLike(postId) {
+  if (_likeSubmitting) return;
+  _likeSubmitting = true;
   var user_email = localStorage.getItem('gantec_user_email');
-  if (!user_email) { alert('Please log in'); return; }
+  if (!user_email) { _likeSubmitting = false; alert('Please log in'); return; }
   try {
     await fetch('/api/social/likes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ post_id: postId, user_email: user_email })
     });
-    loadSocialFeed();
+    await loadSocialFeed();
   } catch(e) { console.error(e); }
+  _likeSubmitting = false;
 }
 
+var _commentSubmitting = false;
 async function submitSocialComment(e, postId) {
   e.preventDefault();
+  if (_commentSubmitting) return;
+  _commentSubmitting = true;
   var user_email = localStorage.getItem('gantec_user_email');
-  if (!user_email) { alert('Please log in'); return; }
+  if (!user_email) { _commentSubmitting = false; alert('Please log in'); return; }
   var input = document.getElementById('cmt-' + postId);
-  if (!input) return;
+  if (!input) { _commentSubmitting = false; return; }
   var comment_text = input.value.trim();
-  if (!comment_text) return;
+  if (!comment_text) { _commentSubmitting = false; return; }
   input.value = '';
   try {
     await fetch('/api/social/comments', {
@@ -380,8 +393,9 @@ async function submitSocialComment(e, postId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ post_id: postId, user_email: user_email, comment_text: comment_text })
     });
-    loadSocialFeed();
+    await loadSocialFeed();
   } catch(e) { console.error(e); }
+  _commentSubmitting = false;
 }
 
 async function deleteSocialPost(postId) {

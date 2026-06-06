@@ -347,6 +347,8 @@ try { db.exec("ALTER TABLE users ADD COLUMN profile_image TEXT"); } catch (e) {}
 try { db.exec("ALTER TABLE public_documents ADD COLUMN original_name TEXT"); } catch (e) {}
 try { db.exec("ALTER TABLE main_sub_mails ADD COLUMN period TEXT"); } catch (e) {}
 try { db.exec("ALTER TABLE manager_notifications ADD COLUMN type TEXT DEFAULT 'assign_reportee'"); } catch (e) {}
+// Fix old NULL-type notifications: assign them 'assign_reportee' if they don't match social patterns
+try { db.exec("UPDATE manager_notifications SET type = 'assign_reportee' WHERE type IS NULL"); } catch (e) {}
 // Back‑fill existing rows where original_name is null
 try { db.exec("UPDATE public_documents SET original_name = filename WHERE original_name IS NULL"); } catch (e) {}
 
@@ -3957,6 +3959,7 @@ app.get('/api/notifications', async (req, res) => {
             .from('reportee_notifications')
             .select('*')
             .eq('user_id', managerRow.id)
+            .eq('notification_type', 'assign_reportee')
             .order('created_at', { ascending: false });
 
           if (!error && data) {
@@ -3977,7 +3980,7 @@ app.get('/api/notifications', async (req, res) => {
     if (notifications.length === 0) {
       notifications = db.prepare(`
         SELECT id, message, created_at, is_read FROM manager_notifications
-        WHERE LOWER(manager_email) = LOWER(?) AND (type IS NULL OR type = 'assign_reportee')
+        WHERE LOWER(manager_email) = LOWER(?) AND type = 'assign_reportee'
         ORDER BY created_at DESC
       `).all(email.toLowerCase());
       unreadCount = notifications.filter(n => !n.is_read).length;
@@ -4013,7 +4016,7 @@ app.put('/api/notifications/read', async (req, res) => {
         db.prepare(`
           UPDATE manager_notifications 
           SET is_read = 1 
-          WHERE LOWER(manager_email) = LOWER(?) AND id = ? AND (type IS NULL OR type = 'assign_reportee')
+          WHERE LOWER(manager_email) = LOWER(?) AND id = ? AND type = 'assign_reportee'
         `).run(email.toLowerCase(), id);
       }
     } else {
@@ -4021,7 +4024,7 @@ app.put('/api/notifications/read', async (req, res) => {
       db.prepare(`
         UPDATE manager_notifications 
         SET is_read = 1 
-        WHERE LOWER(manager_email) = LOWER(?) AND is_read = 0 AND (type IS NULL OR type = 'assign_reportee')
+        WHERE LOWER(manager_email) = LOWER(?) AND is_read = 0 AND type = 'assign_reportee'
       `).run(email.toLowerCase());
 
       if (supabase) {
@@ -4081,6 +4084,25 @@ app.post('/api/social/notifications/read', (req, res) => {
       SET is_read = 1 
       WHERE LOWER(manager_email) = LOWER(?) AND type IN ('mention', 'comment', 'message', 'like') AND is_read = 0
     `).run(email.toLowerCase());
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/social/notifications/read-single', (req, res) => {
+  const { email, id } = req.body;
+  if (!email || !id) {
+    return res.status(400).json({ error: 'email and id are required' });
+  }
+
+  try {
+    db.prepare(`
+      UPDATE manager_notifications 
+      SET is_read = 1 
+      WHERE LOWER(manager_email) = LOWER(?) AND id = ? AND type IN ('mention', 'comment', 'message', 'like')
+    `).run(email.toLowerCase(), id);
 
     res.json({ success: true });
   } catch (err) {
@@ -4258,7 +4280,7 @@ app.post('/api/social/posts', async (req, res) => {
           try {
             const recent = db.prepare(`
               SELECT id FROM manager_notifications
-              WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND type = 'mention' AND is_read = 0
+              WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND type = 'mention'
             `).get(mentionedEmail, user_email);
             
             if (!recent) {
@@ -4327,10 +4349,16 @@ app.post('/api/social/comments', async (req, res) => {
       if (post && post.user_email.toLowerCase() !== user_email.toLowerCase()) {
         const commenterName = user_email.split('@')[0];
         const commentMsg = `${commenterName} commented on your post.`;
-        db.prepare('INSERT INTO manager_notifications (manager_email, reportee_email, message, type) VALUES (?, ?, ?, ?)')
-          .run(post.user_email.toLowerCase(), user_email.toLowerCase(), commentMsg, 'comment');
+        const recentComment = db.prepare(`
+          SELECT id FROM manager_notifications
+          WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?)
+            AND type = 'comment'
+        `).get(post.user_email.toLowerCase(), user_email.toLowerCase());
+        if (!recentComment) {
+          db.prepare('INSERT INTO manager_notifications (manager_email, reportee_email, message, type) VALUES (?, ?, ?, ?)')
+            .run(post.user_email.toLowerCase(), user_email.toLowerCase(), commentMsg, 'comment');
           
-        if (supabase) {
+          if (supabase) {
           try {
             const managerRow = await getUserByEmail(post.user_email);
             const reporteeRow = await getUserByEmail(user_email);
@@ -4353,6 +4381,7 @@ app.post('/api/social/comments', async (req, res) => {
             console.warn('Supabase comment notification sync failed:', sbNotifErr.message);
           }
         }
+        }
       }
     } catch (e) {
       console.warn('Comment notification error:', e.message);
@@ -4361,11 +4390,14 @@ app.post('/api/social/comments', async (req, res) => {
     if (comment_text) {
       const mentionedEmails = extractMentions(comment_text);
       for (const mentionedEmail of mentionedEmails) {
-        if (mentionedEmail !== user_email.toLowerCase()) {
+        // Skip if mentioned person is the commenter themselves OR the post owner (they already got a comment notification)
+        const postOwner = db.prepare('SELECT user_email FROM social_posts WHERE id = ?').get(post_id);
+        const postOwnerEmail = postOwner ? postOwner.user_email.toLowerCase() : '';
+        if (mentionedEmail !== user_email.toLowerCase() && mentionedEmail !== postOwnerEmail) {
           try {
             const recent = db.prepare(`
               SELECT id FROM manager_notifications
-              WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND type = 'mention' AND is_read = 0
+              WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?) AND type = 'mention'
             `).get(mentionedEmail, user_email);
             
             if (!recent) {
@@ -4430,8 +4462,7 @@ app.post('/api/social/likes', async (req, res) => {
           const recentLike = db.prepare(`
             SELECT id FROM manager_notifications
             WHERE LOWER(manager_email) = LOWER(?) AND LOWER(reportee_email) = LOWER(?)
-              AND type = 'like' AND is_read = 0
-              AND message LIKE '%liked your post%'
+              AND type = 'like'
           `).get(post.user_email.toLowerCase(), emailLower);
           
           if (!recentLike) {

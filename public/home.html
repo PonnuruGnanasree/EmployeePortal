@@ -1006,13 +1006,9 @@
 
     function toggleInstaWidget() {
       var container = document.getElementById('insta-widget-container');
-      var badge = document.querySelector('.insta-bubble-badge');
       instaWidgetOpen = !instaWidgetOpen;
       if (instaWidgetOpen) {
         container.style.display = 'flex';
-        if (badge) badge.style.display = 'none';
-        if (typeof markPostsAsSeen === 'function') markPostsAsSeen();
-        if (typeof markMentionsAsRead === 'function') markMentionsAsRead();
         if (typeof loadSocialFeed === 'function') loadSocialFeed();
       } else {
         container.style.display = 'none';
