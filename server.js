@@ -4141,79 +4141,26 @@ app.get('/api/social/feed', async (req, res) => {
   try {
     let posts = [];
     
-    if (supabase) {
-      try {
-        const { data: sbPosts, error: sbErr } = await supabase
-          .from('gantec_idea_hub_posts')
-          .select('*')
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: false });
-          
-        if (sbErr) throw sbErr;
-        
-        if (sbPosts) {
-          posts = sbPosts.map(p => ({
-            id: p.id,
-            user_email: p.user_email,
-            image_url: p.image_url,
-            caption: p.post_content,
-            created_at: p.created_at,
-            fullname: p.username,
-            profile_image: null,
-            likesCount: p.likes_count || 0,
-            comments_count: p.comments_count || 0,
-            likedBy: [],
-            comments: []
-          }));
-        }
-      } catch (sbFeedErr) {
-        console.warn('Supabase feed fetch failed, falling back to SQLite:', sbFeedErr.message);
-      }
-    }
+    // Always use SQLite as primary source for posts (most reliable for comments/likes)
+    posts = db.prepare(`
+      SELECT p.*, u.fullname, u.profile_image 
+      FROM social_posts p 
+      LEFT JOIN users u ON LOWER(p.user_email) = LOWER(u.email)
+      ORDER BY p.created_at DESC
+    `).all();
     
-    if (posts.length === 0) {
-      posts = db.prepare(`
-        SELECT p.*, u.fullname, u.profile_image 
-        FROM social_posts p 
-        LEFT JOIN users u ON LOWER(p.user_email) = LOWER(u.email)
-        ORDER BY p.created_at DESC
-      `).all();
+    for (let post of posts) {
+      post.comments = db.prepare(`
+        SELECT c.*, u.fullname as user_name 
+        FROM social_comments c 
+        LEFT JOIN users u ON LOWER(c.user_email) = LOWER(u.email)
+        WHERE c.post_id = ? 
+        ORDER BY c.created_at ASC
+      `).all(post.id);
       
-      for (let post of posts) {
-        post.comments = db.prepare(`
-          SELECT c.*, u.fullname as user_name 
-          FROM social_comments c 
-          LEFT JOIN users u ON LOWER(c.user_email) = LOWER(u.email)
-          WHERE c.post_id = ? 
-          ORDER BY c.created_at ASC
-        `).all(post.id);
-        
-        const likes = db.prepare('SELECT user_email FROM social_likes WHERE post_id = ?').all(post.id);
-        post.likedBy = likes.map(l => l.user_email.toLowerCase());
-        post.likesCount = post.likedBy.length;
-      }
-    } else {
-      for (let post of posts) {
-        try {
-          const userRow = await getUserByEmail(post.user_email);
-          if (userRow) {
-            post.fullname = userRow.fullname;
-            post.profile_image = userRow.profile_image;
-          }
-        } catch (errUser) {}
-        
-        post.comments = db.prepare(`
-          SELECT c.*, u.fullname as user_name 
-          FROM social_comments c 
-          LEFT JOIN users u ON LOWER(c.user_email) = LOWER(u.email)
-          WHERE c.post_id = ? 
-          ORDER BY c.created_at ASC
-        `).all(post.id);
-        
-        const likes = db.prepare('SELECT user_email FROM social_likes WHERE post_id = ?').all(post.id);
-        post.likedBy = likes.map(l => l.user_email.toLowerCase());
-        post.likesCount = post.likedBy.length;
-      }
+      const likes = db.prepare('SELECT user_email FROM social_likes WHERE post_id = ?').all(post.id);
+      post.likedBy = likes.map(l => l.user_email.toLowerCase());
+      post.likesCount = post.likedBy.length;
     }
     
     const stories = db.prepare(`
