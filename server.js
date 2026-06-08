@@ -380,7 +380,11 @@ try {
   const dupeEmails = db.prepare(`SELECT LOWER(email) as em, COUNT(*) as cnt FROM users GROUP BY LOWER(email) HAVING cnt > 1`).all();
   for (const d of dupeEmails) {
     const rows = db.prepare('SELECT id, email FROM users WHERE LOWER(email) = ? ORDER BY rowid ASC').all(d.em);
+    const keepId = rows[0].id;
     for (let i = 1; i < rows.length; i++) {
+      // Reassign orphaned documents/folders before deleting
+      db.prepare('UPDATE user_documents SET user_id = ? WHERE user_id = ?').run(keepId, rows[i].id);
+      db.prepare('UPDATE user_folders SET user_id = ? WHERE user_id = ?').run(keepId, rows[i].id);
       db.prepare('DELETE FROM users WHERE id = ?').run(rows[i].id);
     }
   }
@@ -468,34 +472,16 @@ const ADMIN_CONFIG_PATH = path.join(__dirname, 'config', 'admins.json');
 async function getAdminEmails() {
   let adminEmails = new Set();
   
-  // 1. Load from config file
+  // ONLY source of truth: config/admins.json
   try {
     if (fs.existsSync(ADMIN_CONFIG_PATH)) {
-      const config = await fs.readJson(ADMIN_CONFIG_PATH);
+      const config = JSON.parse(fs.readFileSync(ADMIN_CONFIG_PATH, 'utf-8'));
       if (config.admins && Array.isArray(config.admins)) {
         config.admins.forEach(email => adminEmails.add(email.toLowerCase().trim()));
       }
     }
   } catch (err) {
     console.error('Error reading admin config file:', err.message);
-  }
-
-  // 2. Load from Supabase (if available)
-  if (supabase) {
-    try {
-      const { data, error } = await supabase.from('admin_emails').select('email');
-      if (error) throw error;
-      if (data) {
-        data.forEach(row => adminEmails.add(row.email.toLowerCase().trim()));
-      }
-    } catch (err) {
-      // If the table does not exist, log debug and continue
-      if (err.message && err.message.includes('admin_emails')) {
-        console.debug('Supabase admin_emails table missing, skipping admin fetch.');
-      } else {
-        console.warn('Could not fetch admins from Supabase:', err.message);
-      }
-    }
   }
 
   return Array.from(adminEmails);
@@ -530,7 +516,7 @@ async function syncAdminEmails() {
   }
 }
 
-// Helper to check if email is admin
+// Helper to check if email is admin (ALWAYS reads fresh from admins.json)
 async function checkIsAdmin(email) {
   if (!email) return false;
   const normalizedEmail = email.toLowerCase().trim();
@@ -832,6 +818,14 @@ app.get('/api/auth/profile', optionalAuth, async (req, res) => {
 
     const isAdmin = await checkIsAdmin(user.email);
     const finalRole = isAdmin ? 'admin' : 'employee';
+
+    // Always sync role to DB so removal from admins.json takes effect immediately
+    if (user.role !== finalRole) {
+      db.prepare('UPDATE users SET role = ? WHERE LOWER(email) = LOWER(?)').run(finalRole, user.email);
+      if (supabase) {
+        supabase.from('users').update({ role: finalRole }).ilike('email', user.email).then(() => {});
+      }
+    }
 
     res.json({ success: true, user: { 
       fullname: user.fullname, 
@@ -1320,9 +1314,11 @@ app.get('/api/folders', async (req, res) => {
     if (Object.keys(foldersMap).length === 0) {
       await fs.ensureDir(UPLOADS_DIR);
       const folders = await getFoldersRecursive(UPLOADS_DIR, UPLOADS_DIR);
-      return res.json({ folders });
+      return res.json({ folders: folders.filter(f => f.name !== 'Weekly Connect') });
     }
     
+    // Exclude 'Weekly Connect' folder from Training Resources (it's managed by Weekly Connect page)
+    delete foldersMap['Weekly Connect'];
     res.json({ folders: Object.values(foldersMap) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -1761,9 +1757,10 @@ async function decryptFileToBuffer(filePath) {
   
   // Check if it's actually encrypted by looking for common headers in the IV spot
   const head = iv.toString('utf8');
+  const headHex = iv.slice(0, 4).toString('hex');
   const isUnencrypted = head.startsWith('%PDF') || 
                         head.startsWith('{') || 
-                        head.startsWith('PK\x03\x04') || 
+                        headHex === '504b0304' ||
                         head.startsWith('http') ||
                         head.startsWith('{\n') ||
                         head.startsWith('{"');
@@ -1799,9 +1796,10 @@ function serveDecryptedFile(filePath, res, filename) {
   fs.closeSync(fd);
 
   const head = buffer.toString('utf8');
+  const headHex = buffer.slice(0, 4).toString('hex');
   const isUnencrypted = head.startsWith('%PDF') || 
                         head.startsWith('{') || 
-                        head.startsWith('PK\x03\x04') || 
+                        headHex === '504b0304' ||
                         head.startsWith('http') ||
                         head.startsWith('{\n') ||
                         head.startsWith('{"');
@@ -2517,93 +2515,35 @@ app.post('/api/contact-hr', async (req, res) => {
       return res.status(400).json({ error: 'Name, email, and message are required.' });
     }
 
-    console.log(`\n📬 [NEW HR INQUIRY]`);
-    console.log(`From: ${name} (${email})`);
-    console.log(`Subject: ${subject || 'No Subject'}`);
-    console.log(`Message: ${message}`);
-    console.log(`-------------------\n`);
-
-    // Store in Supabase for tracking
-    if (supabase) {
-      try {
-        const { error } = await supabase.from('hr_queries').insert({
-          employee_name: name,
-          employee_email: email,
-          subject: subject || 'No Subject',
-          message: message,
-          status: 'pending',
-          created_at: new Date()
-        });
-        if (error) {
-          console.warn('HR query storage skipped (table may not exist):', error.message);
-        } else {
-          console.log('✅ HR query saved to cloud database.');
-        }
-      } catch (dbErr) {
-        console.warn('HR query DB error:', dbErr.message);
-      }
-    }
-
-    // Store in local SQLite as a secondary/primary tracking system
+    // Store in local SQLite FIRST (fast)
     try {
       db.prepare(`
         INSERT INTO hr_queries (employee_name, employee_email, subject, message, status)
         VALUES (?, ?, ?, ?, 'pending')
       `).run(name, email, subject || 'No Subject', message);
-      console.log('✅ HR query saved to local SQLite database.');
     } catch (dbLocalErr) {
       console.error('❌ Failed to save query to SQLite:', dbLocalErr.message);
+      return res.status(500).json({ error: 'Failed to save query' });
     }
 
-    // 3. Silent Email Forwarding if SMTP is configured
-    const recipientEmail = getDynamicEnv('HR_EMAIL', 'hemalatha.malem@gantecusa.com');
-    // DISABLED: User requested to handle queries via dashboard divs only
-    if (false && recipientEmail && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      try {
-        const mailOptions = {
-          from: `"HR Portal" <${process.env.SMTP_USER}>`,
-          to: recipientEmail,
-          replyTo: email,
-          subject: `[Contact HR Inquiry] ${escapeHtml(subject || 'No Subject')}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; padding: 24px; line-height: 1.6; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-              <h2 style="color: #2b6cb0; margin-top: 0; display: flex; align-items: center; gap: 8px;">📬 New HR Inquiry</h2>
-              <p style="color: #4a5568;">A new employee inquiry has been submitted via the Contact HR portal.</p>
-              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-              <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                <tr>
-                  <td style="padding: 8px 0; font-weight: bold; width: 120px; color: #4a5568;">Sender:</td>
-                  <td style="padding: 8px 0; color: #2d3748;">${escapeHtml(name)} (<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>)</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Subject:</td>
-                  <td style="padding: 8px 0; color: #2d3748;">${escapeHtml(subject || 'No Subject')}</td>
-                </tr>
-              </table>
-              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-              <p style="font-weight: bold; color: #4a5568; margin-bottom: 8px;">Message:</p>
-              <blockquote style="background: #f7fafc; padding: 16px; border-left: 4px solid #2b6cb0; margin: 0; border-radius: 4px; color: #2d3748; white-space: pre-wrap;">${escapeHtml(message)}</blockquote>
-              <p style="font-size: 0.8em; color: #a0aec0; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 16px;">This inquiry was dynamically logged and routed from Gantec Employee Portal.</p>
-            </div>
-          `
-        };
+    // Respond immediately
+    res.json({ success: true, message: 'Your query has been sent to HR successfully!' });
 
-        await transporter.sendMail(mailOptions);
-        console.log(`✅ HR email notification successfully forwarded to ${recipientEmail}!`);
-      } catch (mailErr) {
-        console.error('❌ Failed to forward HR email:', mailErr.message);
-      }
-    } else {
-      console.log(`ℹ️ [Email Dispatch] HR Inquiry logged securely. (SMTP not configured, skipped email transmission to ${recipientEmail})`);
+    // Background sync to Supabase (non-blocking)
+    if (supabase) {
+      supabase.from('hr_queries').insert({
+        employee_name: name,
+        employee_email: email,
+        subject: subject || 'No Subject',
+        message: message,
+        status: 'pending'
+      }).then(({ error }) => {
+        if (error) console.warn('HR query Supabase sync failed:', error.message);
+      });
     }
-
-    res.json({ 
-      success: true, 
-      message: 'Your query has been sent to HR successfully!'
-    });
   } catch (error) {
     console.error('Failed to process inquiry:', error);
-    res.status(500).json({ error: 'Failed to process inquiry' });
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to process inquiry' });
   }
 });
 
@@ -2615,23 +2555,7 @@ app.get('/api/hr/queries', async (req, res) => {
       return res.status(403).json({ error: 'Access Denied: You are not authorized to view HR inquiries.' });
     }
 
-    // 1. Fetch from Supabase if active
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('hr_queries')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (!error && data) {
-          return res.json(data);
-        }
-        console.warn('Supabase hr_queries fetch issue, falling back to SQLite:', error?.message);
-      } catch (err) {
-        console.warn('Supabase fetch failed, falling back to SQLite:', err.message);
-      }
-    }
-
-    // 2. Fetch from SQLite fallback
+    // Always read from SQLite (most up-to-date since writes go here first)
     const queries = db.prepare('SELECT * FROM hr_queries ORDER BY created_at DESC').all();
     res.json(queries);
   } catch (err) {
@@ -2684,16 +2608,12 @@ app.delete('/api/hr/queries/:id', async (req, res) => {
     }
 
     db.prepare('DELETE FROM hr_queries WHERE id = ?').run(id);
-
-    if (supabase) {
-      try {
-        await supabase.from('hr_queries').delete().eq('id', id);
-      } catch (err) {
-        console.error('Supabase delete error:', err.message);
-      }
-    }
-
     res.json({ success: true, message: 'HR query deleted successfully' });
+
+    // Background Supabase sync
+    if (supabase) {
+      supabase.from('hr_queries').delete().eq('id', id).then(() => {});
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2707,23 +2627,7 @@ app.get('/api/admin/support-tickets', async (req, res) => {
       return res.status(403).json({ error: 'Access Denied: You are not authorized to view support tickets.' });
     }
 
-    // 1. Fetch from Supabase if active
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('support_tickets')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (!error && data) {
-          return res.json(data);
-        }
-        console.warn('Supabase support_tickets fetch issue, falling back to SQLite:', error?.message);
-      } catch (err) {
-        console.warn('Supabase fetch failed, falling back to SQLite:', err.message);
-      }
-    }
-
-    // 2. Fetch from SQLite fallback
+    // Always read from SQLite (most up-to-date since writes go here first)
     const tickets = db.prepare('SELECT * FROM support_tickets ORDER BY created_at DESC').all();
     res.json(tickets);
   } catch (err) {
@@ -2776,16 +2680,12 @@ app.delete('/api/admin/support-tickets/:id', async (req, res) => {
     }
 
     db.prepare('DELETE FROM support_tickets WHERE id = ?').run(id);
-
-    if (supabase) {
-      try {
-        await supabase.from('support_tickets').delete().eq('id', id);
-      } catch (err) {
-        console.error('Supabase delete error:', err.message);
-      }
-    }
-
     res.json({ success: true, message: 'Support ticket deleted successfully' });
+
+    // Background Supabase sync
+    if (supabase) {
+      supabase.from('support_tickets').delete().eq('id', id).then(() => {});
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2800,101 +2700,31 @@ app.post('/api/employee-support/ticket', async (req, res) => {
       return res.status(400).json({ error: 'Name, email, subject, and description are required.' });
     }
 
-    console.log(`\n🎟️ [NEW SUPPORT TICKET]`);
-    console.log(`Category: ${category} | Priority: ${priority}`);
-    console.log(`From: ${name} (${email})`);
-    console.log(`Subject: ${subject}`);
-    console.log(`Description: ${description}`);
-    console.log(`------------------------\n`);
-
-    // 1. Store in SQLite database
+    // Store in SQLite FIRST (fast)
     try {
       db.prepare(`
         INSERT INTO support_tickets (name, email, category, priority, subject, description, status)
         VALUES (?, ?, ?, ?, ?, ?, 'pending')
       `).run(name, email, category, priority, subject, description);
-      console.log('✅ Support ticket saved to local SQLite database.');
     } catch (sqlErr) {
       console.error('❌ SQLite ticket storage error:', sqlErr.message);
+      return res.status(500).json({ error: 'Failed to save ticket' });
     }
 
-    // 2. Sync to Supabase if active
-    if (supabase) {
-      try {
-        const { error } = await supabase.from('support_tickets').insert({
-          name,
-          email,
-          category,
-          priority,
-          subject,
-          description,
-          status: 'pending',
-          created_at: new Date()
-        });
-        if (error) {
-          console.warn('Supabase support_tickets sync issue:', error.message);
-        } else {
-          console.log('✅ Support ticket synced to cloud database.');
-        }
-      } catch (dbErr) {
-        console.warn('Supabase support_tickets DB error:', dbErr.message);
-      }
-    }
-
-    // 3. Silent Email Forwarding if SMTP is configured
-    const recipientEmail = getDynamicEnv('SUPPORT_EMAIL', 'gnanasree.ponnuru@gantecusa.com');
-    // DISABLED: User requested to handle queries via dashboard divs only
-    if (false && recipientEmail && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      try {
-        const mailOptions = {
-          from: `"Support Portal" <${process.env.SMTP_USER}>`,
-          to: recipientEmail,
-          replyTo: email,
-          subject: `[Support Ticket] [${escapeHtml(category)}] [${escapeHtml(priority)} Priority] ${escapeHtml(subject)}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; padding: 24px; line-height: 1.6; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-              <h2 style="color: #2b6cb0; margin-top: 0; display: flex; align-items: center; gap: 8px;">🎟️ New Support Ticket</h2>
-              <p style="color: #4a5568;">A new support inquiry has been submitted via the Employee Support portal.</p>
-              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-              <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                <tr>
-                  <td style="padding: 8px 0; font-weight: bold; width: 120px; color: #4a5568;">Sender:</td>
-                  <td style="padding: 8px 0; color: #2d3748;">${escapeHtml(name)} (<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>)</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Category:</td>
-                  <td style="padding: 8px 0; color: #2d3748;">${escapeHtml(category)}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Priority:</td>
-                  <td style="padding: 8px 0; color: #2d3748;">${escapeHtml(priority)}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Subject:</td>
-                  <td style="padding: 8px 0; color: #2d3748;">${escapeHtml(subject)}</td>
-                </tr>
-              </table>
-              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-              <p style="font-weight: bold; color: #4a5568; margin-bottom: 8px;">Description:</p>
-              <blockquote style="background: #f7fafc; padding: 16px; border-left: 4px solid #2b6cb0; margin: 0; border-radius: 4px; color: #2d3748; white-space: pre-wrap;">${escapeHtml(description)}</blockquote>
-              <p style="font-size: 0.8em; color: #a0aec0; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 16px;">This inquiry was dynamically logged and routed from Gantec Employee Portal.</p>
-            </div>
-          `
-        };
-
-        await transporter.sendMail(mailOptions);
-        console.log(`✅ Support email notification successfully forwarded to ${recipientEmail}!`);
-      } catch (mailErr) {
-        console.error('❌ Failed to forward support email:', mailErr.message);
-      }
-    } else {
-      console.log(`ℹ️ [Email Dispatch] Support ticket logged securely. (SMTP not configured, skipped email transmission to ${recipientEmail})`);
-    }
-
+    // Respond immediately
     res.json({ success: true, message: 'Ticket submitted successfully!' });
+
+    // Background sync to Supabase (non-blocking)
+    if (supabase) {
+      supabase.from('support_tickets').insert({
+        name, email, category, priority, subject, description, status: 'pending'
+      }).then(({ error }) => {
+        if (error) console.warn('Support ticket Supabase sync failed:', error.message);
+      });
+    }
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to process support ticket' });
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to process support ticket' });
   }
 });
 
@@ -3748,7 +3578,11 @@ app.get('/api/sub-mails', async (req, res) => {
       if (!error && data) {
         data.forEach(item => {
           if (item.sub_email) {
-            emailToPeriod[item.sub_email.toLowerCase()] = item.period;
+            const key = item.sub_email.toLowerCase();
+            const existingMonths = emailToPeriod[key] ? emailToPeriod[key].split(',').map(m => m.trim()) : [];
+            const newMonths = item.period ? item.period.split(',').map(m => m.trim()) : [];
+            const merged = [...new Set([...existingMonths, ...newMonths])].filter(m => m);
+            emailToPeriod[key] = merged.join(',') || null;
           }
         });
       } else if (error) {
@@ -3760,7 +3594,12 @@ app.get('/api/sub-mails', async (req, res) => {
     const rows = db.prepare('SELECT sub_email, period FROM main_sub_mails WHERE main_email = ?').all(email.toLowerCase());
     rows.forEach(r => {
       if (r.sub_email) {
-        emailToPeriod[r.sub_email.toLowerCase()] = r.period || emailToPeriod[r.sub_email.toLowerCase()];
+        const key = r.sub_email.toLowerCase();
+        // Merge periods from both sources (comma-separated, no duplicates)
+        const existingMonths = emailToPeriod[key] ? emailToPeriod[key].split(',').map(m => m.trim()) : [];
+        const newMonths = r.period ? r.period.split(',').map(m => m.trim()) : [];
+        const merged = [...new Set([...existingMonths, ...newMonths])].filter(m => m);
+        emailToPeriod[key] = merged.join(',') || null;
       }
     });
     
@@ -3818,11 +3657,30 @@ app.post('/api/sub-mails', async (req, res) => {
     return res.status(400).json({ error: 'main_email and sub_email are required' });
   }
 
-  const targetPeriod = period || month;
-  const id = uuidv4();
+  const targetPeriod = period || month || null;
   const created_at = new Date();
 
   try {
+    // Check if this main_email + sub_email combo already exists
+    const existing = db.prepare('SELECT id, period FROM main_sub_mails WHERE LOWER(main_email) = LOWER(?) AND LOWER(sub_email) = LOWER(?)').get(main_email, sub_email);
+
+    if (existing) {
+      // Append new month to existing period (comma-separated, no duplicates)
+      const existingMonths = existing.period ? existing.period.split(',').map(m => m.trim()) : [];
+      if (targetPeriod && !existingMonths.includes(targetPeriod)) {
+        existingMonths.push(targetPeriod);
+      }
+      const updatedPeriod = existingMonths.join(',');
+      db.prepare('UPDATE main_sub_mails SET period = ? WHERE id = ?').run(updatedPeriod, existing.id);
+      if (supabase) {
+        try { await supabase.from('main_sub_mails').update({ period: updatedPeriod }).eq('id', existing.id); } catch (e) { console.warn('Supabase period update failed:', e.message); }
+      }
+      return res.json({ success: true, message: targetPeriod ? `Month "${targetPeriod}" added for ${sub_email}` : 'Reportee already linked' });
+    }
+
+    // New entry
+    const id = uuidv4();
+
     if (supabase) {
       const { error } = await supabase
         .from('main_sub_mails')
@@ -4647,6 +4505,18 @@ const server = app.listen(PORT, async () => {
   
   // Trigger initial scan to sync local folders with Supabase
   try {
+    // Auto-cleanup: Remove ghost records (DB entries with no file on disk)
+    const allDocs = db.prepare('SELECT id, folder, filename FROM public_documents').all();
+    let ghostsRemoved = 0;
+    for (const d of allDocs) {
+      const filePath = path.join(UPLOADS_DIR, d.folder, d.filename);
+      if (!fs.existsSync(filePath)) {
+        db.prepare('DELETE FROM public_documents WHERE id = ?').run(d.id);
+        ghostsRemoved++;
+      }
+    }
+    if (ghostsRemoved > 0) console.log(`🧹 Cleaned ${ghostsRemoved} ghost record(s) from public_documents.`);
+
     const folders = await getFoldersRecursive(UPLOADS_DIR, UPLOADS_DIR);
     console.log(`✅ Startup Sync Complete: Found ${folders.length} folders.`);
   } catch (err) {

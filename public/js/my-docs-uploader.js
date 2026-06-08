@@ -208,18 +208,11 @@ function renderFoldersSidebar() {
 }
 
 function selectFolder(name, btn) {
-  const isAlreadySelected = (selectedFolder === name);
   document.querySelectorAll('.folder-option').forEach(b => b.classList.remove('selected'));
-  if (isAlreadySelected) {
-    selectedFolder = null;
-    selectedFolderName.textContent = 'None';
-    if (createSubfolderBtn) createSubfolderBtn.disabled = true;
-  } else {
-    btn.classList.add('selected');
-    selectedFolder = name;
-    selectedFolderName.textContent = name;
-    if (createSubfolderBtn) createSubfolderBtn.disabled = !name;
-  }
+  btn.classList.add('selected');
+  selectedFolder = name;
+  selectedFolderName.textContent = name;
+  if (createSubfolderBtn) createSubfolderBtn.disabled = !name;
 }
 
 folderList.addEventListener('click', e => {
@@ -280,7 +273,7 @@ async function createSidebarFolder(mode) {
 
 createFolderBtn.addEventListener('click', () => createSidebarFolder('main'));
 createSubfolderBtn?.addEventListener('click', () => createSidebarFolder('sub'));
-newFolderInput.addEventListener('keydown', e => { if (e.key === 'Enter') createSidebarFolder('main'); });
+newFolderInput.addEventListener('keydown', e => { if (e.key === 'Enter') createSidebarFolder(selectedFolder ? 'sub' : 'main'); });
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DROP ZONE

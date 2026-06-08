@@ -275,6 +275,10 @@
       color: white;
       border-color: var(--primary);
     }
+
+    .hidden {
+      display: none !important;
+    }
   </style>
 </head>
 
@@ -996,6 +1000,10 @@
       if (ext === 'pdf' || ext === 'txt' || ext === 'html') {
         viewerIframe.src = url;
         viewerIframe.classList.remove('hidden');
+        viewerIframe.onerror = () => {
+          viewerIframe.classList.add('hidden');
+          window.open(url, '_blank');
+        };
       } else if (ext === 'docx') {
         viewerFallback.classList.remove('hidden');
         viewerFallback.innerHTML = `
@@ -1045,7 +1053,13 @@
     window.renderDocx = async (url) => {
       try {
         const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error('File not found or could not be retrieved from server.');
+        }
         const arrayBuffer = await response.arrayBuffer();
+        if (!arrayBuffer || arrayBuffer.byteLength < 100) {
+          throw new Error('File is empty or corrupted.');
+        }
         const result = await mammoth.convertToHtml({ arrayBuffer });
 
         // Setup viewerFallback as a forced absolute scroll container

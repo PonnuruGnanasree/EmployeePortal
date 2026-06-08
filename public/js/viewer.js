@@ -145,104 +145,142 @@ function renderSidebar() {
 
 
 
+function buildTree(folders) {
+  const root = { children: {} };
+  if (!folders || !Array.isArray(folders)) return root;
+  folders.forEach(f => {
+    if (!f || !f.name) return;
+    const parts = f.name.split('/');
+    let current = root;
+    parts.forEach((part, i) => {
+      if (!part) return;
+      if (!current.children[part]) {
+        current.children[part] = {
+          name: part,
+          fullPath: parts.slice(0, i + 1).join('/'),
+          files: [],
+          children: {}
+        };
+      }
+      current = current.children[part];
+    });
+    current.files = f.files || [];
+  });
+  return root;
+}
+
 function renderDropdown() {
   if (!dropdownList) return;
   dropdownList.innerHTML = '';
-  
-  // "All Materials" option
-  const totalFiles = allFolders.reduce((sum, f) => sum + (f.files ? f.files.length : 0), 0);
-  const allItem = document.createElement('li');
-  allItem.className = `dropdown-item ${activeFolder === '__all__' ? 'active' : ''}`;
-  allItem.innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron-icon" style="opacity:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="folder-icon"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-    <span class="folder-name">All Materials</span>
-    <span class="file-count">${totalFiles}</span>
-  `;
-  // Removed click listener from All Materials to maintain pure visibility behavior
-  allItem.addEventListener('click', (e) => {
-    e.stopPropagation();
-  });
-  dropdownList.appendChild(allItem);
 
-  // Individual Folders
-  allFolders.forEach(folder => {
-    const isExpanded = expandedFolders.has(folder.name);
-    
-    // Folder Header
-    const folderHeader = document.createElement('li');
-    folderHeader.className = `dropdown-item folder-header ${activeFolder === folder.name ? 'active' : ''}`;
-    folderHeader.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron-icon ${isExpanded ? 'expanded' : ''}" style="transition: transform 0.2s; ${isExpanded ? 'transform: rotate(90deg);' : ''}"><polyline points="9 18 15 12 9 6"></polyline></svg>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="folder-icon"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-      <span class="folder-name">${escapeHTML(folder.name)}</span>
-      <div class="item-right-actions">
-        <span class="file-count">${folder.files ? folder.files.length : 0}</span>
-        ${(localStorage.getItem('gantec_user_role') === 'admin') ? `
-        <button class="delete-folder-btn" title="Delete Folder">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+  const tree = buildTree(allFolders);
+  buildDropdownTree(tree, dropdownList, 0);
+}
+
+function buildDropdownTree(node, container, level) {
+  const sortedChildren = Object.values(node.children).sort((a, b) => a.name.localeCompare(b.name));
+
+  sortedChildren.forEach(child => {
+    const hasChildren = Object.keys(child.children).length > 0;
+    const hasFiles = child.files && child.files.length > 0;
+    const isExpanded = expandedFolders.has(child.fullPath);
+    const canExpand = hasChildren || hasFiles;
+    const currentUserEmail = (localStorage.getItem('gantec_user_email') || '').toLowerCase();
+    const isAdmin = localStorage.getItem('gantec_user_role') === 'admin';
+
+    const wrap = document.createElement('li');
+    wrap.className = 'dropdown-item-wrap';
+
+    // Folder row
+    const row = document.createElement('div');
+    row.className = 'dropdown-item folder-header';
+    row.style.paddingLeft = `${(level * 20) + 12}px`;
+
+    row.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron-icon" style="width:14px; height:14px; flex-shrink:0; transition: transform 0.2s; transform: ${isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'}; opacity: ${canExpand ? '1' : '0.15'}; pointer-events: ${canExpand ? 'auto' : 'none'}; cursor: pointer;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="folder-icon" style="width:16px; height:16px; margin-right:8px; flex-shrink:0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <span class="folder-name" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHTML(child.name)}</span>
+      <div class="item-right-actions" style="display:flex; align-items:center; gap:6px;">
+        ${hasFiles ? `<span class="file-count">${child.files.length}</span>` : ''}
+        ${isAdmin ? `
+        <button class="delete-folder-btn" title="Delete Folder" style="padding:4px; background:none; border:none; cursor:pointer; color:var(--text-muted); opacity:0.7;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px; height:14px;">
             <path d="M3 6h18"></path>
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
           </svg>
         </button>` : ''}
       </div>
     `;
-    
-    // Toggle expansion on chevron click OR folder click
-    folderHeader.addEventListener('click', (e) => {
-      e.stopPropagation(); // Prevent dropdown from closing on document click
-      if (e.target.closest('.delete-folder-btn')) return;
-      
-      if (isExpanded) {
-        expandedFolders.delete(folder.name);
-      } else {
-        expandedFolders.add(folder.name);
+
+    // Click to expand/collapse
+    row.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (e.target.closest('.delete-folder-btn')) {
+        confirmDeleteFolder(child.fullPath);
+        return;
       }
-      renderDropdown(); // Only re-render dropdown for visibility, no navigation
+      if (!canExpand) return;
+      if (isExpanded) {
+        expandedFolders.delete(child.fullPath);
+      } else {
+        expandedFolders.add(child.fullPath);
+      }
+      renderDropdown();
     });
 
-    if (folderHeader.querySelector('.delete-folder-btn')) {
-      folderHeader.querySelector('.delete-folder-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        confirmDeleteFolder(folder.name);
-      });
-    }
+    wrap.appendChild(row);
 
-    dropdownList.appendChild(folderHeader);
+    // Children container (subfolders + files)
+    if (isExpanded && canExpand) {
+      const childrenContainer = document.createElement('div');
+      childrenContainer.className = 'tree-children';
 
-    // Files in this folder (only if expanded)
-    if (isExpanded && folder.files && folder.files.length > 0) {
-      folder.files.forEach(file => {
-        const fileItem = document.createElement('li');
-        fileItem.className = 'dropdown-item file-item';
-        fileItem.innerHTML = `
-          <div style="width: 24px; flex-shrink: 0;"></div>
-          <span style="margin-right: 12px; display: flex; align-items: center;">${getFileIconHtml(file.name, 20)}</span>
-          <span class="file-name" style="cursor: default; user-select: none;">${escapeHTML(file.name)}</span>
-          ${((file.uploader_email && file.uploader_email.toLowerCase() === localStorage.getItem('gantec_user_email')?.toLowerCase()) || localStorage.getItem('gantec_user_role') === 'admin') ? `
-          <button class="delete-file-btn" title="Delete File">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
-              <path d="M3 6h18"></path>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+      // Render files
+      if (hasFiles) {
+        child.files.forEach(file => {
+          const fileRow = document.createElement('div');
+          fileRow.className = 'dropdown-item file-item';
+          fileRow.style.paddingLeft = `${((level + 1) * 20) + 12}px`;
+
+          const isOwner = (file.uploader_email && file.uploader_email.toLowerCase() === currentUserEmail) || isAdmin;
+
+          fileRow.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; margin-right:8px; opacity:0.5; flex-shrink:0;">
+              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+              <polyline points="13 2 13 9 20 9"></polyline>
             </svg>
-          </button>` : ''}
-        `;
-        
-        fileItem.addEventListener('click', (e) => {
-          e.stopPropagation(); // Prevent dropdown from closing and avoid any unintended bubbling
+            <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.8rem; opacity:0.7;">${escapeHTML(file.name)}</span>
+            ${isOwner ? `
+            <button class="delete-file-btn" title="Delete File" style="padding:4px; background:none; border:none; cursor:pointer; color:var(--text-muted); opacity:0.6; flex-shrink:0;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px; height:12px;">
+                <path d="M3 6h18"></path>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>` : ''}
+          `;
+
+          fileRow.addEventListener('click', (e) => e.stopPropagation());
+
+          if (fileRow.querySelector('.delete-file-btn')) {
+            fileRow.querySelector('.delete-file-btn').addEventListener('click', (e) => {
+              e.stopPropagation();
+              confirmDelete(child.fullPath, file.name, file.uploader_email, file.name);
+            });
+          }
+
+          childrenContainer.appendChild(fileRow);
         });
+      }
 
-        if (fileItem.querySelector('.delete-file-btn')) {
-          fileItem.querySelector('.delete-file-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            confirmDelete(folder.name, file.name, file.uploader_email);
-          });
-        }
+      // Render subfolders recursively
+      if (hasChildren) {
+        buildDropdownTree(child, childrenContainer, level + 1);
+      }
 
-        // Removed click listener that opened PDF or filtered view
-        dropdownList.appendChild(fileItem);
-      });
+      wrap.appendChild(childrenContainer);
     }
+
+    container.appendChild(wrap);
   });
 }
 
@@ -360,26 +398,26 @@ function buildGridCard(doc) {
     try {
       const url = getFileUrl(doc.folder, doc.hashedName || doc.path || doc.name);
       const res = await fetch(url);
-      if (!res.ok) throw new Error('Failed to fetch link data');
+      if (!res.ok) {
+        showToast('Video link not available on server', 'error');
+        return;
+      }
       const text = await res.text();
+      let finalUrl = null;
       try {
         const data = JSON.parse(text);
-        const finalUrl = data.url || data.link || (typeof data === 'string' ? data : null);
-        if (finalUrl && finalUrl.startsWith('http')) {
-          window.open(finalUrl, '_blank');
-        }
+        finalUrl = data.url || data.link || null;
       } catch (err) {
-        if (text.trim().startsWith('http')) {
-          window.open(text.trim(), '_blank');
-        }
+        if (text.trim().startsWith('http')) finalUrl = text.trim();
       }
-    } catch (err) { 
+      if (finalUrl && finalUrl.startsWith('http')) {
+        window.open(finalUrl, '_blank');
+      } else {
+        showToast('Could not extract video URL', 'error');
+      }
+    } catch (err) {
       console.error('YouTube redirect failed', err);
-      // Fallback: if it's a known link, just try to open it
-      if (doc.name.toLowerCase().includes('youtube.com') || doc.name.toLowerCase().includes('youtu.be')) {
-        const query = encodeURIComponent(doc.name);
-        window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
-      }
+      showToast('Failed to open video link', 'error');
     }
   };
 
@@ -592,13 +630,34 @@ function openPdf(folder, diskFilename, displayName, isUserDoc = false) {
     }, 50);
 
   } else if (isNative) {
-    // Native browser support
-    pdfIframe.src = url;
-    pdfIframe.onerror = () => {
-      pdfIframe.classList.add('hidden');
-      previewFallback.classList.remove('hidden');
-      previewFallback.innerHTML = `<div style="padding:40px;text-align:center;"><h3>Failed to load preview</h3><p>This file might be too large or not supported for direct viewing.</p></div>`;
-    };
+    // Native browser support — verify file exists before loading in iframe
+    pdfIframe.classList.add('hidden');
+    previewFallback.classList.remove('hidden');
+    previewFallback.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);"><div class="animate-pulse" style="font-size:1.5rem;">Loading document...</div></div>`;
+    
+    fetch(url, { method: 'HEAD' }).then(headRes => {
+      if (!headRes.ok) {
+        previewFallback.innerHTML = `
+          <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+            <div style="font-size: 48px; margin-bottom: 20px;">📂</div>
+            <h3 style="color: var(--text-primary); margin-bottom: 10px;">Document Unavailable</h3>
+            <p style="max-width: 400px; margin: 0 auto;">This file is not currently available on the server. It may have been deleted or not yet synced from cloud storage.</p>
+          </div>
+        `;
+        return;
+      }
+      previewFallback.classList.add('hidden');
+      pdfIframe.classList.remove('hidden');
+      pdfIframe.src = url;
+    }).catch(() => {
+      previewFallback.innerHTML = `
+        <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+          <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+          <h3 style="color: var(--text-primary); margin-bottom: 10px;">Could not load document</h3>
+          <p>Please check your connection and try again.</p>
+        </div>
+      `;
+    });
   } else if (isOffice) {
     // Attempt local rendering first for high-end "details" feel
     const iconHtml = getFileIconHtml(displayName, 24, isYt ? 'link' : 'file', diskFilename);
@@ -631,7 +690,16 @@ async function renderLocalDoc(url, filename, ext, icon) {
 
   try {
     const response = await fetch(url);
-    if (!response.ok) throw new Error('File fetch failed');
+    if (!response.ok) {
+      previewFallback.innerHTML = `
+        <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+          <div style="font-size: 48px; margin-bottom: 20px;">📂</div>
+          <h3 style="color: var(--text-primary); margin-bottom: 10px;">Document Unavailable</h3>
+          <p style="max-width: 400px; margin: 0 auto;">This file is not currently available on the server. It may have been deleted or not yet synced from cloud storage.</p>
+        </div>
+      `;
+      return;
+    }
     const arrayBuffer = await response.arrayBuffer();
 
     if (ext === 'docx') {

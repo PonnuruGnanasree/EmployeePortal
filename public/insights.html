@@ -524,8 +524,7 @@
 
             const initials = name.split(' ').map(part => part[0]).join('').toUpperCase().slice(0, 2);
 
-            const card = document.createElement('a');
-            card.href = `monthly-feedback.html?email=${encodeURIComponent(email)}`;
+            const card = document.createElement('div');
             card.className = 'sub-mail-directory-card';
 
             let avatarHtml = `<div class="sub-mail-avatar">${initials}</div>`;
@@ -542,7 +541,7 @@
               <div class="sub-mail-info">
                 <span class="sub-mail-name">${name}</span>
                 <span class="sub-mail-email">${email}</span>
-                ${period ? `<span class="sub-mail-period" style="font-size: 0.75rem; color: #a855f7; font-weight: 700; margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; background: rgba(168, 85, 247, 0.1); padding: 2px 8px; border-radius: 20px; width: fit-content;">📅 ${period}</span>` : ''}
+                ${period ? `<div class="sub-mail-months" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">${period.split(',').map(m => m.trim()).filter(m => m).map(m => `<a href="monthly-feedback.html?email=${encodeURIComponent(email)}&period=${encodeURIComponent(m)}" onclick="event.stopPropagation();" class="month-chip" style="font-size: 0.7rem; color: #a855f7; font-weight: 700; background: rgba(168, 85, 247, 0.1); padding: 3px 10px; border-radius: 20px; text-decoration: none; cursor: pointer; transition: all 0.2s;">${m}</a>`).join('')}</div>` : ''}
               </div>
               <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
                 <button class="link-sub-btn" onclick="openShareReporteeModal(event, '${email}')" title="Link to Another Manager">
@@ -692,29 +691,11 @@
             <div class="confirm-body">
               <h3 style="font-size: 1.4rem; margin-bottom: 8px;">Add New Reportee</h3>
               <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">
-                Enter the employee email and select the month they are being added for.
+                Enter the employee email to add them as your reportee.
               </p>
-              <div style="text-align: left; margin-bottom: 16px;">
+              <div style="text-align: left; margin-bottom: 24px;">
                 <label for="modal-sub-email" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 8px;">Employee Email</label>
                 <input type="email" id="modal-sub-email" class="add-input" placeholder="e.g. employee@gantecusa.com" style="width: 100%; box-sizing: border-box; padding: 12px 16px; border-radius: 12px;" />
-              </div>
-              <div style="text-align: left; margin-bottom: 24px;">
-                <label for="modal-sub-month" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 8px;">📅 Month Added For</label>
-                <select id="modal-sub-month" class="add-input" style="width: 100%; box-sizing: border-box; padding: 12px 16px; border-radius: 12px; appearance: none; cursor: pointer; background: white;">
-                  <option value="">-- Select Month --</option>
-                  <option value="January">January</option>
-                  <option value="February">February</option>
-                  <option value="March">March</option>
-                  <option value="April">April</option>
-                  <option value="May">May</option>
-                  <option value="June">June</option>
-                  <option value="July">July</option>
-                  <option value="August">August</option>
-                  <option value="September">September</option>
-                  <option value="October">October</option>
-                  <option value="November">November</option>
-                  <option value="December">December</option>
-                </select>
               </div>
             </div>
             <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -736,12 +717,6 @@
 
       const input = document.getElementById('modal-sub-email');
       if (input) input.value = '';
-      const monthSelect = document.getElementById('modal-sub-month');
-      if (monthSelect) {
-        // Default to current month
-        const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-        monthSelect.value = currentMonth;
-      }
 
       setTimeout(() => {
         modal.classList.add('active');
@@ -760,16 +735,9 @@
       const input = document.getElementById('modal-sub-email');
       if (!input) return;
       const subEmail = input.value.trim();
-      const monthSelect = document.getElementById('modal-sub-month');
-      const selectedMonth = monthSelect ? monthSelect.value : '';
 
       if (!subEmail) {
         showToast('Please enter a valid email address', 'error');
-        return;
-      }
-      if (!selectedMonth) {
-        showToast('Please select the month for this reportee', 'error');
-        if (monthSelect) monthSelect.focus();
         return;
       }
 
@@ -779,17 +747,14 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             main_email: mainUserEmail,
-            sub_email: subEmail,
-            period: selectedMonth,
-            month: selectedMonth
+            sub_email: subEmail
           })
         });
 
         const data = await res.json();
         if (data.success) {
-          showToast(`✅ ${subEmail} added as reportee for ${selectedMonth}!`, 'success');
+          showToast(`✅ ${subEmail} added as reportee!`, 'success');
           input.value = '';
-          if (monthSelect) monthSelect.value = '';
           closeAddReporteeModal();
           loadSubMailsList();
         } else {

@@ -575,8 +575,7 @@
 
       // Sort people by number of certificates (highest first) and show only top 3
       const sortedPeople = Object.entries(personCerts)
-        .sort((a, b) => b[1].length - a[1].length)
-        .slice(0, 3);
+        .sort((a, b) => b[1].length - a[1].length);
 
       sortedPeople.forEach(([name, certs]) => {
         const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);

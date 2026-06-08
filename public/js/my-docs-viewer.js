@@ -646,4 +646,4 @@ document.addEventListener('DOMContentLoaded', () => {
   // initSidebarToggle removed (handled in app.js)
 });
 
-setInterval(() => { if (getMyEmail()) loadFolders(); }, 30000);
+setInterval(() => { if (getMyEmail() && !document.querySelector('.rename-input-inline')) loadFolders(); }, 30000);

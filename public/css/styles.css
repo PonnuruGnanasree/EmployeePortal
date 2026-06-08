@@ -2362,6 +2362,10 @@ svg {
   animation: fadeIn 0.2s ease;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .modal-overlay.hidden {
   display: none !important;
 }
