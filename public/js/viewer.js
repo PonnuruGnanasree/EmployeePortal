@@ -1234,14 +1234,6 @@ document.addEventListener('DOMContentLoaded', () => {
       window.location.href = 'uploader.html';
     });
   }
-
-  // Create button redirect to uploader.html
-  const createBtn = document.getElementById('create-folder-btn');
-  if (createBtn) {
-    createBtn.addEventListener('click', () => {
-      window.location.href = 'uploader.html';
-    });
-  }
 });
 
 // Refresh every 30s in case files are uploaded from another tab
